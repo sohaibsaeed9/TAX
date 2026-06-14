@@ -213,18 +213,37 @@ async function verifyClientLoaded(expectedNtn, maxAttempts = 3) {
 
 // ─── Section Tabs ─────────────────────────────────────────────────────────────
 
+// Confirmed CSS selectors from IRIS DOM inspection
+const SECTION_CSS = {
+  'Inbox':           'a.inbox',
+  'Draft':           'a.ng-tns-c178-2:not(.inbox):not(.left):not(.completed_tasks)',
+  'Outbox':          'a.left',
+  'Completed Tasks': 'a.completed_tasks'
+};
+
 const SECTION_LABELS = {
   'Inbox': ['inbox'],
-  'Draft': ['draft'],
-  'Outbox': ['outbox'],
-  'Completed Tasks': ['completed', 'completed tasks']
+  'Draft': ['draft', 'unsubmitted'],
+  'Outbox': ['outbox', 'awaiting'],
+  'Completed Tasks': ['completed']
 };
 
 async function clickSectionTab(section) {
-  const keywords = SECTION_LABELS[section] || [section.toLowerCase()];
-
-  // Wait for the section tabs to be visible (they may not render immediately after filter)
   await wait(T_M);
+
+  // Try confirmed CSS selector first
+  const cssSelector = SECTION_CSS[section];
+  if (cssSelector) {
+    const el = document.querySelector(cssSelector);
+    if (el && el.offsetParent !== null) {
+      log('info', `  Clicking section tab via CSS: "${el.textContent.trim().substring(0, 40)}"`);
+      el.click();
+      await wait(T_L);
+      return;
+    }
+  }
+
+  const keywords = SECTION_LABELS[section] || [section.toLowerCase()];
 
   // Search all clickable elements — pick shortest text match that contains keyword
   const candidates = Array.from(document.querySelectorAll('a, button, li, div[onclick], span[onclick]'));
@@ -270,12 +289,13 @@ async function clickSectionTab(section) {
 
 function readCategories() {
   const categories = [];
-  const tabEls = document.querySelectorAll('[role="tab"], .category-tab, li[class*="tab"]');
 
+  // Confirmed: category tabs are button.btn elements with text "CATEGORY NAME (COUNT)"
+  const tabEls = document.querySelectorAll('button.btn');
   for (const el of tabEls) {
     const text = el.textContent.trim();
     const match = text.match(/^(.+?)\s*\((\d+)\)$/);
-    if (match) {
+    if (match && el.offsetParent !== null) {
       categories.push({
         label: match[1].trim().toUpperCase(),
         count: parseInt(match[2], 10),
@@ -284,15 +304,15 @@ function readCategories() {
     }
   }
 
-  // If no tabs with counts found, try a broader approach
+  // Fallback: search all elements
   if (categories.length === 0) {
     const allEls = document.querySelectorAll('a, button, li, span, div');
     for (const el of allEls) {
       const text = el.textContent.trim();
-      const match = text.match(/^([A-Z][A-Z\s\/]+[A-Z])\s*\((\d+)\)$/);
-      if (match && !categories.find(c => c.label === match[1].trim())) {
+      const match = text.match(/^([A-Z\s\/]+)\s*\((\d+)\)$/);
+      if (match && el.offsetParent !== null && !categories.find(c => c.label === match[1].trim())) {
         categories.push({
-          label: match[1].trim(),
+          label: match[1].trim().toUpperCase(),
           count: parseInt(match[2], 10),
           element: el
         });
