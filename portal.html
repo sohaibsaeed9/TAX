@@ -1599,6 +1599,8 @@ function renderClients(){
     var sl=pg.querySelector("#stat-late");       if(sl) sl.textContent=nLate;
     var su=pg.querySelector("#stat-unverified"); if(su) su.textContent=nUnverified;
     var st=pg.querySelector("#stat-total");      if(st) st.textContent=ALL_CLIENTS.length;
+    var sub=pg.querySelector("#clients-page-sub");
+    if(sub){ var d=new Date(); sub.textContent=ALL_CLIENTS.length+" clients \u2014 As of "+d.toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}); }
   }
 
   var filtered=ALL_CLIENTS.filter(function(c,idx){
@@ -2132,6 +2134,8 @@ function renderClients(){
     var sl2=pg2.querySelector("#stat-late");        if(sl2) sl2.textContent=nLate;
     var su2=pg2.querySelector("#stat-unverified");  if(su2) su2.textContent=nUnverified;
     var st2=pg2.querySelector("#stat-total");       if(st2) st2.textContent=ALL_CLIENTS.length;
+    var sub2=pg2.querySelector("#clients-page-sub");
+    if(sub2){ var d2=new Date(); sub2.textContent=ALL_CLIENTS.length+" clients \u2014 As of "+d2.toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}); }
   }
 
   var filtered=[];
@@ -4049,7 +4053,7 @@ function showStatusBanner(updated, skipped, notFound, filename){
 <div id="tpl-clients" style="display:none">
   <div class="page-header">
     <div class="page-title">Client Index</div>
-    <div class="page-sub">473 clients &mdash; As of 29 May 2026</div>
+    <div class="page-sub" id="clients-page-sub">473 clients &mdash; As of 29 May 2026</div>
   </div>
   <div class="client-stats">
     <div class="cstat"><div class="cstat-val" id="stat-total">473</div><div class="cstat-label">Total</div></div>
