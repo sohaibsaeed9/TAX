@@ -169,10 +169,10 @@ async function verifyClientLoaded(expectedNtn, maxAttempts = 3) {
 
 // ─── Section Tabs ─────────────────────────────────────────────────────────────
 
-// Confirmed CSS selectors from IRIS DOM inspection
+// Confirmed CSS selectors from IRIS DOM inspection (June 2026)
 const SECTION_CSS = {
   'Inbox':           'a.inbox',
-  'Draft':           'a.ng-tns-c178-2:not(.inbox):not(.left):not(.completed_tasks)',
+  'Draft':           'a.draft',
   'Outbox':          'a.left',
   'Completed Tasks': 'a.completed_tasks'
 };
@@ -299,7 +299,8 @@ async function clickCategoryTab(categoryLabel) {
 
 function parseNoticeRows() {
   const rows = [];
-  const table = document.querySelector('table.ui-datatable-data, table[class*="notice"], .ui-datatable table, table');
+  // Confirmed table selector from DOM inspection
+  const table = document.querySelector('table.table-striped') || document.querySelector('table');
   if (!table) return rows;
 
   const trs = table.querySelectorAll('tbody tr');
