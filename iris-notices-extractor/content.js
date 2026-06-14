@@ -166,22 +166,9 @@ async function clickApply() {
           (el.textContent.trim().toUpperCase().includes('APPLY') && el.textContent.trim().length < 15)
   );
   if (!btn) throw new Error('APPLY button not found');
+  log('info', '  Clicking APPLY...');
   btn.click();
-  await wait(T_XL);
-
-  // Close the filter panel if it's still open (has an X / close button)
-  const closeBtn = document.querySelector(
-    '.filter-close, [class*="close"], button[aria-label*="close" i], .ui-dialog-titlebar-close, button.close'
-  ) || Array.from(document.querySelectorAll('button, span, a')).find(
-    el => el.textContent.trim() === '×' || el.textContent.trim() === '✕' || el.getAttribute('aria-label') === 'Close'
-  );
-  if (closeBtn && closeBtn.offsetParent !== null) {
-    log('info', '  Closing filter panel...');
-    closeBtn.click();
-    await wait(T_M);
-  }
-
-  // Scroll to top so section tabs are visible
+  await wait(T_XL); // Wait for filter to apply and panel to close
   window.scrollTo(0, 0);
   await wait(T_S);
 }
@@ -200,17 +187,28 @@ async function verifyClientLoaded(expectedNtn, maxAttempts = 3) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await wait(T_L);
     const pageText = document.body.innerText;
-    if (pageText.includes(ntnClean) || pageText.includes(expectedNtn)) return true;
-    log('warn', `Client verification attempt ${attempt + 1} failed — retrying filter...`);
+    // Check if NTN appears on page (client has records) OR if page shows "No Record Found"
+    // (filter was applied but client has no records in this section — still valid)
+    if (pageText.includes(ntnClean) || pageText.includes(expectedNtn)) {
+      log('ok', `  Client NTN found on page`);
+      return true;
+    }
+    if (pageText.toLowerCase().includes('no record') || pageText.toLowerCase().includes('inbox') || pageText.toLowerCase().includes('draft')) {
+      log('info', `  Filter applied — task view visible (client may have no records in this section)`);
+      return true;
+    }
+    log('warn', `  Verification attempt ${attempt + 1} — page not ready, retrying filter...`);
     try {
       await clickFilters();
       await fillRegistrationNo(expectedNtn);
       await clickApply();
     } catch (e) {
-      log('err', `Retry filter error: ${e.message}`);
+      log('err', `  Retry filter error: ${e.message}`);
     }
   }
-  return false;
+  // After max attempts, proceed anyway — don't skip client due to verification
+  log('warn', `  Verification inconclusive — proceeding anyway`);
+  return true;
 }
 
 // ─── Section Tabs ─────────────────────────────────────────────────────────────

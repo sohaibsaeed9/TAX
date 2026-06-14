@@ -70,6 +70,31 @@ chrome.runtime.onConnect.addListener((port) => {
       if (message.type === 'EXPECT_PDF_DOWNLOAD') {
         pendingPdfCapture = true;
       }
+
+      if (message.type === 'INSPECT_PAGE') {
+        chrome.tabs.query({}, (tabs) => {
+          const irisTabs = tabs.filter(t => t.url && t.url.includes('iris.fbr.gov.pk'));
+          if (irisTabs.length === 0) {
+            relayToPanel({ type: 'LOG', level: 'err', text: 'No IRIS tab found to inspect.' });
+            return;
+          }
+          chrome.scripting.executeScript({
+            target: { tabId: irisTabs[0].id },
+            func: inspectIrisPage
+          }, (results) => {
+            if (chrome.runtime.lastError) {
+              relayToPanel({ type: 'LOG', level: 'err', text: 'Inspect failed: ' + chrome.runtime.lastError.message });
+              return;
+            }
+            const report = results?.[0]?.result;
+            if (report) {
+              for (const line of report) {
+                relayToPanel({ type: 'LOG', level: 'info', text: line });
+              }
+            }
+          });
+        });
+      }
     });
   }
 });
@@ -79,6 +104,88 @@ function relayToPanel(message) {
   if (sidePanelPort) {
     try { sidePanelPort.postMessage(message); } catch (e) {}
   }
+}
+
+// Inspector function — injected into IRIS tab to map all key elements
+function inspectIrisPage() {
+  const lines = [];
+  const tag = (el) => {
+    if (!el) return 'null';
+    const id = el.id ? `#${el.id}` : '';
+    const cls = el.className && typeof el.className === 'string'
+      ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
+    return `<${el.tagName.toLowerCase()}${id}${cls}>`;
+  };
+
+  // 1. FILTERS button
+  lines.push('─── FILTERS BUTTON ───');
+  const filterBtns = Array.from(document.querySelectorAll('button, a')).filter(
+    el => el.textContent.trim().toLowerCase().includes('filter') && el.offsetParent
+  );
+  filterBtns.forEach(el => lines.push(`  ${tag(el)} text="${el.textContent.trim().substring(0,30)}"`));
+
+  // 2. Section tabs (Inbox / Draft / Outbox / Completed)
+  lines.push('─── SECTION TABS ───');
+  ['inbox', 'draft', 'outbox', 'completed'].forEach(kw => {
+    const matches = Array.from(document.querySelectorAll('a, button, li, div, span')).filter(el => {
+      const t = el.textContent.trim().toLowerCase();
+      return t.includes(kw) && t.length < 60 && el.offsetParent;
+    }).sort((a, b) => a.textContent.length - b.textContent.length);
+    if (matches.length > 0) {
+      const el = matches[0];
+      lines.push(`  [${kw}] ${tag(el)} text="${el.textContent.trim().substring(0,40)}"`);
+    } else {
+      lines.push(`  [${kw}] NOT FOUND`);
+    }
+  });
+
+  // 3. Category tabs (elements with pattern "TEXT (NUMBER)")
+  lines.push('─── CATEGORY TABS ───');
+  const catEls = Array.from(document.querySelectorAll('*')).filter(el => {
+    return /^[A-Z\s\/]+\s*\(\d+\)$/.test(el.textContent.trim()) && el.offsetParent;
+  });
+  catEls.slice(0, 8).forEach(el => lines.push(`  ${tag(el)} text="${el.textContent.trim()}"`));
+  if (catEls.length === 0) lines.push('  No category tabs found (apply filter first)');
+
+  // 4. Registration No input (in filter panel)
+  lines.push('─── REGISTRATION INPUT ───');
+  const regInputs = Array.from(document.querySelectorAll('input[type="text"], input:not([type])')).filter(
+    el => el.offsetParent
+  );
+  regInputs.slice(0, 5).forEach(el => {
+    const label = document.querySelector(`label[for="${el.id}"]`);
+    lines.push(`  ${tag(el)} placeholder="${el.placeholder}" label="${label?.textContent.trim() || 'n/a'}"`);
+  });
+
+  // 5. APPLY / CLEAR buttons
+  lines.push('─── APPLY / CLEAR ───');
+  ['apply', 'clear'].forEach(kw => {
+    const btn = Array.from(document.querySelectorAll('button, a')).find(
+      el => el.textContent.trim().toLowerCase().includes(kw) && el.offsetParent
+    );
+    if (btn) lines.push(`  [${kw}] ${tag(btn)} text="${btn.textContent.trim()}"`);
+    else lines.push(`  [${kw}] NOT FOUND`);
+  });
+
+  // 6. Notice table rows
+  lines.push('─── NOTICE TABLE ───');
+  const tables = document.querySelectorAll('table');
+  lines.push(`  Tables found: ${tables.length}`);
+  tables.forEach((t, i) => {
+    const rows = t.querySelectorAll('tbody tr');
+    lines.push(`  Table[${i}] rows=${rows.length} class="${t.className?.substring(0,30)}"`);
+  });
+
+  // 7. View (eye) buttons
+  lines.push('─── VIEW BUTTONS ───');
+  const viewBtns = Array.from(document.querySelectorAll('a, button')).filter(el => {
+    const t = (el.textContent + (el.title || '') + (el.getAttribute('aria-label') || '')).toLowerCase();
+    return (t.includes('view') || t.includes('👁')) && el.offsetParent;
+  });
+  viewBtns.slice(0, 3).forEach(el => lines.push(`  ${tag(el)} text="${el.textContent.trim().substring(0,20)}" title="${el.title}"`));
+  if (viewBtns.length === 0) lines.push('  None (open a notice list first)');
+
+  return lines;
 }
 
 // Forward messages from content script → side panel

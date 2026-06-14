@@ -301,6 +301,13 @@ document.getElementById('clearLogBtn').addEventListener('click', () => {
   document.getElementById('logConsole').innerHTML = '';
 });
 
+// ─── Page Inspector ───────────────────────────────────────────────────────────
+
+document.getElementById('inspectBtn').addEventListener('click', () => {
+  sendToBackground({ type: 'INSPECT_PAGE' });
+  appendLog('info', 'Inspecting IRIS page elements...');
+});
+
 // (Messages handled via bgPort — see top of file)
 
 async function handlePdfExtract(message) {
