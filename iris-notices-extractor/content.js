@@ -95,65 +95,18 @@ async function clickFilters() {
 }
 
 async function fillRegistrationNo(ntn) {
-  // PrimeFaces uses ui-dialog, ui-overlaypanel, or just a visible panel
-  // Wait for ANY new overlay/panel/dialog to appear
-  const modalSel = [
-    '.ui-dialog:not([style*="display: none"])',
-    '.ui-overlaypanel:not([style*="display: none"])',
-    '[role="dialog"]',
-    '.ui-widget-overlay + .ui-dialog',
-    '.filter-panel',
-    '.filter-container',
-    // Generic: any element that appeared containing an input after clicking
-  ].join(', ');
+  // Confirmed: Registration No field has placeholder="Enter Registration No."
+  // (IRIS uses type="email" for this field — FBR bug, but placeholder is unique)
+  const regInput = await waitFor(
+    () => document.querySelector('input[placeholder="Enter Registration No."]'),
+    8000
+  );
 
-  const modal = await waitFor(() => document.querySelector(modalSel), 8000);
+  if (!regInput) throw new Error('Filter panel did not open — Registration No. input not found');
 
-  // If specific modal not found, search for the registration input anywhere on page
-  // (IRIS sometimes renders filters inline, not in a dialog)
-  let regInput = null;
-
-  if (modal) {
-    const inputs = modal.querySelectorAll('input[type="text"], input:not([type])');
-    const labels = modal.querySelectorAll('label');
-    for (const label of labels) {
-      if (label.textContent.toLowerCase().includes('registration') ||
-          label.textContent.toLowerCase().includes('reg no') ||
-          label.textContent.toLowerCase().includes('reg.')) {
-        const id = label.getAttribute('for');
-        if (id) regInput = modal.querySelector(`#${id}`);
-        if (!regInput) regInput = label.nextElementSibling?.querySelector('input') || label.parentElement?.querySelector('input');
-        break;
-      }
-    }
-    if (!regInput && inputs.length > 0) regInput = inputs[0];
-  }
-
-  // Broader fallback: search entire page for registration input
-  if (!regInput) {
-    const allLabels = document.querySelectorAll('label');
-    for (const label of allLabels) {
-      const text = label.textContent.toLowerCase();
-      if (text.includes('registration') || text.includes('reg no') || text.includes('reg.')) {
-        const id = label.getAttribute('for');
-        if (id) regInput = document.getElementById(id);
-        if (!regInput) regInput = label.nextElementSibling?.querySelector('input') || label.parentElement?.querySelector('input');
-        if (regInput) break;
-      }
-    }
-  }
-
-  // Last resort: find visible inputs that appeared recently
-  if (!regInput) {
-    const allInputs = Array.from(document.querySelectorAll('input[type="text"]')).filter(
-      el => el.offsetParent !== null // visible
-    );
-    log('info', `  Found ${allInputs.length} visible text inputs on page`);
-    if (allInputs.length > 0) regInput = allInputs[0];
-  }
-
-  if (!regInput) throw new Error('Filter modal did not open — Registration No input not found');
-
+  // Clear existing value first
+  fill(regInput, '');
+  await wait(200);
   fill(regInput, ntn);
   log('info', `  Filled Registration No: ${ntn}`);
   await wait(T_S);
