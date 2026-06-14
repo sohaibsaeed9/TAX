@@ -37,8 +37,29 @@ chrome.runtime.onConnect.addListener((port) => {
 
           chrome.tabs.sendMessage(irisTab.id, message, (response) => {
             if (chrome.runtime.lastError) {
-              relayToPanel({ type: 'LOG', level: 'err', text: `Content script error: ${chrome.runtime.lastError.message}. Please REFRESH the IRIS tab then try again.` });
-              relayToPanel({ type: 'ALL_DONE', error: 'Content script not ready' });
+              // Content script not injected yet — inject it now then retry
+              relayToPanel({ type: 'LOG', level: 'warn', text: 'Content script not found — injecting now...' });
+              chrome.scripting.executeScript(
+                { target: { tabId: irisTab.id }, files: ['content.js'] },
+                () => {
+                  if (chrome.runtime.lastError) {
+                    relayToPanel({ type: 'LOG', level: 'err', text: `Inject failed: ${chrome.runtime.lastError.message}` });
+                    relayToPanel({ type: 'ALL_DONE', error: 'Inject failed' });
+                    return;
+                  }
+                  relayToPanel({ type: 'LOG', level: 'ok', text: 'Content script injected — retrying...' });
+                  setTimeout(() => {
+                    chrome.tabs.sendMessage(irisTab.id, message, (r2) => {
+                      if (chrome.runtime.lastError) {
+                        relayToPanel({ type: 'LOG', level: 'err', text: `Still failed: ${chrome.runtime.lastError.message}` });
+                        relayToPanel({ type: 'ALL_DONE', error: 'Failed after inject' });
+                      } else {
+                        relayToPanel({ type: 'LOG', level: 'ok', text: 'Content script running!' });
+                      }
+                    });
+                  }, 500);
+                }
+              );
             } else {
               relayToPanel({ type: 'LOG', level: 'ok', text: 'Content script acknowledged — running...' });
             }
