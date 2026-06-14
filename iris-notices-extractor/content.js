@@ -66,40 +66,96 @@ async function waitForDomChange(timeout = 8000) {
 // ─── Filter Modal ─────────────────────────────────────────────────────────────
 
 async function clickFilters() {
-  const btn = Array.from(document.querySelectorAll('button, a, span')).find(
-    el => el.textContent.trim().toUpperCase() === 'FILTERS' ||
-          el.textContent.trim().toUpperCase().includes('FILTER')
+  // Try multiple strategies to find the FILTERS button
+  let btn = null;
+
+  // Strategy 1: exact text match
+  btn = Array.from(document.querySelectorAll('button, a')).find(
+    el => el.textContent.trim().toUpperCase() === 'FILTERS'
   );
-  if (!btn) throw new Error('FILTERS button not found');
+
+  // Strategy 2: contains text
+  if (!btn) btn = Array.from(document.querySelectorAll('button, a, span[onclick]')).find(
+    el => el.textContent.trim().toUpperCase().includes('FILTER')
+  );
+
+  // Strategy 3: by class (PrimeFaces filter button often has specific classes)
+  if (!btn) btn = document.querySelector('[class*="filter" i], [id*="filter" i]');
+
+  if (!btn) {
+    // Log all buttons to help diagnose
+    const allBtns = Array.from(document.querySelectorAll('button, a')).map(el => `"${el.textContent.trim().substring(0,20)}"`).join(', ');
+    log('warn', `FILTERS btn not found. Buttons on page: ${allBtns.substring(0, 200)}`);
+    throw new Error('FILTERS button not found');
+  }
+
+  log('info', `  Clicking FILTERS button: "${btn.textContent.trim().substring(0,30)}"`);
   btn.click();
-  await wait(T_L);
+  await wait(T_XL); // Wait longer for PrimeFaces overlay to render
 }
 
 async function fillRegistrationNo(ntn) {
-  const modal = await waitFor(() => document.querySelector('.ui-dialog, [role="dialog"], .modal'));
-  if (!modal) throw new Error('Filter modal did not open');
+  // PrimeFaces uses ui-dialog, ui-overlaypanel, or just a visible panel
+  // Wait for ANY new overlay/panel/dialog to appear
+  const modalSel = [
+    '.ui-dialog:not([style*="display: none"])',
+    '.ui-overlaypanel:not([style*="display: none"])',
+    '[role="dialog"]',
+    '.ui-widget-overlay + .ui-dialog',
+    '.filter-panel',
+    '.filter-container',
+    // Generic: any element that appeared containing an input after clicking
+  ].join(', ');
 
-  // Find the Registration No input
-  const inputs = modal.querySelectorAll('input[type="text"], input:not([type])');
+  const modal = await waitFor(() => document.querySelector(modalSel), 8000);
+
+  // If specific modal not found, search for the registration input anywhere on page
+  // (IRIS sometimes renders filters inline, not in a dialog)
   let regInput = null;
 
-  // Try label-based lookup
-  const labels = modal.querySelectorAll('label');
-  for (const label of labels) {
-    if (label.textContent.toLowerCase().includes('registration') ||
-        label.textContent.toLowerCase().includes('reg no')) {
-      const id = label.getAttribute('for');
-      if (id) regInput = modal.querySelector(`#${id}`);
-      if (!regInput) regInput = label.nextElementSibling?.querySelector('input') || label.parentElement?.querySelector('input');
-      break;
+  if (modal) {
+    const inputs = modal.querySelectorAll('input[type="text"], input:not([type])');
+    const labels = modal.querySelectorAll('label');
+    for (const label of labels) {
+      if (label.textContent.toLowerCase().includes('registration') ||
+          label.textContent.toLowerCase().includes('reg no') ||
+          label.textContent.toLowerCase().includes('reg.')) {
+        const id = label.getAttribute('for');
+        if (id) regInput = modal.querySelector(`#${id}`);
+        if (!regInput) regInput = label.nextElementSibling?.querySelector('input') || label.parentElement?.querySelector('input');
+        break;
+      }
+    }
+    if (!regInput && inputs.length > 0) regInput = inputs[0];
+  }
+
+  // Broader fallback: search entire page for registration input
+  if (!regInput) {
+    const allLabels = document.querySelectorAll('label');
+    for (const label of allLabels) {
+      const text = label.textContent.toLowerCase();
+      if (text.includes('registration') || text.includes('reg no') || text.includes('reg.')) {
+        const id = label.getAttribute('for');
+        if (id) regInput = document.getElementById(id);
+        if (!regInput) regInput = label.nextElementSibling?.querySelector('input') || label.parentElement?.querySelector('input');
+        if (regInput) break;
+      }
     }
   }
 
-  // Fallback: first text input in modal
-  if (!regInput && inputs.length > 0) regInput = inputs[0];
-  if (!regInput) throw new Error('Registration No input not found in filter modal');
+  // Last resort: find visible inputs that appeared recently
+  if (!regInput) {
+    const allInputs = Array.from(document.querySelectorAll('input[type="text"]')).filter(
+      el => el.offsetParent !== null // visible
+    );
+    log('info', `  Found ${allInputs.length} visible text inputs on page`);
+    if (allInputs.length > 0) regInput = allInputs[0];
+  }
+
+  if (!regInput) throw new Error('Filter modal did not open — Registration No input not found');
 
   fill(regInput, ntn);
+  log('info', `  Filled Registration No: ${ntn}`);
   await wait(T_S);
 }
 
