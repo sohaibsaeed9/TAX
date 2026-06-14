@@ -2781,20 +2781,85 @@ window.printProfile = function(){
   if(profileIdx === null) return;
   var c = getClient(profileIdx);
   var now = new Date();
-  var pdl = document.getElementById("print-date-display");
-  if(pdl) pdl.textContent = "Printed: " + now.toLocaleDateString("en-PK",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-  // Hide background content during print
-  var app = document.getElementById("app");
-  var sbar = document.getElementById("sbar");
-  if(app) app.style.display = "none";
-  if(sbar) sbar.style.display = "none";
-  var orig = document.title;
-  document.title = "S. Saeed — Client Profile — " + c.name;
-  window.print();
-  document.title = orig;
-  // Restore after print
-  if(app) app.style.display = "";
-  if(sbar) sbar.style.display = "";
+  var dateStr = now.toLocaleDateString("en-PK",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+
+  // Capture pie chart as image if visible
+  var chartImgSrc = "";
+  var chartCanvas = document.getElementById("iris-section-chart");
+  if(chartCanvas){ try{ chartImgSrc = chartCanvas.toDataURL("image/png"); }catch(e){} }
+
+  // Build IRIS summary if data exists
+  var irisHtml = "";
+  var irisRecords = IRIS_DATA[String(profileIdx)] || [];
+  if(irisRecords.length){
+    var totalPaid=0, totalTaxable=0, sectionTotals={};
+    irisRecords.forEach(function(r){
+      var sec=r.section||'Other';
+      sectionTotals[sec]=(sectionTotals[sec]||0)+(parseFloat(r.paid)||0);
+      totalPaid+=(parseFloat(r.paid)||0);
+      totalTaxable+=(parseFloat(r.taxable)||0);
+    });
+    irisHtml += '<div class="section-title">IRIS Payment Summary</div>';
+    irisHtml += '<div class="cards">';
+    irisHtml += '<div class="card"><div class="label">Total Paid</div><div class="val green">PKR '+fmtAmt(totalPaid)+'</div></div>';
+    irisHtml += '<div class="card"><div class="label">Total Taxable</div><div class="val">PKR '+fmtAmt(totalTaxable)+'</div></div>';
+    irisHtml += '<div class="card"><div class="label">Payments</div><div class="val">'+irisRecords.length+' records</div></div>';
+    irisHtml += '<div class="card"><div class="label">Sections</div><div class="val">'+Object.keys(sectionTotals).length+' unique</div></div>';
+    irisHtml += '</div>';
+    if(chartImgSrc){
+      irisHtml += '<div class="chart-wrap"><img src="'+chartImgSrc+'" style="max-width:460px;width:100%;"></div>';
+    }
+    irisHtml += '<div class="section-title" style="margin-top:16px;">Payment by Section</div>';
+    irisHtml += '<table><thead><tr><th>Section</th><th>Paid (PKR)</th></tr></thead><tbody>';
+    Object.keys(sectionTotals).sort(function(a,b){return sectionTotals[b]-sectionTotals[a];}).forEach(function(sec){
+      irisHtml += '<tr><td>'+escHtml(sec)+'</td><td style="text-align:right;font-weight:600;">'+fmtAmt(sectionTotals[sec])+'</td></tr>';
+    });
+    irisHtml += '</tbody></table>';
+    var tblCols=['srNo','paymentDate','txYear','cprNo','waName','section','taxable','paid'];
+    var tblLabels={'srNo':'SR NO','paymentDate':'Payment Date','txYear':'Tax Year','cprNo':'CPR No','waName':'WA Name','section':'Section','taxable':'Taxable Amt','paid':'Paid Amt'};
+    var firstRec=irisRecords[0];
+    var useNorm=firstRec && firstRec['paid']!==undefined && String(firstRec['paid'])!=='';
+    var headers=useNorm?tblCols:Object.keys(firstRec||{});
+    irisHtml += '<div class="section-title" style="margin-top:16px;">Payment History ('+irisRecords.length+' records)</div>';
+    irisHtml += '<table><thead><tr>';
+    headers.forEach(function(h){ irisHtml+='<th>'+(useNorm?escHtml(tblLabels[h]||h):escHtml(h))+'</th>'; });
+    irisHtml += '</tr></thead><tbody>';
+    irisRecords.forEach(function(r){
+      irisHtml+='<tr>';
+      headers.forEach(function(h){ irisHtml+='<td>'+escHtml(String(r[h]||""))+'</td>'; });
+      irisHtml+='</tr>';
+    });
+    irisHtml += '</tbody></table>';
+  }
+
+  var win = window.open('','_blank','width=900,height=700');
+  win.document.write('<!DOCTYPE html><html><head><title>S. Saeed \u2014 '+escHtml(c.name)+'</title><style>'
+    +'body{font-family:IBM Plex Sans,Arial,sans-serif;font-size:12px;color:#1a2744;margin:24px;}'
+    +'.header{background:#1a2744;color:#fff;padding:16px 20px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}'
+    +'.header h1{font-size:18px;margin:0;font-family:Georgia,serif;}'
+    +'.header .meta{font-size:11px;opacity:.8;text-align:right;}'
+    +'.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}'
+    +'.card{border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;}'
+    +'.label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;margin-bottom:4px;}'
+    +'.val{font-size:15px;font-weight:700;color:#1a2744;}'
+    +'.val.green{color:#059669;}'
+    +'.section-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin:14px 0 8px;}'
+    +'.chart-wrap{text-align:center;margin:10px 0;}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}'
+    +'th{background:#1a2744;color:#fff;padding:6px 8px;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+    +'td{padding:5px 8px;border-bottom:1px solid #f3f4f6;}'
+    +'tr:nth-child(even) td{background:#f9fafb;}'
+    +'.firm{font-size:10px;color:#9ca3af;text-align:center;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:8px;}'
+    +'@media print{body{margin:12px;}}'
+    +'</style></head><body>'
+    +'<div class="header"><h1>'+escHtml(c.name)+'</h1>'
+    +'<div class="meta">NTN: '+(c.ntn||'N/A')+' &nbsp;|&nbsp; Status: '+(c.status||'\u2014')+' &nbsp;|&nbsp; File No: '+(c.sr||'\u2014')+'<br>Printed: '+dateStr+'</div></div>'
+    + irisHtml
+    +'<div class="firm">S. Saeed Tax Consultants &mdash; saeedandcotax.com</div>'
+    +'</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); }, 600);
 };
 
 window.openWAFromProfile = function(){
