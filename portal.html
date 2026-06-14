@@ -2960,7 +2960,7 @@ function renderProfileTab(){
 ════════════════════════════════ */
 window.handleIrisSingle = function(file, idx){
   if(!file) return;
-  parseExcelFile(file, function(rows){
+  parseIrisExcelFile(file, function(rows){
     if(rows && rows.length){
       IRIS_DATA[String(idx)] = rows;
       saveIrisData();
@@ -3044,7 +3044,7 @@ window.handleIrisBatch = function(files){
         }
       }
 
-      parseExcelFile(file, function(rows){
+      parseIrisExcelFile(file, function(rows){
         processed++;
         if(matchIdx >= 0 && rows && rows.length){
           IRIS_DATA[String(matchIdx)] = rows;
@@ -3090,6 +3090,87 @@ function parseExcelFile(file, callback){
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+function parseIrisExcelFile(file, callback){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var data = new Uint8Array(e.target.result);
+      if(typeof XLSX === "undefined"){ alert("Excel parser not loaded."); callback(null); return; }
+      var workbook = XLSX.read(data, {type:"array"});
+      var firstSheet = workbook.SheetNames[0];
+      var sheet = workbook.Sheets[firstSheet];
+      // Read as raw arrays to find real header row
+      var raw = XLSX.utils.sheet_to_json(sheet, {header:1, defval:""});
+      // Find the row index where "PAID AMOUNT" or "SR NO" appears
+      var headerRowIdx = -1;
+      for(var i=0; i<Math.min(raw.length, 20); i++){
+        var rowStr = raw[i].join("|").toUpperCase();
+        if(rowStr.indexOf("PAID AMOUNT") > -1 || rowStr.indexOf("SR NO") > -1){
+          headerRowIdx = i; break;
+        }
+      }
+      if(headerRowIdx === -1){
+        // Fallback: use sheet_to_json as-is and try to map by position
+        var json = XLSX.utils.sheet_to_json(sheet, {defval:""});
+        callback(normalizeIrisRows(json, null));
+        return;
+      }
+      var headers = raw[headerRowIdx];
+      var records = [];
+      for(var r=headerRowIdx+1; r<raw.length; r++){
+        var row = raw[r];
+        // Skip blank rows
+        if(!row || row.every(function(c){ return c === "" || c === null || c === undefined; })) continue;
+        var obj = {};
+        for(var c=0; c<headers.length; c++){
+          obj[headers[c]] = row[c] !== undefined ? row[c] : "";
+        }
+        records.push(obj);
+      }
+      callback(normalizeIrisRows(records, headers));
+    }catch(err){
+      console.error("IRIS parse error:", err);
+      callback(null);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function normalizeIrisRows(rows, headers){
+  if(!rows || !rows.length) return rows;
+  // Map known IRIS column names to internal field names
+  var colMap = {
+    srNo:          ["SR NO","SR_NO","SR.NO","SRNO","SR"],
+    paymentDate:   ["PAYMENT DATE","PAYMENT_DATE","DATE","PAY DATE"],
+    txYear:        ["TAX YEAR","TAX_YEAR","TAXYEAR","YEAR"],
+    cprNo:         ["CPR NO","CPR_NO","CPR","CHALLAN NO","CHALLAN NUMBER"],
+    waName:        ["WA NAME","WA_NAME","WITHHOLDING AGENT","WA","NAME"],
+    section:       ["SECTION","SEC","SECTION CODE"],
+    taxable:       ["TAXABLE AMOUNT","TAXABLE_AMOUNT","TAXABLE","TAXABLE AMT"],
+    paid:          ["PAID AMOUNT","PAID_AMOUNT","PAID","TAX PAID","AMOUNT PAID"]
+  };
+  var firstRow = rows[0];
+  var keys = Object.keys(firstRow);
+  var mapping = {}; // internal field -> actual key in rows
+  Object.keys(colMap).forEach(function(field){
+    var candidates = colMap[field];
+    for(var i=0; i<candidates.length; i++){
+      var found = keys.find(function(k){ return k.toString().toUpperCase().trim() === candidates[i]; });
+      if(found !== undefined){ mapping[field] = found; break; }
+    }
+  });
+  return rows.map(function(row){
+    var out = {};
+    // Keep all original keys
+    Object.keys(row).forEach(function(k){ out[k] = row[k]; });
+    // Add normalized fields
+    Object.keys(mapping).forEach(function(field){
+      out[field] = row[mapping[field]] !== undefined ? row[mapping[field]] : "";
+    });
+    return out;
+  });
 }
 
 
