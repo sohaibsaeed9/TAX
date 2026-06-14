@@ -2824,7 +2824,6 @@ function renderProfileTab(){
     html += '<button onclick="openEditPanel('+idx+');closeProfile();" style="background:#1a2744;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;">Edit Client Details</button>';
 
   } else if(profileTab === "iris"){
-    var _irisChartsNeeded = true;
     // IRIS Upload section
     html += '<div style="display:flex;gap:10px;margin-bottom:16px;">';
     html += '<div class="iris-upload-area" style="flex:1;padding:16px;" onclick="document.getElementById(\'iris-single-input\').click()">';
@@ -2842,12 +2841,7 @@ function renderProfileTab(){
     var irisKey = String(idx);
     var irisRecords = IRIS_DATA[irisKey] || [];
     if(irisRecords.length){
-      // Filter records by active section
-    var displayedRecords = irisActiveSectionFilter === 'ALL'
-      ? irisRecords
-      : irisRecords.filter(function(r){ return (r.section||'Other') === irisActiveSectionFilter; });
-    html += '<div id="iris-chart-container"></div>';
-    html += '<div id="iris-table-container"></div>';
+    html += '<div id="iris-main-container"></div>';
     } else {
       html += '<div class="cp-empty">No IRIS payment data uploaded yet. Upload an Excel file above.</div>';
     }
@@ -2934,9 +2928,9 @@ function renderProfileTab(){
   }
 
   body.innerHTML = html;
-  // Render analytics charts if on IRIS tab
-  if(typeof _irisChartsNeeded !== 'undefined' && _irisChartsNeeded && IRIS_DATA[String(profileIdx)] && IRIS_DATA[String(profileIdx)].length){
-    renderIrisCharts(profileIdx);
+  // Render IRIS tab content if on iris tab
+  if(profileTab === "iris" && IRIS_DATA[String(profileIdx)] && IRIS_DATA[String(profileIdx)].length){
+    renderIrisMain(profileIdx);
   }
 }
 
@@ -3370,153 +3364,126 @@ window.syncFromExtension = function(){
 ════════════════════════════════ */
 window.setIrisSectionFilter = function(section, idx){
   irisActiveSectionFilter = section;
-  renderIrisCharts(idx);
+  renderIrisMain(idx);
 };
 
-window.renderIrisCharts = function(idx){
-  var irisKey = String(idx);
-  var allRecords = IRIS_DATA[irisKey] || [];
+window.renderIrisMain = function(idx){
+  var container = document.getElementById('iris-main-container');
+  if(!container) return;
+  var allRecords = IRIS_DATA[String(idx)] || [];
   if(!allRecords.length) return;
 
-  // Collect all unique sections from full dataset
+  // Collect unique sections
   var allSections = {};
   allRecords.forEach(function(r){ var s=r.section||'Other'; allSections[s]=true; });
   var allSectionKeys = Object.keys(allSections).sort();
 
-  // Apply section filter
+  // Apply filter
   var records = irisActiveSectionFilter === 'ALL'
     ? allRecords
     : allRecords.filter(function(r){ return (r.section||'Other') === irisActiveSectionFilter; });
 
+  var totalPaid = 0, totalTaxable = 0;
   var sectionTotals = {};
-  var totalPaid = 0;
-  var totalTaxable = 0;
-
   records.forEach(function(r){
-    var sec = r.section || 'Other';
-    if(!sectionTotals[sec]) sectionTotals[sec] = 0;
-    sectionTotals[sec] += (parseFloat(r.paid)||0);
+    var sec = r.section||'Other';
+    sectionTotals[sec] = (sectionTotals[sec]||0) + (parseFloat(r.paid)||0);
     totalPaid    += (parseFloat(r.paid)||0);
     totalTaxable += (parseFloat(r.taxable)||0);
   });
 
-  // If all paid amounts are zero, count records per section instead
-  var useCount = totalPaid === 0;
-  var sectionCounts = {};
-  if(useCount){ records.forEach(function(r){ var sec=r.section||'Other'; sectionCounts[sec]=(sectionCounts[sec]||0)+1; }); }
-  var activeTotals = useCount ? sectionCounts : sectionTotals;
-  var chartSections = Object.keys(activeTotals).sort(function(a,b){ return activeTotals[b]-activeTotals[a]; }).slice(0,8);
-  var sectionValues = chartSections.map(function(s){ return activeTotals[s]; });
+  var html = '';
 
-  var chartHtml = '';
-
-  // Section filter pills
-  chartHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;align-items:center;">';
-  chartHtml += '<span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-right:4px;">Filter:</span>';
-  var allActive = irisActiveSectionFilter === 'ALL';
-  chartHtml += '<button onclick="setIrisSectionFilter(\'ALL\','+idx+')" style="padding:5px 12px;border-radius:20px;border:1.5px solid '+(allActive?'#1a2744':'#e5e7eb')+';background:'+(allActive?'#1a2744':'#fff')+';color:'+(allActive?'#fff':'#374151')+';font-size:11px;font-weight:600;cursor:pointer;">All ('+allRecords.length+')</button>';
+  // Dropdown filter
+  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">';
+  html += '<label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Filter Section:</label>';
+  html += '<select onchange="setIrisSectionFilter(this.value,'+idx+')" style="padding:7px 12px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px;font-weight:600;color:#1a2744;background:#fff;cursor:pointer;min-width:260px;outline:none;">';
+  html += '<option value="ALL"'+(irisActiveSectionFilter==='ALL'?' selected':'')+'>All Sections ('+allRecords.length+' records)</option>';
   allSectionKeys.forEach(function(sec){
-    var active = irisActiveSectionFilter === sec;
     var cnt = allRecords.filter(function(r){ return (r.section||'Other')===sec; }).length;
-    var label = sec.length > 28 ? sec.substring(0,28)+'…' : sec;
-    chartHtml += '<button onclick="setIrisSectionFilter(\''+sec.replace(/'/g,"\\'").replace(/"/g,'&quot;')+'\','+idx+')" style="padding:5px 12px;border-radius:20px;border:1.5px solid '+(active?'#b8923a':'#e5e7eb')+';background:'+(active?'#b8923a':'#fff')+';color:'+(active?'#fff':'#374151')+';font-size:11px;font-weight:600;cursor:pointer;" title="'+escHtml(sec)+'">'+escHtml(label)+' ('+cnt+')</button>';
+    var sel = irisActiveSectionFilter===sec ? ' selected' : '';
+    html += '<option value="'+escHtml(sec)+'"'+sel+'>'+escHtml(sec)+' ('+cnt+')</option>';
   });
-  chartHtml += '</div>';
+  html += '</select></div>';
 
-  // Summary cards (reflect filtered totals)
-  chartHtml += '<div class="cp-info-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">';
-  chartHtml += '<div class="cp-info-item"><div class="cp-info-label">Total Paid</div><div class="cp-info-val" style="color:#059669;font-size:15px;">PKR '+fmtAmt(totalPaid)+'</div></div>';
-  chartHtml += '<div class="cp-info-item"><div class="cp-info-label">Total Taxable</div><div class="cp-info-val" style="font-size:15px;">PKR '+fmtAmt(totalTaxable)+'</div></div>';
-  chartHtml += '<div class="cp-info-item"><div class="cp-info-label">Payments</div><div class="cp-info-val" style="font-size:15px;">'+records.length+' records</div></div>';
-  chartHtml += '<div class="cp-info-item"><div class="cp-info-label">Sections</div><div class="cp-info-val" style="font-size:15px;">'+Object.keys(sectionTotals).length+' unique</div></div>';
-  chartHtml += '</div>';
+  // Summary cards
+  html += '<div class="cp-info-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">';
+  html += '<div class="cp-info-item"><div class="cp-info-label">Total Paid</div><div class="cp-info-val" style="color:#059669;font-size:15px;">PKR '+fmtAmt(totalPaid)+'</div></div>';
+  html += '<div class="cp-info-item"><div class="cp-info-label">Total Taxable</div><div class="cp-info-val" style="font-size:15px;">PKR '+fmtAmt(totalTaxable)+'</div></div>';
+  html += '<div class="cp-info-item"><div class="cp-info-label">Payments</div><div class="cp-info-val" style="font-size:15px;">'+records.length+' records</div></div>';
+  html += '<div class="cp-info-item"><div class="cp-info-label">Sections</div><div class="cp-info-val" style="font-size:15px;">'+Object.keys(sectionTotals).length+' unique</div></div>';
+  html += '</div>';
 
-  // Pie chart only (only show when multiple sections or data to display)
+  // Pie chart (only on All view)
   if(irisActiveSectionFilter === 'ALL'){
-    chartHtml += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:14px;">';
-    chartHtml += '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">Payment by Section</div>';
-    chartHtml += '<div style="max-width:420px;margin:0 auto;"><canvas id="iris-section-chart" height="180"></canvas></div>';
-    chartHtml += '</div>';
+    html += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:14px;">';
+    html += '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">Payment by Section</div>';
+    html += '<div style="max-width:420px;margin:0 auto;"><canvas id="iris-section-chart" height="180"></canvas></div>';
+    html += '</div>';
   }
 
-  // Export + Unsync buttons
-  chartHtml += '<div style="display:flex;gap:8px;margin-bottom:14px;">';
-  chartHtml += '<button onclick="exportIrisExcel('+idx+')" style="background:#166534;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;">📥 Export Excel</button>';
-  chartHtml += '<button onclick="exportIrisPDF('+idx+')" style="background:#1a2744;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;">🖨 Export PDF</button>';
-  chartHtml += '<button onclick="unsyncIris('+idx+')" style="background:#fff;border:1.5px solid #fca5a5;color:#dc2626;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:auto;">🔄 Clear & Re-sync</button>';
-  chartHtml += '</div>';
+  // Export + Clear buttons
+  html += '<div style="display:flex;gap:8px;margin-bottom:14px;">';
+  html += '<button onclick="exportIrisExcel('+idx+')" style="background:#166534;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;">📥 Export Excel</button>';
+  html += '<button onclick="exportIrisPDF('+idx+')" style="background:#1a2744;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;">🖨 Export PDF</button>';
+  html += '<button onclick="unsyncIris('+idx+')" style="background:#fff;border:1.5px solid #fca5a5;color:#dc2626;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:auto;">🔄 Clear & Re-sync</button>';
+  html += '</div>';
 
-  // Update chart container directly — no prepending
-  var chartContainer = document.getElementById('iris-chart-container');
-  if(!chartContainer) return;
-  chartContainer.innerHTML = chartHtml;
-
-  // Build and update table container
-  renderIrisTable(idx);
-
-  // Draw chart
-  if(irisActiveSectionFilter === 'ALL'){
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        if(typeof Chart === 'undefined') return;
-        Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
-        Chart.defaults.font.size = 11;
-        var ctx = document.getElementById('iris-section-chart');
-        if(ctx){
-          var colors = ['#1a2744','#b8923a','#059669','#dc2626','#7c3aed','#0284c7','#0891b2','#d97706'];
-          new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-              labels: chartSections,
-              datasets:[{ data:sectionValues, backgroundColor:colors, borderWidth:2, borderColor:'#fff' }]
-            },
-            options:{
-              responsive:true, maintainAspectRatio:false,
-              plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:10} } } }
-            }
-          });
-        }
-      });
-    });
-  }
-};
-
-// Clear IRIS data for a client and re-sync from extension
-window.renderIrisTable = function(idx){
-  var tableContainer = document.getElementById('iris-table-container');
-  if(!tableContainer) return;
-  var irisRecords = IRIS_DATA[String(idx)] || [];
-  var displayedRecords = irisActiveSectionFilter === 'ALL'
-    ? irisRecords
-    : irisRecords.filter(function(r){ return (r.section||'Other') === irisActiveSectionFilter; });
-
+  // Payment history table
   var tblCols = ['srNo','paymentDate','txYear','cprNo','waName','section','taxable','paid'];
   var tblLabels = {'srNo':'SR NO','paymentDate':'Payment Date','txYear':'Tax Year','cprNo':'CPR No','waName':'WA Name','section':'Section','taxable':'Taxable Amount','paid':'Paid Amount'};
-  var firstRec = displayedRecords[0] || irisRecords[0];
+  var firstRec = records[0] || allRecords[0];
   var useNorm = firstRec && firstRec['paid'] !== undefined && String(firstRec['paid']) !== '';
   var headers = useNorm ? tblCols : Object.keys(firstRec||{});
 
-  var tbl = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
-  tbl += '<div class="cp-section-title" style="margin:0;">Payment History ('+displayedRecords.length+' records'+(irisActiveSectionFilter!=='ALL'?' — filtered':'')+')  </div>';
-  tbl += '<input type="text" id="iris-profile-search" placeholder="Search payments..." style="background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:IBM Plex Sans,sans-serif;font-size:12px;padding:7px 12px;border-radius:6px;outline:none;width:200px;" oninput="filterIrisProfile(this.value,'+idx+')">';
-  tbl += '</div>';
-  tbl += '<div style="max-height:400px;overflow-y:auto;"><table class="iris-table"><thead><tr>';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+  html += '<div class="cp-section-title" style="margin:0;">Payment History ('+records.length+' records'+(irisActiveSectionFilter!=='ALL'?' — '+irisActiveSectionFilter.substring(0,30):'')+')  </div>';
+  html += '<input type="text" id="iris-profile-search" placeholder="Search payments..." style="background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:IBM Plex Sans,sans-serif;font-size:12px;padding:7px 12px;border-radius:6px;outline:none;width:200px;" oninput="filterIrisProfile(this.value,'+idx+')">';
+  html += '</div>';
+  html += '<div style="max-height:400px;overflow-y:auto;"><table class="iris-table"><thead><tr>';
   for(var h=0;h<headers.length;h++){
-    tbl += '<th>'+(useNorm ? escHtml(tblLabels[headers[h]]||headers[h]) : escHtml(headers[h]))+'</th>';
+    html += '<th>'+(useNorm ? escHtml(tblLabels[headers[h]]||headers[h]) : escHtml(headers[h]))+'</th>';
   }
-  tbl += '</tr></thead><tbody>';
-  for(var r=0;r<displayedRecords.length;r++){
-    tbl += '<tr>';
+  html += '</tr></thead><tbody>';
+  for(var r=0;r<records.length;r++){
+    html += '<tr>';
     for(var h2=0;h2<headers.length;h2++){
-      tbl += '<td>'+escHtml(String(displayedRecords[r][headers[h2]]||""))+'</td>';
+      html += '<td>'+escHtml(String(records[r][headers[h2]]||""))+'</td>';
     }
-    tbl += '</tr>';
+    html += '</tr>';
   }
-  tbl += '</tbody></table></div>';
-  tbl += '<button onclick="clearIrisData('+idx+')" style="background:#fff;border:1px solid #fecaca;color:#dc2626;font-size:11px;padding:6px 12px;border-radius:5px;cursor:pointer;margin-top:10px;">Clear IRIS Data</button>';
-  tableContainer.innerHTML = tbl;
+  html += '</tbody></table></div>';
+  html += '<button onclick="clearIrisData('+idx+')" style="background:#fff;border:1px solid #fecaca;color:#dc2626;font-size:11px;padding:6px 12px;border-radius:5px;cursor:pointer;margin-top:10px;">Clear IRIS Data</button>';
+
+  container.innerHTML = html;
+
+  // Draw pie chart
+  if(irisActiveSectionFilter === 'ALL'){
+    var useCount = totalPaid === 0;
+    var chartTotals = useCount
+      ? (function(){ var t={}; allRecords.forEach(function(r){ var s=r.section||'Other'; t[s]=(t[s]||0)+1; }); return t; })()
+      : sectionTotals;
+    var chartSecs = Object.keys(chartTotals).sort(function(a,b){ return chartTotals[b]-chartTotals[a]; }).slice(0,8);
+    var chartVals = chartSecs.map(function(s){ return chartTotals[s]; });
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      if(typeof Chart === 'undefined') return;
+      var ctx = document.getElementById('iris-section-chart');
+      if(!ctx) return;
+      Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+      Chart.defaults.font.size = 11;
+      new Chart(ctx, {
+        type:'doughnut',
+        data:{ labels:chartSecs, datasets:[{ data:chartVals, backgroundColor:['#1a2744','#b8923a','#059669','#dc2626','#7c3aed','#0284c7','#0891b2','#d97706'], borderWidth:2, borderColor:'#fff' }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:10} } } } }
+      });
+    }); });
+  }
 };
 
+// legacy alias kept so any old calls still work
+window.renderIrisCharts = window.renderIrisMain;
+
+// Clear IRIS data for a client and re-sync from extension
 window.unsyncIris = function(idx){
   if(!confirm('Clear IRIS data for this client and pull fresh data from extension?')) return;
   delete IRIS_DATA[String(idx)];
