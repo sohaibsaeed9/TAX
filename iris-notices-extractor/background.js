@@ -17,19 +17,30 @@ chrome.runtime.onConnect.addListener((port) => {
     // Handle messages from side panel → content script
     port.onMessage.addListener((message) => {
       if (message.type === 'START_TO_CONTENT' || message.type === 'STOP_TO_CONTENT') {
+        relayToPanel({ type: 'LOG', level: 'info', text: 'Looking for IRIS tab...' });
         chrome.tabs.query({}, (tabs) => {
+          const allUrls = tabs.map(t => t.url).filter(Boolean);
+          relayToPanel({ type: 'LOG', level: 'info', text: `Found ${tabs.length} tabs. URLs: ${allUrls.slice(0,5).join(' | ')}` });
+
           const irisTabs = tabs.filter(t =>
             t.url && (t.url.includes('iris.fbr.gov.pk') || t.url.includes('irisv1.fbr.gov.pk'))
           );
+
           if (irisTabs.length === 0) {
             relayToPanel({ type: 'LOG', level: 'err', text: 'No IRIS tab found. Please open iris.fbr.gov.pk and log in first.' });
             relayToPanel({ type: 'ALL_DONE', error: 'No IRIS tab' });
             return;
           }
-          chrome.tabs.sendMessage(irisTabs[0].id, message, (response) => {
+
+          const irisTab = irisTabs[0];
+          relayToPanel({ type: 'LOG', level: 'info', text: `Sending to tab ${irisTab.id}: ${irisTab.url}` });
+
+          chrome.tabs.sendMessage(irisTab.id, message, (response) => {
             if (chrome.runtime.lastError) {
-              relayToPanel({ type: 'LOG', level: 'err', text: 'Content script not ready: ' + chrome.runtime.lastError.message + '. Try refreshing the IRIS tab.' });
+              relayToPanel({ type: 'LOG', level: 'err', text: `Content script error: ${chrome.runtime.lastError.message}. Please REFRESH the IRIS tab then try again.` });
               relayToPanel({ type: 'ALL_DONE', error: 'Content script not ready' });
+            } else {
+              relayToPanel({ type: 'LOG', level: 'ok', text: 'Content script acknowledged — running...' });
             }
           });
         });

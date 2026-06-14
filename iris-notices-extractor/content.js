@@ -1,6 +1,9 @@
 // IRIS Notices Extractor — Content Script
 // Runs on iris.fbr.gov.pk and irisv1.fbr.gov.pk
 
+// Confirm injection immediately
+chrome.runtime.sendMessage({ type: 'LOG', level: 'ok', text: `Content script injected on ${window.location.href}` });
+
 const T_S  = 800;
 const T_M  = 1800;
 const T_L  = 3000;
