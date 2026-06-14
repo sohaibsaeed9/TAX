@@ -2748,24 +2748,30 @@ try{ IRIS_DATA = JSON.parse(localStorage.getItem("sc_iris")||"{}"); }catch(e){}
 function saveIrisData(){ try{ localStorage.setItem("sc_iris",JSON.stringify(IRIS_DATA)); }catch(e){} }
 
 window.openProfile = function(idx){
+  // Reset all state for new client upfront
   profileIdx = idx;
   profileTab = "info";
   irisActiveSectionFilter = "ALL";
+
+  // Clear body immediately so no stale content shows during transition
+  var body = document.getElementById("cp-body");
+  if(body) body.innerHTML = "";
+
   var c = getClient(idx);
   var cpn = document.getElementById("cp-client-name"); if(cpn) cpn.textContent = c.name;
   var cpm = document.getElementById("cp-client-meta");
   if(cpm) cpm.textContent = "NTN: "+(c.ntn||"N/A")+" | Status: "+(c.status||"Unknown")+" | File No: "+(c.sr||"—");
-  // Wire tabs
+
+  // Wire tabs — read profileIdx at click time to avoid stale closures
   var tabs = document.querySelectorAll("#cp-tabs .cp-tab");
   for(var i=0;i<tabs.length;i++){
-    (function(tab){
-      tab.onclick = function(){
-        for(var j=0;j<tabs.length;j++) tabs[j].classList.remove("on");
-        tab.classList.add("on");
-        profileTab = tab.getAttribute("data-cptab");
-        renderProfileTab();
-      };
-    })(tabs[i]);
+    tabs[i].onclick = function(){
+      for(var j=0;j<tabs.length;j++) tabs[j].classList.remove("on");
+      this.classList.add("on");
+      profileTab = this.getAttribute("data-cptab");
+      irisActiveSectionFilter = "ALL";
+      renderProfileTab();
+    };
     tabs[i].classList.toggle("on", tabs[i].getAttribute("data-cptab")==="info");
   }
   renderProfileTab();
