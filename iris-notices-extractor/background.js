@@ -147,14 +147,14 @@ function inspectIrisPage() {
   catEls.slice(0, 8).forEach(el => lines.push(`  ${tag(el)} text="${el.textContent.trim()}"`));
   if (catEls.length === 0) lines.push('  No category tabs found (apply filter first)');
 
-  // 4. Registration No input (in filter panel)
-  lines.push('─── REGISTRATION INPUT ───');
-  const regInputs = Array.from(document.querySelectorAll('input[type="text"], input:not([type])')).filter(
-    el => el.offsetParent
-  );
-  regInputs.slice(0, 5).forEach(el => {
+  // 4. ALL inputs (to find Registration No)
+  lines.push('─── ALL INPUTS ───');
+  const regInputs = Array.from(document.querySelectorAll('input'));
+  if (regInputs.length === 0) lines.push('  No inputs found (open filter panel first)');
+  regInputs.slice(0, 10).forEach(el => {
     const label = document.querySelector(`label[for="${el.id}"]`);
-    lines.push(`  ${tag(el)} placeholder="${el.placeholder}" label="${label?.textContent.trim() || 'n/a'}"`);
+    const visible = el.offsetParent !== null ? 'visible' : 'hidden';
+    lines.push(`  ${tag(el)} type="${el.type}" placeholder="${el.placeholder}" id="${el.id}" label="${label?.textContent.trim() || 'n/a'}" [${visible}]`);
   });
 
   // 5. APPLY / CLEAR buttons

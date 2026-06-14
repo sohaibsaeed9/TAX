@@ -160,15 +160,18 @@ async function fillRegistrationNo(ntn) {
 }
 
 async function clickApply() {
-  const btn = Array.from(document.querySelectorAll('button, a')).find(
-    el => el.textContent.trim().toUpperCase() === 'APPLY' ||
-          el.textContent.trim().toUpperCase() === '✔ APPLY' ||
-          (el.textContent.trim().toUpperCase().includes('APPLY') && el.textContent.trim().length < 15)
+  // Confirmed selector: button.btn.btn-sm with text "Apply"
+  let btn = Array.from(document.querySelectorAll('button.btn.btn-sm')).find(
+    el => el.textContent.trim().toLowerCase() === 'apply'
+  );
+  // Fallback
+  if (!btn) btn = Array.from(document.querySelectorAll('button, a')).find(
+    el => el.textContent.trim().toLowerCase() === 'apply' && el.offsetParent !== null
   );
   if (!btn) throw new Error('APPLY button not found');
   log('info', '  Clicking APPLY...');
   btn.click();
-  await wait(T_XL); // Wait for filter to apply and panel to close
+  await wait(T_XL);
   window.scrollTo(0, 0);
   await wait(T_S);
 }
