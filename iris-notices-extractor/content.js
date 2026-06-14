@@ -206,22 +206,29 @@ const SECTION_LABELS = {
 
 async function clickSectionTab(section) {
   const keywords = SECTION_LABELS[section] || [section.toLowerCase()];
-  const tabs = document.querySelectorAll('[role="tab"], .ui-tabs-header li, .tab-header, li[class*="tab"]');
 
+  // Search all clickable elements for any that contain the keyword
+  const candidates = Array.from(document.querySelectorAll('a, button, li, span, div'));
   let found = null;
-  for (const tab of tabs) {
-    const text = tab.textContent.trim().toLowerCase();
-    if (keywords.some(k => text.includes(k))) { found = tab; break; }
+
+  // Prefer shorter text matches (avoid matching parent containers)
+  const matches = candidates.filter(el => {
+    const text = el.textContent.trim().toLowerCase();
+    return keywords.some(k => text.includes(k)) && text.length < 80;
+  });
+
+  if (matches.length > 0) {
+    // Pick the one with shortest text (most specific)
+    found = matches.sort((a, b) => a.textContent.trim().length - b.textContent.trim().length)[0];
   }
 
   if (!found) {
-    // Broader search
-    found = Array.from(document.querySelectorAll('a, button, li, span')).find(
-      el => keywords.some(k => el.textContent.trim().toLowerCase() === k)
-    );
+    const allText = candidates.slice(0, 30).map(el => `"${el.textContent.trim().substring(0,25)}"`).join(', ');
+    log('warn', `Section tab "${section}" not found. Sample elements: ${allText}`);
+    throw new Error(`Section tab "${section}" not found`);
   }
 
-  if (!found) throw new Error(`Section tab "${section}" not found`);
+  log('info', `  Clicking section tab: "${found.textContent.trim().substring(0,40)}"`);
   found.click();
   await wait(T_L);
 }
