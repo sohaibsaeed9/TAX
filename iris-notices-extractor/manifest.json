@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "FBR IRIS Notices Extractor",
+  "version": "1.0",
+  "description": "Automates extraction of FBR IRIS notices with AI summaries. S. Saeed Tax Consultants.",
+  "permissions": [
+    "activeTab", "scripting", "downloads", "storage", "tabs", "sidePanel"
+  ],
+  "host_permissions": [
+    "https://iris.fbr.gov.pk/*",
+    "https://irisv1.fbr.gov.pk/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "action": { "default_title": "Open IRIS Notices Extractor" },
+  "content_scripts": [
+    {
+      "matches": ["https://iris.fbr.gov.pk/*", "https://irisv1.fbr.gov.pk/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
