@@ -3318,8 +3318,13 @@ window.renderIrisCharts = function(idx){
     totalTaxable += (parseFloat(r.taxable)||0);
   });
 
-  var sections = Object.keys(sectionTotals).sort(function(a,b){ return sectionTotals[b]-sectionTotals[a]; }).slice(0,8);
-  var sectionValues = sections.map(function(s){ return sectionTotals[s]; });
+  // If all paid amounts are zero, count records per section instead
+  var useCount = totalPaid === 0;
+  var sectionCounts = {};
+  if(useCount){ records.forEach(function(r){ var sec=r.section||'Other'; sectionCounts[sec]=(sectionCounts[sec]||0)+1; }); }
+  var activeTotals = useCount ? sectionCounts : sectionTotals;
+  var sections = Object.keys(activeTotals).sort(function(a,b){ return activeTotals[b]-activeTotals[a]; }).slice(0,8);
+  var sectionValues = sections.map(function(s){ return activeTotals[s]; });
 
   var chartHtml = '';
 
