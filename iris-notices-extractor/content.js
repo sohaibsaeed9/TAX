@@ -161,11 +161,29 @@ async function fillRegistrationNo(ntn) {
 
 async function clickApply() {
   const btn = Array.from(document.querySelectorAll('button, a')).find(
-    el => el.textContent.trim().toUpperCase() === 'APPLY'
+    el => el.textContent.trim().toUpperCase() === 'APPLY' ||
+          el.textContent.trim().toUpperCase() === '✔ APPLY' ||
+          (el.textContent.trim().toUpperCase().includes('APPLY') && el.textContent.trim().length < 15)
   );
   if (!btn) throw new Error('APPLY button not found');
   btn.click();
   await wait(T_XL);
+
+  // Close the filter panel if it's still open (has an X / close button)
+  const closeBtn = document.querySelector(
+    '.filter-close, [class*="close"], button[aria-label*="close" i], .ui-dialog-titlebar-close, button.close'
+  ) || Array.from(document.querySelectorAll('button, span, a')).find(
+    el => el.textContent.trim() === '×' || el.textContent.trim() === '✕' || el.getAttribute('aria-label') === 'Close'
+  );
+  if (closeBtn && closeBtn.offsetParent !== null) {
+    log('info', '  Closing filter panel...');
+    closeBtn.click();
+    await wait(T_M);
+  }
+
+  // Scroll to top so section tabs are visible
+  window.scrollTo(0, 0);
+  await wait(T_S);
 }
 
 async function clearFilter() {
@@ -207,24 +225,41 @@ const SECTION_LABELS = {
 async function clickSectionTab(section) {
   const keywords = SECTION_LABELS[section] || [section.toLowerCase()];
 
-  // Search all clickable elements for any that contain the keyword
-  const candidates = Array.from(document.querySelectorAll('a, button, li, span, div'));
+  // Wait for the section tabs to be visible (they may not render immediately after filter)
+  await wait(T_M);
+
+  // Search all clickable elements — pick shortest text match that contains keyword
+  const candidates = Array.from(document.querySelectorAll('a, button, li, div[onclick], span[onclick]'));
+
+  // First pass: look for elements where the DIRECT text node contains the keyword
+  // (avoids matching outer containers that contain the keyword inside a child)
   let found = null;
+  for (const el of candidates) {
+    const ownText = Array.from(el.childNodes)
+      .filter(n => n.nodeType === Node.TEXT_NODE)
+      .map(n => n.textContent.trim().toLowerCase())
+      .join(' ');
+    if (keywords.some(k => ownText.includes(k)) && el.offsetParent !== null) {
+      found = el;
+      break;
+    }
+  }
 
-  // Prefer shorter text matches (avoid matching parent containers)
-  const matches = candidates.filter(el => {
-    const text = el.textContent.trim().toLowerCase();
-    return keywords.some(k => text.includes(k)) && text.length < 80;
-  });
-
-  if (matches.length > 0) {
-    // Pick the one with shortest text (most specific)
-    found = matches.sort((a, b) => a.textContent.trim().length - b.textContent.trim().length)[0];
+  // Second pass: full textContent with length limit
+  if (!found) {
+    const matches = candidates.filter(el => {
+      const text = el.textContent.trim().toLowerCase();
+      return keywords.some(k => text.includes(k)) && text.length < 60 && el.offsetParent !== null;
+    });
+    if (matches.length > 0) {
+      found = matches.sort((a, b) => a.textContent.trim().length - b.textContent.trim().length)[0];
+    }
   }
 
   if (!found) {
-    const allText = candidates.slice(0, 30).map(el => `"${el.textContent.trim().substring(0,25)}"`).join(', ');
-    log('warn', `Section tab "${section}" not found. Sample elements: ${allText}`);
+    // Log visible candidates to diagnose
+    const visible = Array.from(document.querySelectorAll('a, button, li')).filter(el => el.offsetParent !== null);
+    log('warn', `Section "${section}" not found. Visible links: ${visible.slice(0,15).map(el => `"${el.textContent.trim().substring(0,20)}"`).join(', ')}`);
     throw new Error(`Section tab "${section}" not found`);
   }
 
