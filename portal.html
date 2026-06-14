@@ -2846,34 +2846,8 @@ function renderProfileTab(){
     var displayedRecords = irisActiveSectionFilter === 'ALL'
       ? irisRecords
       : irisRecords.filter(function(r){ return (r.section||'Other') === irisActiveSectionFilter; });
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
-    html += '<div class="cp-section-title" style="margin:0;">Payment History ('+displayedRecords.length+' records'+(irisActiveSectionFilter!=='ALL'?' — filtered':'')+')</div>';
-    html += '<input type="text" id="iris-profile-search" placeholder="Search payments..." style="background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:IBM Plex Sans,sans-serif;font-size:12px;padding:7px 12px;border-radius:6px;outline:none;width:200px;" oninput="filterIrisProfile(this.value,'+idx+')">';
-    html += '</div>';
-      // Show only normalized columns in a clean order
-      var tblCols = ['srNo','paymentDate','txYear','cprNo','waName','section','taxable','paid'];
-      var tblLabels = {'srNo':'SR NO','paymentDate':'Payment Date','txYear':'Tax Year','cprNo':'CPR No','waName':'WA Name','section':'Section','taxable':'Taxable Amount','paid':'Paid Amount'};
-      // Check if normalized fields exist; fall back to raw keys
-      var firstRec = displayedRecords[0] || irisRecords[0];
-      var useNorm = firstRec && firstRec['paid'] !== undefined && firstRec['paid'] !== '';
-      var headers = useNorm ? tblCols : Object.keys(firstRec||{});
-      var headerLabels = useNorm ? tblLabels : null;
-      html += '<div style="max-height:400px;overflow-y:auto;">';
-      html += '<table class="iris-table"><thead><tr>';
-      for(var h=0;h<headers.length;h++){
-        html += '<th>'+(headerLabels ? escHtml(headerLabels[headers[h]]||headers[h]) : escHtml(headers[h]))+'</th>';
-      }
-      html += '</tr></thead><tbody>';
-      for(var r=0;r<displayedRecords.length;r++){
-        html += '<tr>';
-        for(var h2=0;h2<headers.length;h2++){
-          var val = displayedRecords[r][headers[h2]];
-          html += '<td>'+escHtml(String(val||""))+'</td>';
-        }
-        html += '</tr>';
-      }
-      html += '</tbody></table></div>';
-      html += '<button onclick="clearIrisData('+idx+')" style="background:#fff;border:1px solid #fecaca;color:#dc2626;font-size:11px;padding:6px 12px;border-radius:5px;cursor:pointer;margin-top:10px;">Clear IRIS Data</button>';
+    html += '<div id="iris-chart-container"></div>';
+    html += '<div id="iris-table-container"></div>';
     } else {
       html += '<div class="cp-empty">No IRIS payment data uploaded yet. Upload an Excel file above.</div>';
     }
@@ -3457,11 +3431,13 @@ window.renderIrisCharts = function(idx){
   chartHtml += '<div class="cp-info-item"><div class="cp-info-label">Sections</div><div class="cp-info-val" style="font-size:15px;">'+Object.keys(sectionTotals).length+' unique</div></div>';
   chartHtml += '</div>';
 
-  // Pie chart only
-  chartHtml += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:14px;">';
-  chartHtml += '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">Payment by Section</div>';
-  chartHtml += '<div style="max-width:420px;margin:0 auto;"><canvas id="iris-section-chart" height="180"></canvas></div>';
-  chartHtml += '</div>';
+  // Pie chart only (only show when multiple sections or data to display)
+  if(irisActiveSectionFilter === 'ALL'){
+    chartHtml += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:14px;">';
+    chartHtml += '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">Payment by Section</div>';
+    chartHtml += '<div style="max-width:420px;margin:0 auto;"><canvas id="iris-section-chart" height="180"></canvas></div>';
+    chartHtml += '</div>';
+  }
 
   // Export + Unsync buttons
   chartHtml += '<div style="display:flex;gap:8px;margin-bottom:14px;">';
@@ -3470,42 +3446,77 @@ window.renderIrisCharts = function(idx){
   chartHtml += '<button onclick="unsyncIris('+idx+')" style="background:#fff;border:1.5px solid #fca5a5;color:#dc2626;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:auto;">🔄 Clear & Re-sync</button>';
   chartHtml += '</div>';
 
-  var body = document.getElementById('cp-body');
-  if(!body) return;
-  var existing = body.innerHTML;
-  // Remove any previous chart wrapper to avoid duplicate canvas IDs
-  existing = existing.replace(/<div[^>]*id="iris-chart-wrap"[^>]*>[\s\S]*?<\/div>\s*/, '');
-  chartHtml = chartHtml.replace(
-    '<canvas id="iris-section-chart"',
-    '<div id="iris-chart-wrap"><canvas id="iris-section-chart"'
-  ).replace('</canvas></div>', '</canvas></div></div>');
-  body.innerHTML = chartHtml + existing;
+  // Update chart container directly — no prepending
+  var chartContainer = document.getElementById('iris-chart-container');
+  if(!chartContainer) return;
+  chartContainer.innerHTML = chartHtml;
 
-  requestAnimationFrame(function(){
+  // Build and update table container
+  renderIrisTable(idx);
+
+  // Draw chart
+  if(irisActiveSectionFilter === 'ALL'){
     requestAnimationFrame(function(){
-      if(typeof Chart === 'undefined') return;
-      Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
-      Chart.defaults.font.size = 11;
-      var ctx = document.getElementById('iris-section-chart');
-      if(ctx){
-        var colors = ['#1a2744','#b8923a','#059669','#dc2626','#7c3aed','#0284c7','#0891b2','#d97706'];
-        new Chart(ctx, {
-          type: 'doughnut',
-          data: {
-            labels: sections,
-            datasets:[{ data:sectionValues, backgroundColor:colors, borderWidth:2, borderColor:'#fff' }]
-          },
-          options:{
-            responsive:true, maintainAspectRatio:false,
-            plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:10} } } }
-          }
-        });
-      }
+      requestAnimationFrame(function(){
+        if(typeof Chart === 'undefined') return;
+        Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+        Chart.defaults.font.size = 11;
+        var ctx = document.getElementById('iris-section-chart');
+        if(ctx){
+          var colors = ['#1a2744','#b8923a','#059669','#dc2626','#7c3aed','#0284c7','#0891b2','#d97706'];
+          new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: chartSections,
+              datasets:[{ data:sectionValues, backgroundColor:colors, borderWidth:2, borderColor:'#fff' }]
+            },
+            options:{
+              responsive:true, maintainAspectRatio:false,
+              plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:10} } } }
+            }
+          });
+        }
+      });
     });
-  });
+  }
 };
 
 // Clear IRIS data for a client and re-sync from extension
+window.renderIrisTable = function(idx){
+  var tableContainer = document.getElementById('iris-table-container');
+  if(!tableContainer) return;
+  var irisRecords = IRIS_DATA[String(idx)] || [];
+  var displayedRecords = irisActiveSectionFilter === 'ALL'
+    ? irisRecords
+    : irisRecords.filter(function(r){ return (r.section||'Other') === irisActiveSectionFilter; });
+
+  var tblCols = ['srNo','paymentDate','txYear','cprNo','waName','section','taxable','paid'];
+  var tblLabels = {'srNo':'SR NO','paymentDate':'Payment Date','txYear':'Tax Year','cprNo':'CPR No','waName':'WA Name','section':'Section','taxable':'Taxable Amount','paid':'Paid Amount'};
+  var firstRec = displayedRecords[0] || irisRecords[0];
+  var useNorm = firstRec && firstRec['paid'] !== undefined && String(firstRec['paid']) !== '';
+  var headers = useNorm ? tblCols : Object.keys(firstRec||{});
+
+  var tbl = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+  tbl += '<div class="cp-section-title" style="margin:0;">Payment History ('+displayedRecords.length+' records'+(irisActiveSectionFilter!=='ALL'?' — filtered':'')+')  </div>';
+  tbl += '<input type="text" id="iris-profile-search" placeholder="Search payments..." style="background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:IBM Plex Sans,sans-serif;font-size:12px;padding:7px 12px;border-radius:6px;outline:none;width:200px;" oninput="filterIrisProfile(this.value,'+idx+')">';
+  tbl += '</div>';
+  tbl += '<div style="max-height:400px;overflow-y:auto;"><table class="iris-table"><thead><tr>';
+  for(var h=0;h<headers.length;h++){
+    tbl += '<th>'+(useNorm ? escHtml(tblLabels[headers[h]]||headers[h]) : escHtml(headers[h]))+'</th>';
+  }
+  tbl += '</tr></thead><tbody>';
+  for(var r=0;r<displayedRecords.length;r++){
+    tbl += '<tr>';
+    for(var h2=0;h2<headers.length;h2++){
+      tbl += '<td>'+escHtml(String(displayedRecords[r][headers[h2]]||""))+'</td>';
+    }
+    tbl += '</tr>';
+  }
+  tbl += '</tbody></table></div>';
+  tbl += '<button onclick="clearIrisData('+idx+')" style="background:#fff;border:1px solid #fecaca;color:#dc2626;font-size:11px;padding:6px 12px;border-radius:5px;cursor:pointer;margin-top:10px;">Clear IRIS Data</button>';
+  tableContainer.innerHTML = tbl;
+};
+
 window.unsyncIris = function(idx){
   if(!confirm('Clear IRIS data for this client and pull fresh data from extension?')) return;
   delete IRIS_DATA[String(idx)];
