@@ -4,6 +4,68 @@ let clients = [];
 let runInProgress = false;
 let allRunResults = [];
 
+// Persistent port connection to background for reliable messaging
+let bgPort = chrome.runtime.connect({ name: 'sidepanel' });
+
+bgPort.onDisconnect.addListener(() => {
+  // Reconnect if background service worker restarts
+  setTimeout(() => {
+    bgPort = chrome.runtime.connect({ name: 'sidepanel' });
+    bgPort.onMessage.addListener(handleBackgroundMessage);
+  }, 1000);
+});
+
+bgPort.onMessage.addListener(handleBackgroundMessage);
+
+function sendToBackground(message) {
+  try { bgPort.postMessage(message); } catch (e) {
+    // Port disconnected — reconnect and retry
+    bgPort = chrome.runtime.connect({ name: 'sidepanel' });
+    bgPort.onMessage.addListener(handleBackgroundMessage);
+    bgPort.postMessage(message);
+  }
+}
+
+function handleBackgroundMessage(message) {
+  switch (message.type) {
+    case 'LOG':
+      appendLog(message.level, message.text);
+      break;
+    case 'STATUS_UPDATE':
+      setStatus(message.text);
+      if (typeof message.current === 'number') setProgress(message.current + 1, message.total);
+      break;
+    case 'CATEGORIES_LOADED':
+      populateCategories(message.categories);
+      appendLog('info', `Categories loaded: ${message.categories.map(c => c.label).join(', ')}`);
+      break;
+    case 'CLIENT_RESULT':
+      allRunResults.push({ client: message.client, notices: message.notices });
+      appendLog('ok', `Client done: ${message.client.name} — ${message.notices.length} notice(s)`);
+      break;
+    case 'SAVE_SUMMARY_TXT': {
+      const blob = new Blob([message.content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      chrome.downloads.download({
+        url,
+        filename: `${message.folderPrefix || 'IRIS_Notices'}/${message.filename}`,
+        saveAs: false
+      });
+      break;
+    }
+    case 'EXTRACT_PDF_TEXT':
+      handlePdfExtract(message);
+      break;
+    case 'ALL_DONE':
+      setRunning(false);
+      setStatus('Done ✓');
+      setProgress(clients.length, clients.length);
+      appendLog('ok', 'All clients processed.');
+      document.getElementById('exportBtn').disabled = false;
+      break;
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function appendLog(level, text) {
@@ -160,7 +222,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
   setStatus('Starting...');
   appendLog('info', `Starting extraction: ${clients.length} clients, section: ${sectionSelect.value}`);
 
-  chrome.runtime.sendMessage({
+  sendToBackground({
     type: 'START_TO_CONTENT',
     clients,
     section: sectionSelect.value,
@@ -172,7 +234,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('stopBtn').addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'STOP_TO_CONTENT' });
+  sendToBackground({ type: 'STOP_TO_CONTENT' });
   appendLog('warn', 'Stop requested — will stop after current notice...');
 });
 
@@ -239,53 +301,7 @@ document.getElementById('clearLogBtn').addEventListener('click', () => {
   document.getElementById('logConsole').innerHTML = '';
 });
 
-// ─── Message handlers ─────────────────────────────────────────────────────────
-
-chrome.runtime.onMessage.addListener((message) => {
-  switch (message.type) {
-    case 'LOG':
-      appendLog(message.level, message.text);
-      break;
-
-    case 'STATUS_UPDATE':
-      setStatus(message.text);
-      if (typeof message.current === 'number') setProgress(message.current + 1, message.total);
-      break;
-
-    case 'CATEGORIES_LOADED':
-      populateCategories(message.categories);
-      appendLog('info', `Categories loaded: ${message.categories.map(c => c.label).join(', ')}`);
-      break;
-
-    case 'CLIENT_RESULT':
-      allRunResults.push({ client: message.client, notices: message.notices });
-      appendLog('ok', `Client done: ${message.client.name} — ${message.notices.length} notice(s)`);
-      break;
-
-    case 'SAVE_SUMMARY_TXT': {
-      const blob = new Blob([message.content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      chrome.downloads.download({
-        url,
-        filename: `${message.folderPrefix || 'IRIS_Notices'}/${message.filename}`,
-        saveAs: false
-      });
-      break;
-    }
-
-    case 'EXTRACT_PDF_TEXT':
-      handlePdfExtract(message);
-      break;
-
-    case 'ALL_DONE':
-      setRunning(false);
-      setStatus('Done ✓');
-      setProgress(clients.length, clients.length);
-      appendLog('ok', 'All clients processed.');
-      document.getElementById('exportBtn').disabled = false;
-      break;
-  }
-});
+// (Messages handled via bgPort — see top of file)
 
 async function handlePdfExtract(message) {
   // Try to read text from the downloaded PDF file via fetch

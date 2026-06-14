@@ -648,14 +648,17 @@ function extractRiskLevel(summaryText) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_TO_CONTENT') {
+    sendResponse({ ok: true });
     if (runInProgress) {
       log('warn', 'Already running — ignoring start.');
       return;
     }
+    log('info', `Content script ready. Starting on ${window.location.hostname}...`);
     runInProgress = true;
     stopRequested = false;
     runExtraction(message).catch(e => {
       log('err', `Fatal error: ${e.message}`);
+      console.error('[IRIS Extractor] Fatal:', e);
       runInProgress = false;
       chrome.runtime.sendMessage({ type: 'ALL_DONE', error: e.message });
     });
