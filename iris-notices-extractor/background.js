@@ -1,6 +1,11 @@
 // Routes messages between side panel and content script
 // Also intercepts PDF downloads triggered by the Print button in IRIS
 
+// Open side panel when extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ tabId: tab.id });
+});
+
 let sidePanelPort = null;
 let pendingPdfCapture = false;
 
