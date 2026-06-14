@@ -2750,6 +2750,7 @@ function saveIrisData(){ try{ localStorage.setItem("sc_iris",JSON.stringify(IRIS
 window.openProfile = function(idx){
   profileIdx = idx;
   profileTab = "info";
+  irisActiveSectionFilter = "ALL";
   var c = getClient(idx);
   var cpn = document.getElementById("cp-client-name"); if(cpn) cpn.textContent = c.name;
   var cpm = document.getElementById("cp-client-meta");
@@ -2841,22 +2842,32 @@ function renderProfileTab(){
     var irisKey = String(idx);
     var irisRecords = IRIS_DATA[irisKey] || [];
     if(irisRecords.length){
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
-    html += '<div class="cp-section-title" style="margin:0;">Payment History ('+irisRecords.length+' records)</div>';
+      // Filter records by active section
+    var displayedRecords = irisActiveSectionFilter === 'ALL'
+      ? irisRecords
+      : irisRecords.filter(function(r){ return (r.section||'Other') === irisActiveSectionFilter; });
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+    html += '<div class="cp-section-title" style="margin:0;">Payment History ('+displayedRecords.length+' records'+(irisActiveSectionFilter!=='ALL'?' — filtered':'')+')</div>';
     html += '<input type="text" id="iris-profile-search" placeholder="Search payments..." style="background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:IBM Plex Sans,sans-serif;font-size:12px;padding:7px 12px;border-radius:6px;outline:none;width:200px;" oninput="filterIrisProfile(this.value,'+idx+')">';
     html += '</div>';
+      // Show only normalized columns in a clean order
+      var tblCols = ['srNo','paymentDate','txYear','cprNo','waName','section','taxable','paid'];
+      var tblLabels = {'srNo':'SR NO','paymentDate':'Payment Date','txYear':'Tax Year','cprNo':'CPR No','waName':'WA Name','section':'Section','taxable':'Taxable Amount','paid':'Paid Amount'};
+      // Check if normalized fields exist; fall back to raw keys
+      var firstRec = displayedRecords[0] || irisRecords[0];
+      var useNorm = firstRec && firstRec['paid'] !== undefined && firstRec['paid'] !== '';
+      var headers = useNorm ? tblCols : Object.keys(firstRec||{});
+      var headerLabels = useNorm ? tblLabels : null;
       html += '<div style="max-height:400px;overflow-y:auto;">';
       html += '<table class="iris-table"><thead><tr>';
-      // Use headers from first record
-      var headers = Object.keys(irisRecords[0]);
       for(var h=0;h<headers.length;h++){
-        html += '<th>'+escHtml(headers[h])+'</th>';
+        html += '<th>'+(headerLabels ? escHtml(headerLabels[headers[h]]||headers[h]) : escHtml(headers[h]))+'</th>';
       }
       html += '</tr></thead><tbody>';
-      for(var r=0;r<irisRecords.length;r++){
+      for(var r=0;r<displayedRecords.length;r++){
         html += '<tr>';
         for(var h2=0;h2<headers.length;h2++){
-          var val = irisRecords[r][headers[h2]];
+          var val = displayedRecords[r][headers[h2]];
           html += '<td>'+escHtml(String(val||""))+'</td>';
         }
         html += '</tr>';
@@ -3178,6 +3189,7 @@ function normalizeIrisRows(rows, headers){
    IRIS PAYMENTS PAGE
 ════════════════════════════════ */
 var irisSearch = "";
+var irisActiveSectionFilter = "ALL";
 
 function wireIris(){
   var inp = document.getElementById("iris-global-search");
@@ -3382,10 +3394,25 @@ window.syncFromExtension = function(){
 /* ════════════════════════════════
    IRIS ANALYTICS CHARTS
 ════════════════════════════════ */
+window.setIrisSectionFilter = function(section, idx){
+  irisActiveSectionFilter = section;
+  renderIrisCharts(idx);
+};
+
 window.renderIrisCharts = function(idx){
   var irisKey = String(idx);
-  var records = IRIS_DATA[irisKey] || [];
-  if(!records.length) return;
+  var allRecords = IRIS_DATA[irisKey] || [];
+  if(!allRecords.length) return;
+
+  // Collect all unique sections from full dataset
+  var allSections = {};
+  allRecords.forEach(function(r){ var s=r.section||'Other'; allSections[s]=true; });
+  var allSectionKeys = Object.keys(allSections).sort();
+
+  // Apply section filter
+  var records = irisActiveSectionFilter === 'ALL'
+    ? allRecords
+    : allRecords.filter(function(r){ return (r.section||'Other') === irisActiveSectionFilter; });
 
   var sectionTotals = {};
   var totalPaid = 0;
@@ -3404,12 +3431,25 @@ window.renderIrisCharts = function(idx){
   var sectionCounts = {};
   if(useCount){ records.forEach(function(r){ var sec=r.section||'Other'; sectionCounts[sec]=(sectionCounts[sec]||0)+1; }); }
   var activeTotals = useCount ? sectionCounts : sectionTotals;
-  var sections = Object.keys(activeTotals).sort(function(a,b){ return activeTotals[b]-activeTotals[a]; }).slice(0,8);
-  var sectionValues = sections.map(function(s){ return activeTotals[s]; });
+  var chartSections = Object.keys(activeTotals).sort(function(a,b){ return activeTotals[b]-activeTotals[a]; }).slice(0,8);
+  var sectionValues = chartSections.map(function(s){ return activeTotals[s]; });
 
   var chartHtml = '';
 
-  // Summary cards
+  // Section filter pills
+  chartHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;align-items:center;">';
+  chartHtml += '<span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-right:4px;">Filter:</span>';
+  var allActive = irisActiveSectionFilter === 'ALL';
+  chartHtml += '<button onclick="setIrisSectionFilter(\'ALL\','+idx+')" style="padding:5px 12px;border-radius:20px;border:1.5px solid '+(allActive?'#1a2744':'#e5e7eb')+';background:'+(allActive?'#1a2744':'#fff')+';color:'+(allActive?'#fff':'#374151')+';font-size:11px;font-weight:600;cursor:pointer;">All ('+allRecords.length+')</button>';
+  allSectionKeys.forEach(function(sec){
+    var active = irisActiveSectionFilter === sec;
+    var cnt = allRecords.filter(function(r){ return (r.section||'Other')===sec; }).length;
+    var label = sec.length > 28 ? sec.substring(0,28)+'…' : sec;
+    chartHtml += '<button onclick="setIrisSectionFilter(\''+sec.replace(/'/g,"\\'").replace(/"/g,'&quot;')+'\','+idx+')" style="padding:5px 12px;border-radius:20px;border:1.5px solid '+(active?'#b8923a':'#e5e7eb')+';background:'+(active?'#b8923a':'#fff')+';color:'+(active?'#fff':'#374151')+';font-size:11px;font-weight:600;cursor:pointer;" title="'+escHtml(sec)+'">'+escHtml(label)+' ('+cnt+')</button>';
+  });
+  chartHtml += '</div>';
+
+  // Summary cards (reflect filtered totals)
   chartHtml += '<div class="cp-info-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">';
   chartHtml += '<div class="cp-info-item"><div class="cp-info-label">Total Paid</div><div class="cp-info-val" style="color:#059669;font-size:15px;">PKR '+fmtAmt(totalPaid)+'</div></div>';
   chartHtml += '<div class="cp-info-item"><div class="cp-info-label">Total Taxable</div><div class="cp-info-val" style="font-size:15px;">PKR '+fmtAmt(totalTaxable)+'</div></div>';
