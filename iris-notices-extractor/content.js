@@ -541,42 +541,41 @@ async function runExtraction(config) {
                 }
               }
 
+              let riskLevel = 'NOT_ASSESSED';
+
               if (textToSummarise && apiKey) {
                 try {
                   log('info', '    Generating AI summary...');
                   const summary = await generateNoticeSummary(textToSummarise, metadata, apiKey);
-                  const riskLevel = extractRiskLevel(summary);
+                  riskLevel = extractRiskLevel(summary);
 
-                  // Build filename
                   const taskShort = sanitizeFilename(metadata.task.split('(')[0].trim() || metadata.task).substring(0, 40);
                   const clientShort = sanitizeFilename(metadata.name).substring(0, 40);
                   const fyStr = metadata.taxYear || 'XX';
                   const filenameBase = buildFilename(taskShort, clientShort, fyStr, 1);
 
-                  // Save summary .txt
                   chrome.runtime.sendMessage({
                     type: 'SAVE_SUMMARY_TXT',
                     filename: `${filenameBase}.txt`,
                     content: summary,
                     folderPrefix
                   });
-
-                  const noticeRecord = {
-                    id: noticeId,
-                    ...metadata,
-                    pdfFilename: `${filenameBase}.pdf`,
-                    summaryFilename: `${filenameBase}.txt`,
-                    riskLevel,
-                    isNew: true,
-                    extractedAt: new Date().toISOString()
-                  };
-
-                  clientNotices.push(noticeRecord);
-                  log('ok', `    Done: ${metadata.task} — Risk: ${riskLevel}`);
+                  log('ok', `    Summary saved — Risk: ${riskLevel}`);
                 } catch (e) {
                   log('err', `    AI summary error: ${e.message}`);
                 }
               }
+
+              // Always record the notice metadata regardless of API key
+              const noticeRecord = {
+                id: noticeId,
+                ...metadata,
+                riskLevel,
+                isNew: true,
+                extractedAt: new Date().toISOString()
+              };
+              clientNotices.push(noticeRecord);
+              log('ok', `    Recorded: ${metadata.task} TY${metadata.taxYear}`);
 
               await markNoticeSeen(client.ntn, noticeId);
 
