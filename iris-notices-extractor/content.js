@@ -192,7 +192,7 @@ async function clickSectionTab(section) {
   if (cssSelector) {
     const el = document.querySelector(cssSelector);
     if (el && el.offsetParent !== null) {
-      log('info', `  Clicking section tab via CSS: "${el.textContent.trim().substring(0, 40)}"`);
+      log('ok', `  ✓ Clicked section: ${section} (${el.textContent.trim().split('\n')[0].trim()})`);
       el.click();
       await wait(T_L);
       return;
