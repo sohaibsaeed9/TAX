@@ -316,8 +316,11 @@ function parseNoticeRows() {
     const taxYear = tds[4]?.textContent.trim() || '';
     const dueDate = tds[5]?.textContent.trim() || '';
 
-    // Find View button in last cell
-    const viewBtn = tr.querySelector('a[title*="view" i], button[title*="view" i], a[aria-label*="view" i], .view-btn, [class*="view"]');
+    // Find View button — try multiple selectors
+    const lastTd = tds[tds.length - 1];
+    const viewBtn = lastTd.querySelector('a, button') ||  // any clickable in action cell
+                    tr.querySelector('a[title*="view" i], button[title*="view" i]') ||
+                    tr.querySelector('a[href], button');
 
     if (taskCell) {
       rows.push({ taskName: taskCell, clientName, regNo, period, taxYear, dueDate, viewBtn, tr });
@@ -479,8 +482,18 @@ async function runExtraction(config) {
         let page = 1;
         while (true) {
           if (stopRequested) break;
+          await wait(T_M); // wait for table to render after category click
           const rows = parseNoticeRows();
-          log('info', `    Page ${page}: ${rows.length} notices`);
+          log('info', `    Page ${page}: ${rows.length} rows found`);
+          if (rows.length > 0) {
+            const sample = rows[0];
+            log('info', `    Sample row: task="${sample.taskName.substring(0,30)}" viewBtn=${!!sample.viewBtn}`);
+          } else {
+            // Log table state to diagnose
+            const tbl = document.querySelector('table.table-striped');
+            const trs = tbl ? tbl.querySelectorAll('tbody tr') : [];
+            log('warn', `    Table found: ${!!tbl}, tbody rows: ${trs.length}`);
+          }
 
           for (const row of rows) {
             if (stopRequested) break;

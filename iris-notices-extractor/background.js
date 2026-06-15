@@ -173,17 +173,18 @@ function inspectIrisPage() {
   lines.push(`  Tables found: ${tables.length}`);
   tables.forEach((t, i) => {
     const rows = t.querySelectorAll('tbody tr');
-    lines.push(`  Table[${i}] rows=${rows.length} class="${t.className?.substring(0,30)}"`);
+    lines.push(`  Table[${i}] rows=${rows.length} class="${t.className?.substring(0,40)}"`);
+    if (rows.length > 0) {
+      const firstRow = rows[0];
+      const tds = firstRow.querySelectorAll('td');
+      lines.push(`  First row: ${tds.length} columns`);
+      tds.forEach((td, j) => {
+        const links = td.querySelectorAll('a, button');
+        lines.push(`    td[${j}]: "${td.textContent.trim().substring(0,30)}" links=${links.length}`);
+        links.forEach(l => lines.push(`      ${tag(l)} text="${l.textContent.trim().substring(0,15)}" title="${l.title}" href="${l.href?.substring(0,30) || ''}"`));
+      });
+    }
   });
-
-  // 7. View (eye) buttons
-  lines.push('─── VIEW BUTTONS ───');
-  const viewBtns = Array.from(document.querySelectorAll('a, button')).filter(el => {
-    const t = (el.textContent + (el.title || '') + (el.getAttribute('aria-label') || '')).toLowerCase();
-    return (t.includes('view') || t.includes('👁')) && el.offsetParent;
-  });
-  viewBtns.slice(0, 3).forEach(el => lines.push(`  ${tag(el)} text="${el.textContent.trim().substring(0,20)}" title="${el.title}"`));
-  if (viewBtns.length === 0) lines.push('  None (open a notice list first)');
 
   return lines;
 }
