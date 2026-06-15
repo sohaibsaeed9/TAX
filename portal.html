@@ -943,14 +943,6 @@ function doLogin(){
 }
 
 function loginOK(u,usr){
-  // Clear any bad status overrides from previous imports
-  var keys = Object.keys(CLIENT_OVERRIDES);
-  keys.forEach(function(k){
-    if(CLIENT_OVERRIDES[k] && CLIENT_OVERRIDES[k].status !== undefined){
-      delete CLIENT_OVERRIDES[k].status;
-    }
-  });
-  saveClientOverrides();
   role=usr.role; userName=usr.name; sessStart=Date.now();
   var p=PERMS[role];
   ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library"].forEach(function(k){
