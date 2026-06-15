@@ -635,6 +635,10 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
     <div class="sitem hide" id="tab-tools" data-page="tools">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>Quick Tools
     </div>
+    <div class="sidebar-section">Admin</div>
+    <div class="sitem hide" id="tab-exttools" data-page="exttools" onclick="if(role==='admin') window.open('https://tools.saeedandcotax.com','_blank'); return false;" style="cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 9h3M15 12h3M15 15h3M6 9h1M6 12h1M6 15h1"/></svg>Extension Tools
+    </div>
     <div class="sidebar-section">Resources</div>
     <div class="sitem hide" id="tab-library" data-page="library">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -874,8 +878,8 @@ var USERS = {
   staff2: { pw:"Staff2@2025", role:"staff", name:"Staff 2" }
 };
 var PERMS = {
-  admin: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:1, comms:1, tools:1, library:1 },
-  staff: { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, fees:0, comms:0, tools:0, library:1 }
+  admin: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:1, comms:1, tools:1, library:1, exttools:1 },
+  staff: { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, fees:0, comms:0, tools:0, library:1, exttools:0 }
 };
 
 /* ════════════════════════════════
@@ -945,7 +949,7 @@ function doLogin(){
 function loginOK(u,usr){
   role=usr.role; userName=usr.name; sessStart=Date.now();
   var p=PERMS[role];
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library"].forEach(function(k){
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library","exttools"].forEach(function(k){
     var el=$("tab-"+k); if(el) el.classList.toggle("hide",!p[k]);
   });
   buildPages(p);
@@ -970,7 +974,7 @@ function doLogout(){
   $("lpass").value=""; $("luser").value="";
   $("lbtn").textContent="Sign In →"; $("lbtn").disabled=false;
   att=0; updateDots(); hideErr();
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library","exttools"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
 }
 
 /* ════════════════════════════════
