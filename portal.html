@@ -949,7 +949,7 @@ function doLogin(){
 function loginOK(u,usr){
   role=usr.role; userName=usr.name; sessStart=Date.now();
   var p=PERMS[role];
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library"].forEach(function(k){
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library","exttools"].forEach(function(k){
     var el=$("tab-"+k); if(el) el.classList.toggle("hide",!p[k]);
   });
   buildPages(p);
