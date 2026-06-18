@@ -4117,16 +4117,18 @@ window.renderAdvisoriesPage = function(){
 
 window.openAdvisoryEditor = function(id, prefillClientIdx){
   var modal = document.getElementById("advisory-editor-modal");
-  if(!modal) return;
+  if(!modal){ alert("Advisory editor not found. Please reload the page."); return; }
+  modal.style.display = "flex";
   var a = id ? ADVISORIES.find(function(x){return x.id===id;}) : null;
-  document.getElementById("adv-ed-id").value = a ? a.id : "";
-  document.getElementById("adv-ed-title").value = a ? (a.title||"") : "";
-  document.getElementById("adv-ed-subtitle").value = a ? (a.subtitle||"") : "";
-  document.getElementById("adv-ed-type").value = a ? (a.type||"General") : "General";
-  document.getElementById("adv-ed-date").value = a ? (a.date||"") : new Date().toISOString().slice(0,10);
-  document.getElementById("adv-ed-effdate").value = a ? (a.effectiveDate||"") : "";
+  var f = function(eid){ return document.getElementById(eid); };
+  if(f("adv-ed-id")) f("adv-ed-id").value = a ? a.id : "";
+  if(f("adv-ed-title")) f("adv-ed-title").value = a ? (a.title||"") : "";
+  if(f("adv-ed-subtitle")) f("adv-ed-subtitle").value = a ? (a.subtitle||"") : "";
+  if(f("adv-ed-type")) f("adv-ed-type").value = a ? (a.type||"General") : "General";
+  if(f("adv-ed-date")) f("adv-ed-date").value = a ? (a.date||"") : new Date().toISOString().slice(0,10);
+  if(f("adv-ed-effdate")) f("adv-ed-effdate").value = a ? (a.effectiveDate||"") : "";
   var ci = a ? a.clientIdx : (prefillClientIdx !== undefined ? parseInt(prefillClientIdx) : -1);
-  var clientSel = document.getElementById("adv-ed-client");
+  var clientSel = f("adv-ed-client");
   if(clientSel && clientSel.options.length <= 1){
     for(var ci2=0; ci2<ALL_CLIENTS.length; ci2++){
       var opt = document.createElement("option");
@@ -4136,9 +4138,8 @@ window.openAdvisoryEditor = function(id, prefillClientIdx){
     }
   }
   if(clientSel) clientSel.value = String(ci);
-  var editor = document.getElementById("adv-ed-content");
+  var editor = f("adv-ed-content");
   if(editor) editor.innerHTML = a ? (a.content||"") : "";
-  modal.style.display = "flex";
 };
 
 window.closeAdvisoryEditor = function(){
