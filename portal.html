@@ -4681,6 +4681,30 @@ window.advInsertTable = function(){
   <div id="adv-list"></div>
 </div>
 
+<!-- ADVISORIES PAGE -->
+<div id="tpl-advisories" style="display:none">
+  <div class="page-header">
+    <div class="page-title">Advisories</div>
+    <div class="page-sub">Tax advisories and opinion letters for all clients</div>
+    <button onclick="openAdvisoryEditor(-1,-1)" style="background:#1a2744;border:none;color:#fff;font-size:13px;font-weight:600;padding:10px 18px;border-radius:8px;cursor:pointer;margin-top:12px;">+ New Advisory</button>
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+    <input type="text" id="adv-search" placeholder="Search advisories..." style="flex:1;min-width:180px;background:#fff;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;" oninput="renderAdvisoriesPage()">
+    <select id="adv-filter-type" style="background:#fff;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;" onchange="renderAdvisoriesPage()">
+      <option value="">All Types</option>
+      <option value="sales_tax">Sales Tax</option>
+      <option value="income_tax">Income Tax</option>
+      <option value="wht">WHT</option>
+      <option value="customs">Customs</option>
+      <option value="general">General</option>
+    </select>
+    <select id="adv-filter-client" style="background:#fff;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;" onchange="renderAdvisoriesPage()">
+      <option value="">All Clients</option>
+    </select>
+  </div>
+  <div id="adv-list"></div>
+</div>
+
 <!-- IRIS PAYMENTS PAGE -->
 <div id="tpl-iris" style="display:none">
   <div class="page-header">
@@ -4910,6 +4934,331 @@ window.advInsertTable = function(){
     </div>
   </div>
 </div>
+
+<!-- ADVISORY EDITOR MODAL -->
+<div id="advisory-editor-modal" style="display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.55);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:96%;max-width:820px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.25);">
+    <div style="background:#1a2744;color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="font-size:16px;font-weight:600;" id="adv-editor-title">New Advisory</div>
+      <button onclick="document.getElementById('advisory-editor-modal').style.display='none'" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div style="overflow-y:auto;padding:22px;flex:1;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">Title *</label>
+          <input id="adv-title" type="text" placeholder="Advisory title..." style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">Subtitle / For</label>
+          <input id="adv-subtitle" type="text" placeholder="e.g. Re: Input tax credit on XYZ" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">Type *</label>
+          <select id="adv-type" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;">
+            <option value="">— Select type —</option>
+            <option value="sales_tax">Sales Tax</option>
+            <option value="income_tax">Income Tax</option>
+            <option value="wht">WHT</option>
+            <option value="customs">Customs</option>
+            <option value="general">General</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">Client</label>
+          <select id="adv-client" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;">
+            <option value="-1">— General (no specific client) —</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">Date</label>
+          <input id="adv-date" type="date" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">Effective Date</label>
+          <input id="adv-effective-date" type="date" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;">
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">Content</label>
+        <div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+          <div style="display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid #e5e7eb;background:#fff;flex-wrap:wrap;">
+            <button type="button" onclick="document.execCommand('bold')" title="Bold" style="background:none;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-weight:700;font-size:13px;cursor:pointer;color:#1a2744;">B</button>
+            <button type="button" onclick="document.execCommand('italic')" title="Italic" style="background:none;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-style:italic;font-size:13px;cursor:pointer;color:#1a2744;">I</button>
+            <button type="button" onclick="document.execCommand('formatBlock',false,'h1')" title="H1" style="background:none;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;color:#1a2744;">H1</button>
+            <button type="button" onclick="document.execCommand('formatBlock',false,'h2')" title="H2" style="background:none;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;color:#1a2744;">H2</button>
+            <button type="button" onclick="document.execCommand('insertUnorderedList')" title="Bullet List" style="background:none;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-size:13px;cursor:pointer;color:#1a2744;">&#8226; List</button>
+            <button type="button" onclick="insertAdvTable()" title="Insert Table" style="background:none;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;color:#1a2744;">Table</button>
+            <button type="button" onclick="generateAdvisoryAI()" style="background:linear-gradient(135deg,#b8923a,#d4a84b);border:none;color:#fff;border-radius:4px;padding:4px 14px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;">&#10024; Generate with AI</button>
+          </div>
+          <div id="adv-content" contenteditable="true" style="min-height:280px;padding:16px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.7;color:#1a2744;outline:none;"></div>
+        </div>
+        <div id="adv-ai-status" style="font-size:12px;color:#b8923a;margin-top:6px;display:none;"></div>
+      </div>
+    </div>
+    <div style="padding:14px 22px;border-top:1px solid #e5e7eb;display:flex;gap:10px;background:#fff;flex-shrink:0;">
+      <button onclick="saveAdvisory()" style="flex:1;background:#1a2744;border:none;color:#fff;font-size:13px;font-weight:600;padding:11px;border-radius:8px;cursor:pointer;">Save Advisory</button>
+      <button onclick="document.getElementById('advisory-editor-modal').style.display='none'" style="background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:13px;padding:11px 20px;border-radius:8px;cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADVISORY VIEWER MODAL -->
+<div id="advisory-viewer-modal" style="display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.6);align-items:flex-start;justify-content:center;padding:20px 0;overflow-y:auto;">
+  <div style="background:#fff;border-radius:14px;width:96%;max-width:860px;min-height:600px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.3);">
+    <div style="background:#1a2744;color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:600;" id="adv-viewer-heading">Advisory</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="window.print()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;">&#128438; Print</button>
+        <button id="adv-viewer-edit-btn" onclick="" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;">&#9998; Edit</button>
+        <button id="adv-viewer-del-btn" onclick="" style="background:#991b1b;border:none;color:#fff;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;">Delete</button>
+        <button onclick="document.getElementById('advisory-viewer-modal').style.display='none'" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;">&times;</button>
+      </div>
+    </div>
+    <div id="adv-viewer-body" style="padding:32px 40px;"></div>
+  </div>
+</div>
+
+<style>
+/* Advisory viewer content styles */
+#adv-viewer-body .adv-section { background:#1a2744;color:#fff;font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;padding:10px 16px;border-radius:4px;margin:20px 0 8px; }
+#adv-viewer-body .adv-subsection { color:#b8923a;font-weight:700;font-size:14px;border-bottom:2px solid #b8923a;padding-bottom:4px;margin:16px 0 8px; }
+#adv-viewer-body .adv-callout { background:#fffbf0;border-left:4px solid #b8923a;padding:12px 16px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px;color:#374151; }
+#adv-viewer-body .adv-callout.info { border-color:#1a2744;background:#f0f4ff; }
+#adv-viewer-body .adv-table { width:100%;border-collapse:collapse;margin:12px 0;font-size:13px; }
+#adv-viewer-body .adv-table th { background:#1a2744;color:#fff;padding:9px 12px;text-align:left;font-weight:600; }
+#adv-viewer-body .adv-table td { padding:8px 12px;border-bottom:1px solid #e5e7eb; }
+#adv-viewer-body .adv-table tr:nth-child(even) td { background:#f9fafb; }
+#adv-viewer-body p { margin:8px 0;font-size:14px;line-height:1.75;color:#374151; }
+#adv-viewer-body h1 { font-family:'Playfair Display',serif;font-size:22px;color:#1a2744;margin:20px 0 10px; }
+#adv-viewer-body h2 { font-size:16px;font-weight:700;color:#1a2744;margin:16px 0 8px; }
+#adv-viewer-body ul,#adv-viewer-body ol { padding-left:20px;margin:8px 0; }
+#adv-viewer-body li { font-size:14px;line-height:1.7;color:#374151;margin-bottom:4px; }
+@media print {
+  body > *:not(#advisory-viewer-modal) { display:none !important; }
+  #advisory-viewer-modal { position:static!important;background:none!important;padding:0!important; }
+  #advisory-viewer-modal > div { box-shadow:none!important;border-radius:0!important; }
+  #advisory-viewer-modal > div > div:first-child { display:none!important; }
+}
+</style>
+
+<script>
+/* ════════════════════════════════
+   ADVISORIES
+════════════════════════════════ */
+var ADVISORIES = [];
+try{ ADVISORIES = JSON.parse(localStorage.getItem("sc_advisories")||"[]"); }catch(e){}
+
+function saveAdvisories(){ localStorage.setItem("sc_advisories", JSON.stringify(ADVISORIES)); }
+
+function wireAdvisories(){
+  // Populate client filter
+  var sel = document.getElementById("adv-filter-client");
+  if(sel && typeof ALL_CLIENTS !== "undefined"){
+    ALL_CLIENTS.forEach(function(c,i){
+      var o = document.createElement("option");
+      o.value = i; o.textContent = c.name;
+      sel.appendChild(o);
+    });
+  }
+  renderAdvisoriesPage();
+}
+
+window.renderAdvisoriesPage = function(){
+  var list = document.getElementById("adv-list"); if(!list) return;
+  var q = (document.getElementById("adv-search")||{value:""}).value.toLowerCase();
+  var ft = (document.getElementById("adv-filter-type")||{value:""}).value;
+  var fc = (document.getElementById("adv-filter-client")||{value:""}).value;
+  var typeLabel = {sales_tax:"Sales Tax",income_tax:"Income Tax",wht:"WHT",customs:"Customs",general:"General"};
+  var typeColor = {sales_tax:"#b8923a",income_tax:"#1a2744",wht:"#059669",customs:"#7c3aed",general:"#6b7280"};
+  var filtered = ADVISORIES.filter(function(a){
+    if(ft && a.type !== ft) return false;
+    if(fc !== "" && String(a.clientIdx) !== String(fc)) return false;
+    if(q && (a.title||"").toLowerCase().indexOf(q)===-1 && (a.subtitle||"").toLowerCase().indexOf(q)===-1) return false;
+    return true;
+  });
+  if(!filtered.length){
+    list.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#9ca3af;font-size:14px;">No advisories found. Click "New Advisory" to create one.</div>';
+    return;
+  }
+  var html = '<div style="display:grid;gap:12px;">';
+  filtered.forEach(function(a){
+    var clientName = a.clientIdx >= 0 && typeof ALL_CLIENTS !== "undefined" && ALL_CLIENTS[a.clientIdx] ? ALL_CLIENTS[a.clientIdx].name : "General";
+    html += '<div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">';
+    html += '<div style="flex:1;">';
+    html += '<div style="font-size:14px;font-weight:600;color:#1a2744;margin-bottom:3px;">'+escHtml(a.title)+'</div>';
+    if(a.subtitle) html += '<div style="font-size:12px;color:#6b7280;margin-bottom:4px;">'+escHtml(a.subtitle)+'</div>';
+    html += '<div style="display:flex;gap:10px;align-items:center;margin-top:4px;">';
+    html += '<span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:'+(typeColor[a.type]||"#6b7280")+';background:'+(typeColor[a.type]||"#6b7280")+'18;padding:3px 8px;border-radius:12px;">'+(typeLabel[a.type]||a.type||"General")+'</span>';
+    html += '<span style="font-size:11px;color:#9ca3af;">'+escHtml(clientName)+'</span>';
+    if(a.date) html += '<span style="font-size:11px;color:#9ca3af;">'+escHtml(a.date)+'</span>';
+    html += '</div></div>';
+    html += '<div style="display:flex;gap:8px;flex-shrink:0;">';
+    html += '<button onclick="viewAdvisory(''+a.id+'')" style="background:#1a2744;border:none;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">View</button>';
+    html += '<button onclick="openAdvisoryEditor(-1,-1,''+a.id+'')" style="background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;">Edit</button>';
+    html += '<button onclick="deleteAdvisory(''+a.id+'')" style="background:#fff;border:1.5px solid #fecaca;color:#ef4444;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;">Del</button>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  list.innerHTML = html;
+};
+
+var _editingAdvId = null;
+
+window.openAdvisoryEditor = function(idx, prefillClientIdx, editId){
+  _editingAdvId = null;
+  var title = document.getElementById("adv-editor-title");
+  var clientSel = document.getElementById("adv-client");
+  // Populate client dropdown
+  if(clientSel && typeof ALL_CLIENTS !== "undefined"){
+    clientSel.innerHTML = '<option value="-1">— General (no specific client) —</option>';
+    ALL_CLIENTS.forEach(function(c,i){
+      var o = document.createElement("option");
+      o.value = i; o.textContent = c.name;
+      clientSel.appendChild(o);
+    });
+  }
+  if(editId){
+    var a = ADVISORIES.find(function(x){ return x.id === editId; });
+    if(!a) return;
+    _editingAdvId = editId;
+    if(title) title.textContent = "Edit Advisory";
+    document.getElementById("adv-title").value = a.title||"";
+    document.getElementById("adv-subtitle").value = a.subtitle||"";
+    document.getElementById("adv-type").value = a.type||"";
+    document.getElementById("adv-date").value = a.date||"";
+    document.getElementById("adv-effective-date").value = a.effectiveDate||"";
+    if(clientSel) clientSel.value = String(a.clientIdx);
+    document.getElementById("adv-content").innerHTML = a.content||"";
+  } else {
+    if(title) title.textContent = "New Advisory";
+    document.getElementById("adv-title").value = "";
+    document.getElementById("adv-subtitle").value = "";
+    document.getElementById("adv-type").value = "";
+    document.getElementById("adv-date").value = new Date().toISOString().slice(0,10);
+    document.getElementById("adv-effective-date").value = "";
+    document.getElementById("adv-content").innerHTML = "";
+    if(clientSel && prefillClientIdx != null && prefillClientIdx >= 0) clientSel.value = String(prefillClientIdx);
+  }
+  var aiStatus = document.getElementById("adv-ai-status");
+  if(aiStatus){ aiStatus.style.display="none"; aiStatus.textContent=""; }
+  document.getElementById("advisory-editor-modal").style.display = "flex";
+};
+
+window.saveAdvisory = function(){
+  var title = (document.getElementById("adv-title").value||"").trim();
+  if(!title){ alert("Please enter a title."); return; }
+  var obj = {
+    id: _editingAdvId || ("adv_"+Date.now()),
+    title: title,
+    subtitle: document.getElementById("adv-subtitle").value.trim(),
+    type: document.getElementById("adv-type").value,
+    clientIdx: parseInt(document.getElementById("adv-client").value,10),
+    date: document.getElementById("adv-date").value,
+    effectiveDate: document.getElementById("adv-effective-date").value,
+    content: document.getElementById("adv-content").innerHTML,
+    createdAt: _editingAdvId ? (ADVISORIES.find(function(x){return x.id===_editingAdvId;})||{}).createdAt||new Date().toISOString() : new Date().toISOString()
+  };
+  if(_editingAdvId){
+    var i = ADVISORIES.findIndex(function(x){ return x.id===_editingAdvId; });
+    if(i>=0) ADVISORIES[i] = obj; else ADVISORIES.push(obj);
+  } else {
+    ADVISORIES.push(obj);
+  }
+  saveAdvisories();
+  document.getElementById("advisory-editor-modal").style.display="none";
+  if(window.renderAdvisoriesPage) window.renderAdvisoriesPage();
+};
+
+window.deleteAdvisory = function(id){
+  if(!confirm("Delete this advisory? This cannot be undone.")) return;
+  ADVISORIES = ADVISORIES.filter(function(a){ return a.id!==id; });
+  saveAdvisories();
+  document.getElementById("advisory-viewer-modal").style.display="none";
+  if(window.renderAdvisoriesPage) window.renderAdvisoriesPage();
+};
+
+window.viewAdvisory = function(id){
+  var a = ADVISORIES.find(function(x){ return x.id===id; });
+  if(!a) return;
+  var typeLabel = {sales_tax:"Sales Tax",income_tax:"Income Tax",wht:"WHT",customs:"Customs",general:"General"};
+  var clientName = a.clientIdx >= 0 && typeof ALL_CLIENTS!=="undefined" && ALL_CLIENTS[a.clientIdx] ? ALL_CLIENTS[a.clientIdx].name : "General Advisory";
+  var heading = document.getElementById("adv-viewer-heading");
+  if(heading) heading.textContent = a.title;
+  var body = document.getElementById("adv-viewer-body");
+  var html = '';
+  html += '<div style="border-bottom:2px solid #e5e7eb;padding-bottom:20px;margin-bottom:24px;">';
+  html += '<div style="font-family:\'Playfair Display\',serif;font-size:24px;color:#1a2744;margin-bottom:6px;">'+escHtml(a.title)+'</div>';
+  if(a.subtitle) html += '<div style="font-size:14px;color:#6b7280;margin-bottom:8px;">'+escHtml(a.subtitle)+'</div>';
+  html += '<div style="display:flex;gap:16px;font-size:12px;color:#9ca3af;">';
+  html += '<span><strong style="color:#374151;">Client:</strong> '+escHtml(clientName)+'</span>';
+  html += '<span><strong style="color:#374151;">Type:</strong> '+(typeLabel[a.type]||a.type||"—")+'</span>';
+  if(a.date) html += '<span><strong style="color:#374151;">Date:</strong> '+escHtml(a.date)+'</span>';
+  if(a.effectiveDate) html += '<span><strong style="color:#374151;">Effective:</strong> '+escHtml(a.effectiveDate)+'</span>';
+  html += '</div></div>';
+  html += (a.content||'<p style="color:#9ca3af;font-style:italic;">No content yet.</p>');
+  if(body) body.innerHTML = html;
+  var editBtn = document.getElementById("adv-viewer-edit-btn");
+  if(editBtn) editBtn.onclick = function(){ document.getElementById("advisory-viewer-modal").style.display="none"; openAdvisoryEditor(-1,-1,id); };
+  var delBtn = document.getElementById("adv-viewer-del-btn");
+  if(delBtn) delBtn.onclick = function(){ deleteAdvisory(id); };
+  document.getElementById("advisory-viewer-modal").style.display = "flex";
+};
+
+function insertAdvTable(){
+  var html = '<table class="adv-table" style="width:100%;border-collapse:collapse;margin:12px 0;"><thead><tr><th style="background:#1a2744;color:#fff;padding:8px 12px;">Column 1</th><th style="background:#1a2744;color:#fff;padding:8px 12px;">Column 2</th><th style="background:#1a2744;color:#fff;padding:8px 12px;">Column 3</th></tr></thead><tbody><tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Row 1</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Data</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Data</td></tr><tr><td style="padding:8px 12px;background:#f9fafb;">Row 2</td><td style="padding:8px 12px;background:#f9fafb;">Data</td><td style="padding:8px 12px;background:#f9fafb;">Data</td></tr></tbody></table>';
+  document.execCommand('insertHTML', false, html);
+}
+
+window.generateAdvisoryAI = function(){
+  var apiKey = localStorage.getItem("sc_anthropic_key");
+  if(!apiKey){
+    apiKey = prompt("Enter your Anthropic API key (stored locally, never sent to our servers):");
+    if(!apiKey || !apiKey.trim()) return;
+    localStorage.setItem("sc_anthropic_key", apiKey.trim());
+    apiKey = apiKey.trim();
+  }
+  var title = document.getElementById("adv-title").value.trim();
+  var subtitle = document.getElementById("adv-subtitle").value.trim();
+  var type = document.getElementById("adv-type").value;
+  var clientSel = document.getElementById("adv-client");
+  var clientName = "General";
+  if(clientSel && typeof ALL_CLIENTS!=="undefined" && parseInt(clientSel.value,10)>=0){
+    clientName = ALL_CLIENTS[parseInt(clientSel.value,10)].name;
+  }
+  var typeLabel = {sales_tax:"Sales Tax",income_tax:"Income Tax",wht:"Withholding Tax",customs:"Customs",general:"General"};
+  var statusEl = document.getElementById("adv-ai-status");
+  if(statusEl){ statusEl.textContent="✨ Generating advisory..."; statusEl.style.display="block"; }
+
+  var systemPrompt = "You are a senior tax consultant at S. Saeed Tax Consultants, a professional tax advisory firm in Pakistan. Write formal tax advisories in the style of Pakistani tax professionals. Your advisories should:\n1. Use numbered sections (1., 1.1, 1.2, etc.)\n2. Cite relevant legal provisions: Income Tax Ordinance 2001, Sales Tax Act 1990, Federal Excise Act 2005, relevant SROs, Finance Acts\n3. Use professional, formal language suitable for Pakistani corporate clients\n4. Include a background/facts section, applicable law section, analysis section, and conclusion/recommendation\n5. Output ONLY HTML (no markdown). Use these CSS classes:\n   - <div class='adv-section'> for main section headers\n   - <div class='adv-subsection'> for subsection headers\n   - <div class='adv-callout'> for important callouts\n   - <table class='adv-table'> with <thead><tr><th> for tables\n   - Standard <p>, <ul>, <li>, <strong> tags for body text\nDo NOT include <html>, <body>, <head> tags — only the content HTML.";
+
+  var userMsg = "Write a "+( typeLabel[type]||type||"General")+" advisory for client: "+clientName+". Topic/Title: "+title+(subtitle?"\nSubtitle: "+subtitle:"");
+
+  fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-opus-4-8",
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMsg }]
+    })
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if(statusEl) statusEl.style.display="none";
+    if(data.content && data.content[0] && data.content[0].text){
+      document.getElementById("adv-content").innerHTML = data.content[0].text;
+    } else if(data.error){
+      if(statusEl){ statusEl.textContent="Error: "+data.error.message; statusEl.style.display="block"; }
+    }
+  }).catch(function(err){
+    if(statusEl){ statusEl.textContent="Error: "+err.message; statusEl.style.display="block"; }
+  });
+};
+</script>
 
 </body>
 </html>
