@@ -59,7 +59,7 @@ nav{max-width:1200px;margin:0 auto;padding:10px 20px;display:flex;align-items:ce
 /* ── HERO ────────────────────────────────────────────────────── */
 #top{position:relative;background-color:var(--ink);background-image:linear-gradient(rgba(244,240,230,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(244,240,230,0.04) 1px,transparent 1px);background-size:48px 48px;color:var(--ground);overflow:clip}
 .hero-inner{max-width:1200px;margin:0 auto;padding:80px 20px 88px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:48px;align-items:center}
-.hero-in{animation:pop .9s cubic-bezier(.2,.7,.2,1) both}
+.hero-in{animation:pop .9s cubic-bezier(.2,.7,.2,1) forwards;opacity:0}
 @keyframes pop{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:translateY(0)}}
 .hero-eyebrow{display:flex;align-items:center;gap:12px;color:var(--accent);font-size:13px;font-weight:600;letter-spacing:0.16em}
 .hero-eyebrow-line{width:32px;height:1px;background:var(--accent)}
@@ -173,12 +173,13 @@ footer{background:var(--ink);color:var(--muted-dark)}
   .footer-inner{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){
-  .reveal,.hero-in,.tick{animation:none !important}
-  .reveal{opacity:1;transform:none}
+  .reveal,.hero-in,.tick{animation:none !important;transition:none !important}
+  .reveal,.hero-in{opacity:1 !important;transform:none !important}
   .lift:hover{transform:none}
   .btn-nav:hover,.btn-accent:hover,.btn-calc:hover,.btn-submit:hover{transform:none}
 }
 </style>
+<noscript><style>.reveal{opacity:1;transform:none}.hero-in{opacity:1;transform:none;animation:none}</style></noscript>
 </head>
 <body>
 
@@ -765,15 +766,19 @@ footer{background:var(--ink);color:var(--muted-dark)}
 <script>
 // Scroll reveal
 const reveals = document.querySelectorAll('.reveal');
-const revealObs = new IntersectionObserver((entries) => {
-  entries.forEach((e, i) => {
-    if (e.isIntersecting) {
-      setTimeout(() => e.target.classList.add('visible'), i * 60);
-      revealObs.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.08 });
-reveals.forEach(el => revealObs.observe(el));
+if ('IntersectionObserver' in window) {
+  const revealObs = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 60);
+        revealObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08 });
+  reveals.forEach(el => revealObs.observe(el));
+} else {
+  reveals.forEach(el => el.classList.add('visible'));
+}
 
 // Count-up
 const counters = document.querySelectorAll('.count');
