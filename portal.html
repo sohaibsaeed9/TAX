@@ -9,7 +9,7 @@
 /* ── RESET ── */
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scroll-behavior:smooth;}
-body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min-height:100vh;}
+body{background:#f5f4f0;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min-height:100vh;}
 
 /* ── LOGIN ── */
 #login-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
@@ -18,7 +18,7 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 
 .login-wrap{display:flex;width:100%;max-width:900px;min-height:520px;border-radius:16px;
-  overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.4);animation:fadeIn .5s ease;}
+  overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.18);animation:fadeIn .5s ease;}
 
 .login-left{flex:1;background:linear-gradient(160deg,#1a2744,#243460);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -52,12 +52,11 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 .linput-wrap{position:relative;}
 .toggle-pw{position:absolute;right:12px;top:50%;transform:translateY(-50%);
   background:none;border:none;color:#9ca3af;cursor:pointer;font-size:13px;}
-.lbtn{width:100%;background:linear-gradient(135deg,#b8923a,#d4a84b);border:none;color:#fff;
+.lbtn{width:100%;background:#b8923a;border:none;color:#fff;
   font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;letter-spacing:.04em;
-  padding:13px;border-radius:8px;cursor:pointer;transition:all .2s;margin-top:4px;
-  box-shadow:0 4px 15px rgba(184,146,58,.3);}
-.lbtn:hover{background:linear-gradient(135deg,#a07830,#c49540);transform:translateY(-1px);box-shadow:0 6px 20px rgba(184,146,58,.4);}
-.lbtn:active{transform:translateY(0);}
+  padding:13px;border-radius:8px;cursor:pointer;transition:background .2s;margin-top:4px;}
+.lbtn:hover{background:#a07830;}
+.lbtn:active{background:#8a6828;}
 .attempt-bar{display:flex;gap:5px;justify-content:center;margin-top:12px;}
 .adot{width:7px;height:7px;border-radius:50%;background:#e5e7eb;transition:background .3s;}
 .adot.used{background:#ef4444;}
@@ -88,7 +87,7 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 #app.on{display:flex;}
 
 /* ── SIDEBAR ── */
-.sidebar{width:220px;background:#fff;border-right:1px solid #e5e7eb;min-height:calc(100vh - 52px);
+.sidebar{width:220px;background:#fafaf8;border-right:1px solid #ece9e3;min-height:calc(100vh - 52px);
   padding:20px 0;position:sticky;top:52px;align-self:flex-start;flex-shrink:0;}
 .sidebar-section{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
   color:#9ca3af;padding:0 20px;margin-bottom:6px;margin-top:16px;}
@@ -96,7 +95,7 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 .sitem{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:14px;font-weight:500;
   color:#6b7280;cursor:pointer;transition:all .15s;border-left:3px solid transparent;}
 .sitem:hover{background:#f9fafb;color:#1a2744;}
-.sitem.on{background:#fffbf0;color:#92400e;border-left-color:#b8923a;font-weight:600;}
+.sitem.on{background:#f5ede0;color:#92400e;border-left-color:#b8923a;font-weight:600;}
 .sitem.hide{display:none;}
 .sitem svg{width:15px;height:15px;flex-shrink:0;}
 
@@ -106,23 +105,23 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 
 /* ── PAGE HEADERS ── */
 .page-header{margin-bottom:24px;}
-.page-title{font-family:'Playfair Display',serif;font-size:26px;color:#1a2744;margin-bottom:4px;}
+.page-title{font-family:'Playfair Display',serif;font-size:22px;color:#1a2744;margin-bottom:4px;}
 .page-sub{font-size:14px;color:#6b7280;}
 
 /* ── CARDS ── */
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.card{background:#fff;border:1px solid #e8e5e0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
 .card-title{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;margin-bottom:16px;}
 
 /* ── DASHBOARD ── */
 .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;}
 .dash-stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;}
 .dash-stat-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;}
-.dash-stat-val{font-family:'Playfair Display',serif;font-size:24px;color:#1a2744;}
+.dash-stat-val{font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:700;color:#1a2744;}
 .dash-stat-val.gold{color:#b8923a;}
 .fbr-links{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
 .fbr-link{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;
   text-decoration:none;transition:all .2s;}
-.fbr-link:hover{border-color:#b8923a;box-shadow:0 4px 12px rgba(184,146,58,.12);transform:translateY(-1px);}
+.fbr-link:hover{border-color:#b8923a;box-shadow:0 4px 12px rgba(184,146,58,.12);}
 .fbr-link-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;}
 .fbr-link-url{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#b8923a;}
 .note-input-row{display:flex;gap:8px;margin-bottom:12px;}
@@ -177,15 +176,15 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 .calc-input-title{font-family:'Playfair Display',serif;font-size:18px;color:#1a2744;margin-bottom:4px;}
 .calc-input-sub{font-size:13px;color:#6b7280;margin-bottom:20px;}
 .calc-field-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px;}
-.calc-field label{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;margin-bottom:6px;}
+.calc-field label{display:block;font-size:13px;font-weight:600;letter-spacing:0.03em;text-transform:none;color:#6b7280;margin-bottom:6px;}
 .calc-field input,.calc-field select{width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;
   font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 13px;border-radius:8px;outline:none;transition:border-color .2s;}
 .calc-field input:focus,.calc-field select:focus{border-color:#b8923a;}
 .calc-field select option{background:#fff;}
 .calc-btn-row{display:flex;gap:10px;}
-.calc-go-btn{background:linear-gradient(135deg,#1a2744,#243460);border:none;color:#fff;
-  font-size:13px;font-weight:600;padding:12px 28px;border-radius:8px;cursor:pointer;transition:all .2s;}
-.calc-go-btn:hover{background:linear-gradient(135deg,#243460,#2e4a8a);transform:translateY(-1px);}
+.calc-go-btn{background:#1a2744;border:none;color:#fff;
+  font-size:13px;font-weight:600;padding:12px 28px;border-radius:8px;cursor:pointer;transition:background .2s;}
+.calc-go-btn:hover{background:#0f1b35;}
 .calc-reset-btn{background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:13px;
   padding:12px 20px;border-radius:8px;cursor:pointer;transition:all .2s;}
 .calc-reset-btn:hover{border-color:#9ca3af;color:#374151;}
@@ -219,7 +218,7 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 .pdf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
 .pdf-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px;
   cursor:pointer;transition:all .2s;}
-.pdf-card:hover{border-color:#b8923a;box-shadow:0 4px 12px rgba(184,146,58,.12);transform:translateY(-2px);}
+.pdf-card:hover{border-color:#b8923a;box-shadow:0 4px 12px rgba(184,146,58,.12);}
 .pdf-icon{font-size:28px;margin-bottom:10px;}
 .pdf-title{font-weight:600;font-size:14px;color:#1a2744;margin-bottom:3px;line-height:1.3;}
 .pdf-sub{font-size:12px;color:#9ca3af;}
@@ -244,7 +243,7 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 .ititle{font-family:'Playfair Display',serif;font-size:20px;color:#1a2744;margin-bottom:8px;}
 .imsg{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:16px;}
 .icount{font-family:'IBM Plex Mono',monospace;font-size:40px;color:#b8923a;font-weight:600;margin-bottom:18px;}
-.istay{background:linear-gradient(135deg,#1a2744,#243460);border:none;color:#fff;
+.istay{background:#1a2744;border:none;color:#fff;
   font-size:13px;font-weight:600;padding:12px 28px;border-radius:8px;cursor:pointer;}
 
 /* ── CLIENT INDEX ── */
@@ -319,11 +318,11 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 /* ── TASK MANAGER ── */
 .task-add-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:16px;}
 .task-form-grid{display:grid;grid-template-columns:1fr 1fr 140px 140px;gap:10px;margin-bottom:12px;}
-.task-field label{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;margin-bottom:5px;}
+.task-field label{display:block;font-size:12px;font-weight:600;letter-spacing:0.03em;text-transform:none;color:#6b7280;margin-bottom:5px;}
 .task-field input,.task-field select{width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 12px;border-radius:7px;outline:none;transition:border-color .2s;}
 .task-field input:focus,.task-field select:focus{border-color:#b8923a;}
-.task-add-btn{background:linear-gradient(135deg,#1a2744,#243460);border:none;color:#fff;font-size:13px;font-weight:600;padding:10px 20px;border-radius:7px;cursor:pointer;transition:all .2s;white-space:nowrap;}
-.task-add-btn:hover{background:linear-gradient(135deg,#243460,#2e4a8a);}
+.task-add-btn{background:#1a2744;border:none;color:#fff;font-size:13px;font-weight:600;padding:10px 20px;border-radius:7px;cursor:pointer;transition:background .2s;white-space:nowrap;}
+.task-add-btn:hover{background:#0f1b35;}
 .task-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .task-fbtn{background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .2s;}
 .task-fbtn:hover{border-color:#b8923a;color:#92400e;}
