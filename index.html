@@ -57,10 +57,10 @@ nav{max-width:1200px;margin:0 auto;padding:10px 20px;display:flex;align-items:ce
 @media(max-width:720px){.navlinks{display:none}.nav-burger{display:block}}
 
 /* ── HERO ────────────────────────────────────────────────────── */
-#top{position:relative;background-color:var(--ink);background-image:linear-gradient(rgba(244,240,230,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(244,240,230,0.04) 1px,transparent 1px);background-size:48px 48px;color:var(--ground);overflow:clip}
-.hero-inner{max-width:1200px;margin:0 auto;padding:80px 20px 88px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:48px;align-items:center}
-.hero-in{animation:pop .9s cubic-bezier(.2,.7,.2,1) forwards;opacity:0}
-@keyframes pop{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:translateY(0)}}
+#top{position:relative;background-color:var(--ink);background-image:linear-gradient(rgba(244,240,230,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(244,240,230,0.04) 1px,transparent 1px);background-size:48px 48px;color:var(--ground)}
+.hero-inner{max-width:1200px;margin:0 auto;padding:72px 20px 80px;display:flex;flex-direction:column;gap:48px}
+@media(min-width:800px){.hero-inner{flex-direction:row;align-items:center}}
+.hero-in{opacity:1}
 .hero-eyebrow{display:flex;align-items:center;gap:12px;color:var(--accent);font-size:13px;font-weight:600;letter-spacing:0.16em}
 .hero-eyebrow-line{width:32px;height:1px;background:var(--accent)}
 .hero-h1{font-size:clamp(40px,6vw,72px);line-height:1.02;font-weight:600;margin-top:4px}
@@ -74,7 +74,7 @@ nav{max-width:1200px;margin:0 auto;padding:10px 20px;display:flex;align-items:ce
 /* hero card */
 .hero-card{width:100%;max-width:440px;background:var(--ground);color:var(--ink);border-radius:12px;padding:28px;box-shadow:0 40px 80px -30px rgba(0,0,0,.6)}
 @keyframes tick{from{stroke-dashoffset:30}to{stroke-dashoffset:0}}
-.tick{stroke-dasharray:30;animation:tick .6s ease-out both}
+.tick{stroke-dasharray:30;stroke-dashoffset:0;animation:tick .6s ease-out forwards}
 
 /* ── CREDENTIALS BAR ─────────────────────────────────────────── */
 .creds-bar{background:#fff;border-bottom:1px solid var(--line)}
@@ -84,7 +84,8 @@ nav{max-width:1200px;margin:0 auto;padding:10px 20px;display:flex;align-items:ce
 .creds-list span{font-family:'Source Serif 4',Georgia,serif;font-size:20px;font-weight:600;letter-spacing:-0.01em}
 
 /* ── STATS ───────────────────────────────────────────────────── */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.stats-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:600px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
 .stat-card{background:var(--sage);border-radius:12px;padding:32px;display:flex;flex-direction:column;gap:6px}
 .stat-num{font-size:64px;font-weight:600;line-height:1}
 .stat-label{font-weight:700;font-size:16px;letter-spacing:.06em}
@@ -149,7 +150,8 @@ nav{max-width:1200px;margin:0 auto;padding:10px 20px;display:flex;align-items:ce
 
 /* ── FOOTER ──────────────────────────────────────────────────── */
 footer{background:var(--ink);color:var(--muted-dark)}
-.footer-inner{max-width:1200px;margin:0 auto;padding:64px 20px 32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:40px}
+.footer-inner{max-width:1200px;margin:0 auto;padding:64px 20px 32px;display:grid;grid-template-columns:1fr 1fr;gap:32px}
+@media(min-width:800px){.footer-inner{grid-template-columns:2fr 1fr 1fr 1fr}}
 .footer-inner a{color:var(--muted-dark);text-decoration:none;font-size:15px;transition:color .2s}
 .footer-inner a:hover{color:var(--accent)}
 .footer-col-title{color:var(--ground);font-weight:700;letter-spacing:.08em;font-size:13px;margin-bottom:10px;display:block}
@@ -167,10 +169,6 @@ footer{background:var(--ink);color:var(--muted-dark)}
 @media(max-width:600px){
   .hero-btns{flex-direction:column}
   .contact-panel{grid-template-columns:1fr}
-  .footer-inner{grid-template-columns:1fr 1fr}
-}
-@media(max-width:400px){
-  .footer-inner{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){
   .reveal,.hero-in,.tick{animation:none !important;transition:none !important}
