@@ -2416,7 +2416,10 @@ function wireInvoices(){
   });
   var d=$("inv-date"); if(d) d.value=new Date().toISOString().slice(0,10);
   var saveBtn=$("inv-save-btn"); if(saveBtn) saveBtn.addEventListener("click",saveInvoice);
-  var addLineBtn=$("inv-add-line"); if(addLineBtn) addLineBtn.addEventListener("click",addInvoiceLine);
+  var qITR=$("inv-qadd-itr"); if(qITR) qITR.addEventListener("click",function(){ addInvoiceLine("Professional charges for preparation of statement of Accounts/Filing of Return of Income Tax for Tax Year 2026"); });
+  var qSTR=$("inv-qadd-str"); if(qSTR) qSTR.addEventListener("click",function(){ addInvoiceLine("Professional charges for filing of Sales Tax Returns for the Period 01-06-2026 to 30-06-2026"); });
+  var qWealth=$("inv-qadd-wealth"); if(qWealth) qWealth.addEventListener("click",function(){ addInvoiceLine("Professional charges for preparation/Filing of Return of Income Tax/Wealth and Re-conciliation statement"); });
+  var qCustom=$("inv-qadd-custom"); if(qCustom) qCustom.addEventListener("click",function(){ addInvoiceLine(""); });
   renderInvoiceList();
 }
 
@@ -4919,10 +4922,10 @@ window.advInsertTable = function(){
     <div style="margin-bottom:12px;">
       <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px;">Quick Add Line Item</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" onclick="addInvoiceLine('Professional charges for preparation of statement of Accounts/Filing of Return of Income Tax for Tax Year 2026')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ Income Tax Return</button>
-        <button type="button" onclick="addInvoiceLine('Professional charges for filing of Sales Tax Returns for the Period 01-06-2026 to 30-06-2026')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ Sales Tax Return</button>
-        <button type="button" onclick="addInvoiceLine('Professional charges for preparation/Filing of Return of Income Tax/Wealth and Re-conciliation statement')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ IT / Wealth / Recon</button>
-        <button type="button" onclick="addInvoiceLine('')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px dashed #9ca3af;background:#f9fafb;color:#6b7280;">+ Custom / Other</button>
+        <button type="button" id="inv-qadd-itr" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ Income Tax Return</button>
+        <button type="button" id="inv-qadd-str" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ Sales Tax Return</button>
+        <button type="button" id="inv-qadd-wealth" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ IT / Wealth / Recon</button>
+        <button type="button" id="inv-qadd-custom" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px dashed #9ca3af;background:#f9fafb;color:#6b7280;">+ Custom / Other</button>
       </div>
     </div>
     <div style="margin-bottom:12px;">
