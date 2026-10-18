@@ -2417,16 +2417,48 @@ function wireInvoices(){
   var d=$("inv-date"); if(d) d.value=new Date().toISOString().slice(0,10);
   var saveBtn=$("inv-save-btn"); if(saveBtn) saveBtn.addEventListener("click",saveInvoice);
   var addLineBtn=$("inv-add-line"); if(addLineBtn) addLineBtn.addEventListener("click",addInvoiceLine);
+  // Init type preview
+  var firstTypeBtn=document.querySelector(".inv-type-btn[data-type='itr']");
+  if(firstTypeBtn) setInvType(firstTypeBtn);
   renderInvoiceList();
   addInvoiceLine(); addInvoiceLine(); addInvoiceLine();
 }
 
+var INV_TYPE_TEMPLATES={
+  itr:{label:"Income Tax Return",ph:"e.g. 2026",desc:function(p){ return "Professional charges for preparation of statement of Accounts/Filing of Return of Income Tax for Tax Year "+p; }},
+  str:{label:"Sales Tax Return",ph:"e.g. 01-06-2026 to 30-06-2026",desc:function(p){ return "Professional charges for filing of Sales Tax Returns for the Period "+p; }},
+  wealth:{label:"IT / Wealth / Recon",ph:"e.g. 2026",desc:function(p){ return "Professional charges for preparation/Filing of Return of Income Tax/Wealth and Re-conciliation statement"+(p?" for Tax Year "+p:""); }},
+  custom:{label:"Other / Custom",ph:"Description of service",desc:function(p){ return p; }}
+};
+
+window.setInvType=function(btn){
+  document.querySelectorAll(".inv-type-btn").forEach(function(b){
+    b.style.background="#fff"; b.style.color="#374151"; b.style.borderColor="#e5e7eb";
+  });
+  btn.style.background="#1a2744"; btn.style.color="#fff"; btn.style.borderColor="#1a2744";
+  var type=btn.getAttribute("data-type");
+  var tvEl=$("inv-type-val"); if(tvEl) tvEl.value=type;
+  var tpl=INV_TYPE_TEMPLATES[type];
+  var prev=$("inv-type-preview");
+  if(prev&&tpl) prev.textContent=tpl.desc("["+tpl.ph+"]");
+  var hdr=$("inv-period-col-hdr");
+  if(hdr) hdr.textContent=(type==="custom")?"Description":"Tax Year / Period";
+  // Update placeholders in existing rows
+  var rows=document.querySelectorAll("#inv-lines tr");
+  rows.forEach(function(tr){
+    var inp=tr.querySelector("input");
+    if(inp&&tpl) inp.placeholder=tpl.ph;
+  });
+};
+
 function addInvoiceLine(){
   var tbody=$("inv-lines");
   if(!tbody) return;
+  var type=($("inv-type-val")||{}).value||"itr";
+  var tpl=INV_TYPE_TEMPLATES[type]||INV_TYPE_TEMPLATES.itr;
   var tr=document.createElement("tr");
-  tr.innerHTML='<td style="padding:4px 2px;"><input type="text" placeholder="e.g. Income Tax Return filing TY 2026" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
-    '<td style="padding:4px 6px;width:170px;"><input type="text" placeholder="Person name (optional)" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
+  tr.innerHTML='<td style="padding:4px 2px;"><input type="text" placeholder="'+escHtml(tpl.ph)+'" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
+    '<td style="padding:4px 6px;width:200px;"><input type="text" placeholder="Person name (optional)" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
     '<td style="padding:4px 6px;width:150px;"><input type="number" placeholder="Enter PKR amount" min="0" style="width:100%;border:2px solid #b8923a;border-radius:5px;padding:7px 9px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;box-sizing:border-box;background:#fffbf0;" oninput="calcInvoiceTotal()"></td>'+
     '<td style="width:36px;text-align:center;padding:4px 2px;"><button onclick="this.closest(\'tr\').remove();calcInvoiceTotal();" style="background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;line-height:1;padding:4px;">×</button></td>';
   tbody.appendChild(tr);
@@ -2456,12 +2488,17 @@ function saveInvoice(){
   var notes=($("inv-notes")||{}).value||"";
   var rows=document.querySelectorAll("#inv-lines tr");
   var items=[];
+  var invType=($("inv-type-val")||{}).value||"itr";
   rows.forEach(function(tr){
     var inputs=tr.querySelectorAll("input");
-    var desc=(inputs[0]&&inputs[0].value.trim())||"";
+    var period=(inputs[0]&&inputs[0].value.trim())||"";
     var name=(inputs[1]&&inputs[1].value.trim())||"";
     var amount=parseFloat(inputs[2]&&inputs[2].value)||0;
-    if(desc||amount) items.push({desc:desc,name:name,amount:amount});
+    if(period||amount){
+      var tpl=INV_TYPE_TEMPLATES[invType]||INV_TYPE_TEMPLATES.itr;
+      var desc=tpl.desc(period||"—");
+      items.push({desc:desc,period:period,name:name,amount:amount});
+    }
   });
   if(!items.length){ alert("Please add at least one line item."); return; }
   var total=items.reduce(function(s,it){ return s+it.amount; },0);
@@ -2473,6 +2510,7 @@ function saveInvoice(){
     clientName:ALL_CLIENTS[clientIdx].name,
     date:date,
     dueDate:dueDate,
+    invType:invType,
     items:items,
     notes:notes,
     total:total,
@@ -2571,7 +2609,8 @@ function buildInvoiceHTML(inv){
   '<style>'+
   '*{box-sizing:border-box;margin:0;padding:0;}'+
   'body{font-family:Arial,sans-serif;background:#e5e7eb;color:#1a2744;}'+
-  '.page{max-width:794px;margin:20px auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.15);}'+
+  '.page{max-width:794px;margin:20px auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.15);display:flex;flex-direction:column;min-height:1050px;}'+
+  '.page-content{flex:1;}'+
   /* TOP SECTION */
   '.top{display:flex;justify-content:space-between;align-items:flex-start;padding:28px 36px 16px;}'+
   /* LEFT: INVOICE big title */
@@ -2626,10 +2665,18 @@ function buildInvoiceHTML(inv){
   '}'+
   '</style></head><body>'+
   '<div class="page">'+
+  '<div class="page-content">'+
 
   /* TOP: INVOICE left, firm right */
   '<div class="top">'+
-  '<div class="top-left"><div class="inv-word">INVOICE</div></div>'+
+  '<div class="top-left">'+
+  '<div style="display:flex;align-items:center;gap:14px;">'+
+  '<div style="width:56px;height:56px;background:#1a2744;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+  '<span style="font-size:20px;font-weight:900;color:#b8923a;letter-spacing:1px;">S&amp;C</span>'+
+  '</div>'+
+  '<div class="inv-word">INVOICE</div>'+
+  '</div>'+
+  '</div>'+
   '<div class="top-right">'+
   '<div class="firm-name">S. Saeed &amp; Co. Tax Consultants</div>'+
   '<div class="firm-detail">'+
@@ -2666,8 +2713,8 @@ function buildInvoiceHTML(inv){
   '<table class="items">'+
   '<thead><tr>'+
   '<th style="width:44px;text-align:center;">S.N</th>'+
-  '<th>Description</th>'+
-  '<th style="width:180px;">Name</th>'+
+  '<th>Description of Service</th>'+
+  '<th style="width:160px;">Name / Person</th>'+
   '<th style="width:160px;text-align:right;">Amount (PKR)</th>'+
   '</tr></thead>'+
   '<tbody>'+rows+'</tbody>'+
@@ -2697,15 +2744,17 @@ function buildInvoiceHTML(inv){
   '</div>'+
   '</div>'+
 
-  /* FOOTER */
+  '</div>'+ /* close page-content */
+
+  /* FOOTER pinned to bottom */
   '<div class="footer">'+
   'S. Saeed &amp; Co. Tax Consultants &nbsp;|&nbsp; Office No. 05, 3rd Floor, Bizzon Plaza, F-11 Markaz, Islamabad &nbsp;|&nbsp; 051-2152700 &nbsp;|&nbsp; +92-332-510-8858 &nbsp;|&nbsp; sohaib@saeedandcotax.com &nbsp;|&nbsp; www.saeedandcotax.com'+
   '</div>'+
 
-  '<div class="no-print">'+
+  '</div>'+ /* close .page */
+  '<div class="no-print" style="text-align:center;padding:20px;background:#f3f4f6;">'+
   '<button onclick="window.print()" style="background:#1a2744;color:#fff;border:none;padding:12px 36px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;margin-right:10px;">🖨 Print / Save as PDF</button>'+
   '<button onclick="window.close()" style="background:#f3f4f6;color:#374151;border:none;padding:12px 24px;font-size:14px;font-weight:600;border-radius:8px;cursor:pointer;">Close</button>'+
-  '</div>'+
   '</div>'+
   '</body></html>';
 }
@@ -2728,16 +2777,21 @@ window.previewCurrentInvoice=function(){
   var notes=($("inv-notes")||{}).value||"";
   var rows=document.querySelectorAll("#inv-lines tr");
   var items=[];
+  var invType=($("inv-type-val")||{}).value||"itr";
   rows.forEach(function(tr){
     var inputs=tr.querySelectorAll("input");
-    var desc=(inputs[0]&&inputs[0].value.trim())||"";
+    var period=(inputs[0]&&inputs[0].value.trim())||"";
     var name=(inputs[1]&&inputs[1].value.trim())||"";
     var amount=parseFloat(inputs[2]&&inputs[2].value)||0;
-    if(desc||amount) items.push({desc:desc,name:name,amount:amount});
+    if(period||amount){
+      var tpl=INV_TYPE_TEMPLATES[invType]||INV_TYPE_TEMPLATES.itr;
+      var desc=tpl.desc(period||"—");
+      items.push({desc:desc,period:period,name:name,amount:amount});
+    }
   });
   var total=items.reduce(function(s,it){ return s+it.amount; },0);
   var received=parseFloat(($("inv-received")||{}).value)||0;
-  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
+  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,invType:invType,items:items,notes:notes,total:total,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
   var w=window.open("","_blank","width=900,height=950");
   w.document.write(buildInvoiceHTML(preview));
   w.document.close();
@@ -4879,12 +4933,23 @@ window.advInsertTable = function(){
       <div class="task-field"><label>Invoice Date</label><input type="date" id="inv-date" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
       <div class="task-field"><label>Due Date</label><input type="date" id="inv-due" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
     </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px;">Invoice Type</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="inv-type-btn" data-type="itr" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #1a2744;background:#1a2744;color:#fff;">Income Tax Return</button>
+        <button type="button" class="inv-type-btn" data-type="str" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;">Sales Tax Return</button>
+        <button type="button" class="inv-type-btn" data-type="wealth" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;">IT / Wealth / Recon</button>
+        <button type="button" class="inv-type-btn" data-type="custom" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;">Other / Custom</button>
+      </div>
+      <div id="inv-type-preview" style="margin-top:8px;padding:8px 12px;background:#fffbf0;border:1px solid #b8923a;border-radius:6px;font-size:12px;color:#92400e;font-style:italic;"></div>
+      <input type="hidden" id="inv-type-val" value="itr">
+    </div>
     <div style="margin-bottom:12px;">
       <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Line Items</label>
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr style="background:#1a2744;">
-          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;">Description / Service</th>
-          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;width:170px;">Name (optional — person the service is for)</th>
+          <th id="inv-period-col-hdr" style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;">Tax Year / Period</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;width:200px;">Name (optional)</th>
           <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#b8923a;border-bottom:1px solid #243460;width:150px;">★ Amount (PKR)</th>
           <th style="width:36px;border-bottom:1px solid #243460;"></th>
         </tr></thead>
