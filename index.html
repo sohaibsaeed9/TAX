@@ -1048,7 +1048,7 @@ document.getElementById('contactForm').addEventListener('submit', async function
   try {
     const res = await fetch(this.action, { method: 'POST', body: new FormData(this), headers: { Accept: 'application/json' } });
     if (res.ok) {
-      msg.textContent = 'Thank you — we'll be in touch within one working day.';
+      msg.textContent = "Thank you — we’ll be in touch within one working day.";
       msg.className = 'form-msg success';
       this.reset();
     } else {
