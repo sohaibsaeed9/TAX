@@ -2447,7 +2447,7 @@ window.setInvType=function(btn){
   });
 };
 
-function addInvoiceLine(prefill){
+window.addInvoiceLine=function addInvoiceLine(prefill){
   var tbody=$("inv-lines");
   if(!tbody) return;
   var desc=(prefill===undefined)?"":prefill;
@@ -2457,7 +2457,7 @@ function addInvoiceLine(prefill){
     '<td style="padding:4px 6px;width:150px;"><input type="number" placeholder="Enter PKR amount" min="0" style="width:100%;border:2px solid #b8923a;border-radius:5px;padding:7px 9px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;box-sizing:border-box;background:#fffbf0;" oninput="calcInvoiceTotal()"></td>'+
     '<td style="width:36px;text-align:center;padding:4px 2px;"><button onclick="this.closest(\'tr\').remove();calcInvoiceTotal();" style="background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;line-height:1;padding:4px;">×</button></td>';
   tbody.appendChild(tr);
-}
+};
 
 window.calcInvoiceTotal=function(){
   var rows=document.querySelectorAll("#inv-lines tr");
