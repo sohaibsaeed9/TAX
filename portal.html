@@ -2417,11 +2417,7 @@ function wireInvoices(){
   var d=$("inv-date"); if(d) d.value=new Date().toISOString().slice(0,10);
   var saveBtn=$("inv-save-btn"); if(saveBtn) saveBtn.addEventListener("click",saveInvoice);
   var addLineBtn=$("inv-add-line"); if(addLineBtn) addLineBtn.addEventListener("click",addInvoiceLine);
-  // Init type preview
-  var firstTypeBtn=document.querySelector(".inv-type-btn[data-type='itr']");
-  if(firstTypeBtn) setInvType(firstTypeBtn);
   renderInvoiceList();
-  addInvoiceLine(); addInvoiceLine(); addInvoiceLine();
 }
 
 var INV_TYPE_TEMPLATES={
@@ -2451,14 +2447,13 @@ window.setInvType=function(btn){
   });
 };
 
-function addInvoiceLine(){
+function addInvoiceLine(prefill){
   var tbody=$("inv-lines");
   if(!tbody) return;
-  var type=($("inv-type-val")||{}).value||"itr";
-  var tpl=INV_TYPE_TEMPLATES[type]||INV_TYPE_TEMPLATES.itr;
+  var desc=(prefill===undefined)?"":prefill;
   var tr=document.createElement("tr");
-  tr.innerHTML='<td style="padding:4px 2px;"><input type="text" placeholder="'+escHtml(tpl.ph)+'" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
-    '<td style="padding:4px 6px;width:200px;"><input type="text" placeholder="Person name (optional)" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
+  tr.innerHTML='<td style="padding:4px 2px;"><input type="text" value="'+escHtml(desc)+'" placeholder="Enter description..." style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
+    '<td style="padding:4px 6px;width:180px;"><input type="text" placeholder="Person name (optional)" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
     '<td style="padding:4px 6px;width:150px;"><input type="number" placeholder="Enter PKR amount" min="0" style="width:100%;border:2px solid #b8923a;border-radius:5px;padding:7px 9px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;box-sizing:border-box;background:#fffbf0;" oninput="calcInvoiceTotal()"></td>'+
     '<td style="width:36px;text-align:center;padding:4px 2px;"><button onclick="this.closest(\'tr\').remove();calcInvoiceTotal();" style="background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;line-height:1;padding:4px;">×</button></td>';
   tbody.appendChild(tr);
@@ -2488,17 +2483,12 @@ function saveInvoice(){
   var notes=($("inv-notes")||{}).value||"";
   var rows=document.querySelectorAll("#inv-lines tr");
   var items=[];
-  var invType=($("inv-type-val")||{}).value||"itr";
   rows.forEach(function(tr){
     var inputs=tr.querySelectorAll("input");
-    var period=(inputs[0]&&inputs[0].value.trim())||"";
+    var desc=(inputs[0]&&inputs[0].value.trim())||"";
     var name=(inputs[1]&&inputs[1].value.trim())||"";
     var amount=parseFloat(inputs[2]&&inputs[2].value)||0;
-    if(period||amount){
-      var tpl=INV_TYPE_TEMPLATES[invType]||INV_TYPE_TEMPLATES.itr;
-      var desc=tpl.desc(period||"—");
-      items.push({desc:desc,period:period,name:name,amount:amount});
-    }
+    if(desc||amount) items.push({desc:desc,name:name,amount:amount});
   });
   if(!items.length){ alert("Please add at least one line item."); return; }
   var total=items.reduce(function(s,it){ return s+it.amount; },0);
@@ -2510,7 +2500,6 @@ function saveInvoice(){
     clientName:ALL_CLIENTS[clientIdx].name,
     date:date,
     dueDate:dueDate,
-    invType:invType,
     items:items,
     notes:notes,
     total:total,
@@ -2523,7 +2512,7 @@ function saveInvoice(){
   // Reset form
   var invNoNew=$("inv-number"); if(invNoNew) invNoNew.value=nextInvoiceNo();
   if(clientSel) clientSel.value="";
-  var tbody=$("inv-lines"); if(tbody){ tbody.innerHTML=""; addInvoiceLine(); addInvoiceLine(); }
+  var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
   if($("inv-notes")) $("inv-notes").value="Kindly make payment at your earliest convenience.\nSeparate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.";
   if($("inv-due")) $("inv-due").value="";
   if($("inv-received")) $("inv-received").value="";
@@ -2775,21 +2764,16 @@ window.previewCurrentInvoice=function(){
   var notes=($("inv-notes")||{}).value||"";
   var rows=document.querySelectorAll("#inv-lines tr");
   var items=[];
-  var invType=($("inv-type-val")||{}).value||"itr";
   rows.forEach(function(tr){
     var inputs=tr.querySelectorAll("input");
-    var period=(inputs[0]&&inputs[0].value.trim())||"";
+    var desc=(inputs[0]&&inputs[0].value.trim())||"";
     var name=(inputs[1]&&inputs[1].value.trim())||"";
     var amount=parseFloat(inputs[2]&&inputs[2].value)||0;
-    if(period||amount){
-      var tpl=INV_TYPE_TEMPLATES[invType]||INV_TYPE_TEMPLATES.itr;
-      var desc=tpl.desc(period||"—");
-      items.push({desc:desc,period:period,name:name,amount:amount});
-    }
+    if(desc||amount) items.push({desc:desc,name:name,amount:amount});
   });
   var total=items.reduce(function(s,it){ return s+it.amount; },0);
   var received=parseFloat(($("inv-received")||{}).value)||0;
-  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,invType:invType,items:items,notes:notes,total:total,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
+  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
   var w=window.open("","_blank","width=900,height=950");
   w.document.write(buildInvoiceHTML(preview));
   w.document.close();
@@ -4931,29 +4915,26 @@ window.advInsertTable = function(){
       <div class="task-field"><label>Invoice Date</label><input type="date" id="inv-date" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
       <div class="task-field"><label>Due Date</label><input type="date" id="inv-due" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
     </div>
-    <div style="margin-bottom:14px;">
-      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px;">Invoice Type</label>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px;">Quick Add Line Item</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" class="inv-type-btn" data-type="itr" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #1a2744;background:#1a2744;color:#fff;">Income Tax Return</button>
-        <button type="button" class="inv-type-btn" data-type="str" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;">Sales Tax Return</button>
-        <button type="button" class="inv-type-btn" data-type="wealth" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;">IT / Wealth / Recon</button>
-        <button type="button" class="inv-type-btn" data-type="custom" onclick="setInvType(this)" style="padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;">Other / Custom</button>
+        <button type="button" onclick="addInvoiceLine('Professional charges for preparation of statement of Accounts/Filing of Return of Income Tax for Tax Year 2026')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ Income Tax Return</button>
+        <button type="button" onclick="addInvoiceLine('Professional charges for filing of Sales Tax Returns for the Period 01-06-2026 to 30-06-2026')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ Sales Tax Return</button>
+        <button type="button" onclick="addInvoiceLine('Professional charges for preparation/Filing of Return of Income Tax/Wealth and Re-conciliation statement')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #1a2744;background:#f0f3f8;color:#1a2744;">+ IT / Wealth / Recon</button>
+        <button type="button" onclick="addInvoiceLine('')" style="padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px dashed #9ca3af;background:#f9fafb;color:#6b7280;">+ Custom / Other</button>
       </div>
-      <div id="inv-type-preview" style="margin-top:8px;padding:8px 12px;background:#fffbf0;border:1px solid #b8923a;border-radius:6px;font-size:12px;color:#92400e;font-style:italic;"></div>
-      <input type="hidden" id="inv-type-val" value="itr">
     </div>
     <div style="margin-bottom:12px;">
       <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Line Items</label>
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr style="background:#1a2744;">
-          <th id="inv-period-col-hdr" style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;">Tax Year / Period</th>
-          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;width:200px;">Name (optional)</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;">Description</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;width:180px;">Name (optional)</th>
           <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#b8923a;border-bottom:1px solid #243460;width:150px;">★ Amount (PKR)</th>
           <th style="width:36px;border-bottom:1px solid #243460;"></th>
         </tr></thead>
         <tbody id="inv-lines"></tbody>
       </table>
-      <button id="inv-add-line" style="margin-top:8px;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:6px;padding:7px 16px;font-size:12px;cursor:pointer;color:#374151;">+ Add Row</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start;margin-bottom:14px;">
       <div class="task-field"><label>Notes</label><textarea id="inv-notes" rows="3" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:12px;padding:9px 14px;border-radius:7px;outline:none;resize:vertical;">Kindly make payment at your earliest convenience.
