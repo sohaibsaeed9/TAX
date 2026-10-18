@@ -119,15 +119,20 @@ nav{max-width:1200px;margin:0 auto;padding:10px 20px;display:flex;align-items:ce
 .process-step p{color:var(--muted);line-height:1.6;font-size:17px;margin:0}
 
 /* ── CALCULATORS PANEL ───────────────────────────────────────── */
-.calc-panel{background:var(--ink);color:var(--ground);border-radius:16px;padding:clamp(32px,5vw,64px);display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:48px;align-items:center}
-.calc-card{background:var(--ground);color:var(--ink);border-radius:12px;padding:26px;display:flex;flex-direction:column;gap:18px}
-.regime-toggle{display:flex;background:var(--sage);border-radius:999px;padding:4px}
-.regime{border:0;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;padding:10px 16px;min-height:40px;border-radius:999px;background:transparent;color:var(--ink);transition:background .2s,color .2s}
-.regime[aria-pressed="true"]{background:var(--ink);color:var(--ground)}
+.calc-panel{background:var(--ink);color:var(--ground);border-radius:16px;padding:clamp(32px,5vw,64px)}
+.calc-card{background:var(--ground);color:var(--ink);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:16px;margin-top:16px}
+.calc-tabs{display:flex;gap:4px;background:rgba(255,255,255,.1);border-radius:10px;padding:4px;flex-wrap:wrap}
+.calc-tab{flex:1;min-width:100px;border:0;cursor:pointer;font-family:inherit;font-weight:600;font-size:14px;padding:11px 16px;border-radius:7px;background:transparent;color:var(--muted-dark);transition:background .2s,color .2s}
+.calc-tab.active{background:var(--ground);color:var(--ink)}
+.calc-subtabs{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.calc-stab,.calc-stab2{border:1px solid rgba(255,255,255,.18);cursor:pointer;font-family:inherit;font-weight:500;font-size:13px;padding:8px 14px;border-radius:6px;background:transparent;color:var(--muted-dark);transition:background .2s,color .2s}
+.calc-stab.active,.calc-stab2.active{background:var(--accent);color:var(--ink);border-color:var(--accent)}
 .calc-result{background:#fff;border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;font-size:15px}
-.calc-result-row{display:flex;justify-content:space-between}
-.calc-result-row span{color:var(--muted)}
-.btn-calc{align-self:flex-start;background:var(--accent);color:var(--ink);text-decoration:none;font-weight:700;padding:15px 24px;border-radius:8px;transition:transform .2s,filter .2s}
+.calc-result-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.calc-result-row span{color:var(--muted);white-space:nowrap}
+.calc-result-row.hi strong{color:var(--ink);font-size:16px}
+.calc-note{font-size:13px;color:var(--muted-dark);line-height:1.5;margin:0}
+.btn-calc{display:inline-block;background:var(--accent);color:var(--ink);text-decoration:none;font-weight:700;padding:15px 24px;border-radius:8px;transition:transform .2s,filter .2s}
 .btn-calc:hover{transform:translateY(-2px);filter:brightness(1.06);color:var(--ink)}
 
 /* ── CONTACT ─────────────────────────────────────────────────── */
@@ -422,28 +427,242 @@ footer{background:var(--ink);color:var(--muted-dark)}
 <!-- CALCULATORS -->
 <section id="calculators">
   <div class="section-wrap-sm">
-    <div class="calc-panel reveal">
-      <div style="display:flex;flex-direction:column;gap:18px">
+    <div class="calc-panel reveal" style="display:block">
+      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:28px">
         <span style="color:var(--accent);font-weight:700;letter-spacing:.14em;font-size:13px">FREE TOOLS</span>
         <h2 class="hd" style="font-size:clamp(30px,4vw,46px);line-height:1.08;font-weight:600;margin:0">Work out your tax before you call us.</h2>
-        <p style="color:#C5D1D6;font-size:17px;line-height:1.6;margin:0">Our calculators are updated for the Finance Act 2026 and let you compare the TY2026 and TY2027 regimes side by side.</p>
-        <a href="portal.html" class="btn-calc">Open the calculators</a>
+        <p style="color:#C5D1D6;font-size:17px;line-height:1.6;margin:0">Updated for Finance Act 2026. Select a calculator below, or open the full portal for detailed breakdowns.</p>
+        <a href="portal.html" class="btn-calc" style="align-self:flex-start">Open the full calculator portal</a>
       </div>
-      <div class="calc-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-          <span class="hd" style="font-weight:700;font-size:18px">Salary tax calculator</span>
-          <div class="regime-toggle">
-            <button class="regime" type="button" data-regime="TY2026" aria-pressed="false">TY2026</button>
-            <button class="regime" type="button" data-regime="TY2027" aria-pressed="true">TY2027</button>
+      <!-- Category tabs -->
+      <div class="calc-tabs" role="tablist">
+        <button class="calc-tab active" role="tab" aria-selected="true" data-cat="income">Income Tax</button>
+        <button class="calc-tab" role="tab" aria-selected="false" data-cat="wht">Withholding Tax</button>
+        <button class="calc-tab" role="tab" aria-selected="false" data-cat="salestax">Sales Tax</button>
+      </div>
+      <!-- ── INCOME TAX ── -->
+      <div id="cat-income" class="calc-cat">
+        <div class="calc-subtabs" role="tablist">
+          <button class="calc-stab active" data-stab="sal">Salaried</button>
+          <button class="calc-stab" data-stab="ind">Business Individual</button>
+          <button class="calc-stab" data-stab="aop">AOP</button>
+          <button class="calc-stab" data-stab="co">Company</button>
+        </div>
+        <!-- Salaried -->
+        <div id="stab-sal" class="calc-card stab-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            <span class="hd" style="font-weight:700;font-size:17px">Salaried Individual — Sec 149 / Division I Para 2</span>
+          </div>
+          <label class="form-field">Monthly gross salary (Rs)<input id="sal-input" type="text" placeholder="e.g. 250,000" autocomplete="off"></label>
+          <div class="calc-result" id="sal-result">
+            <div class="calc-result-row"><span>Annual salary</span><strong>Rs <span id="sal-annual">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Annual tax (TY2026)</span><strong>Rs <span id="sal-tax26">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Monthly deduction (TY2026)</span><strong>Rs <span id="sal-mo26">—</span></strong></div>
+            <div class="calc-result-row" style="border-top:1px solid rgba(255,255,255,.12);margin-top:6px;padding-top:10px"><span>Annual tax (TY2027)</span><strong>Rs <span id="sal-tax27">—</span></strong></div>
+            <div class="calc-result-row"><span>Monthly deduction (TY2027)</span><strong>Rs <span id="sal-mo27">—</span></strong></div>
+          </div>
+          <p class="calc-note">Finance Act 2026 slabs. TY2026 = Jul 2025–Jun 2026; TY2027 = Jul 2026–Jun 2027.</p>
+        </div>
+        <!-- Business Individual -->
+        <div id="stab-ind" class="calc-card stab-panel" style="display:none">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Business Individual — Division I Para 1</span>
+          <label class="form-field">Annual net income (Rs)<input id="ind-input" type="text" placeholder="e.g. 1,800,000" autocomplete="off"></label>
+          <div class="calc-result" id="ind-result">
+            <div class="calc-result-row"><span>Annual income</span><strong>Rs <span id="ind-income">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Income tax</span><strong>Rs <span id="ind-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Effective rate</span><strong><span id="ind-rate">—</span></strong></div>
+            <div class="calc-result-row"><span>After-tax income</span><strong>Rs <span id="ind-after">—</span></strong></div>
+          </div>
+          <p class="calc-note">Non-salaried individual. Applies where salary is less than 75% of total income.</p>
+        </div>
+        <!-- AOP -->
+        <div id="stab-aop" class="calc-card stab-panel" style="display:none">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Association of Persons — Division I Para 3</span>
+          <label class="form-field">Annual taxable income (Rs)<input id="aop-input" type="text" placeholder="e.g. 2,500,000" autocomplete="off"></label>
+          <div class="calc-result">
+            <div class="calc-result-row"><span>Annual income</span><strong>Rs <span id="aop-income">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Income tax</span><strong>Rs <span id="aop-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Effective rate</span><strong><span id="aop-rate">—</span></strong></div>
+          </div>
+          <p class="calc-note">Partnerships, joint ventures, and AOPs registered under the Income Tax Ordinance.</p>
+        </div>
+        <!-- Company -->
+        <div id="stab-co" class="calc-card stab-panel" style="display:none">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Company Tax</span>
+          <label class="form-field">Annual taxable income (Rs)<input id="co-input" type="text" placeholder="e.g. 5,000,000" autocomplete="off"></label>
+          <label class="form-field">Company type
+            <select id="co-type">
+              <option value="29">Any Other Company — 29%</option>
+              <option value="20">Small Company — 20%</option>
+              <option value="43">Banking Company — 43% (TY2026)</option>
+            </select>
+          </label>
+          <div class="calc-result">
+            <div class="calc-result-row"><span>Annual income</span><strong>Rs <span id="co-income">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Corporate tax</span><strong>Rs <span id="co-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Rate applied</span><strong><span id="co-rate">—</span>%</strong></div>
           </div>
         </div>
-        <label class="form-field">Monthly salary (Rs)
-          <input id="salaryInput" type="text" placeholder="e.g. 250,000">
-        </label>
-        <div class="calc-result">
-          <div class="calc-result-row"><span>Regime</span><strong><span id="regimeLabel">Tax Year 2027</span></strong></div>
-          <div class="calc-result-row"><span>Annual tax</span><strong>Rs <span id="annualTax">—</span></strong></div>
-          <div class="calc-result-row"><span>Monthly deduction</span><strong>Rs <span id="monthlyTax">—</span></strong></div>
+      </div>
+      <!-- ── WITHHOLDING TAX ── -->
+      <div id="cat-wht" class="calc-cat" style="display:none">
+        <div class="calc-subtabs" role="tablist">
+          <button class="calc-stab2 active" data-stab2="wsal">Salary (Sec 149)</button>
+          <button class="calc-stab2" data-stab2="wrent">Rent (Sec 155)</button>
+          <button class="calc-stab2" data-stab2="wgoods">Goods (Sec 153)</button>
+          <button class="calc-stab2" data-stab2="wsvc">Services (Sec 153)</button>
+          <button class="calc-stab2" data-stab2="wother">Other</button>
+        </div>
+        <!-- WHT Salary -->
+        <div id="stab2-wsal" class="calc-card stab2-panel">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Salary WHT — Section 149</span>
+          <label class="form-field">Monthly gross salary (Rs)<input id="wsal-input" type="text" placeholder="e.g. 150,000" autocomplete="off"></label>
+          <div class="calc-result">
+            <div class="calc-result-row"><span>Annual salary</span><strong>Rs <span id="wsal-annual">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Monthly WHT (TY2026)</span><strong>Rs <span id="wsal-mo26">—</span></strong></div>
+            <div class="calc-result-row"><span>Monthly WHT (TY2027)</span><strong>Rs <span id="wsal-mo27">—</span></strong></div>
+          </div>
+          <p class="calc-note">Employer deducts at the average annual rate. Uses Finance Act 2026 salary slabs.</p>
+        </div>
+        <!-- WHT Rent -->
+        <div id="stab2-wrent" class="calc-card stab2-panel" style="display:none">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Rent WHT — Section 155</span>
+          <label class="form-field">Monthly rent (Rs)<input id="wrent-input" type="text" placeholder="e.g. 80,000" autocomplete="off"></label>
+          <label class="form-field">Tenant type
+            <select id="wrent-type">
+              <option value="ind">Individual / AOP — Sec 155(a) slab</option>
+              <option value="co">Company — Sec 155(b) 15% flat</option>
+            </select>
+          </label>
+          <label class="form-field">Filer status
+            <select id="wrent-filer">
+              <option value="filer">Active Taxpayer (Filer)</option>
+              <option value="nonfiler">Non-Filer (Tenth Schedule)</option>
+            </select>
+          </label>
+          <div class="calc-result">
+            <div class="calc-result-row"><span>Annual rent</span><strong>Rs <span id="wrent-annual">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Annual WHT deductible</span><strong>Rs <span id="wrent-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Monthly WHT</span><strong>Rs <span id="wrent-mo">—</span></strong></div>
+            <div class="calc-result-row"><span>Net annual payment</span><strong>Rs <span id="wrent-net">—</span></strong></div>
+          </div>
+          <p class="calc-note">Non-filers: Tenth Schedule doubles the applicable rate.</p>
+        </div>
+        <!-- WHT Goods -->
+        <div id="stab2-wgoods" class="calc-card stab2-panel" style="display:none">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Goods WHT — Section 153(1)(a)</span>
+          <label class="form-field">Payment amount (Rs)<input id="wgoods-input" type="text" placeholder="e.g. 500,000" autocomplete="off"></label>
+          <label class="form-field">Category
+            <select id="wgoods-cat">
+              <option value="5">General Sale — Company (5%)</option>
+              <option value="5.5">General Sale — Other (5.5%)</option>
+              <option value="1.5">Rice, Cotton Seed, Edible Oils (1.5%)</option>
+              <option value="9">Toll Manufacturing — Company (9%)</option>
+              <option value="11">Toll Manufacturing — Other (11%)</option>
+            </select>
+          </label>
+          <label class="form-field">Filer status
+            <select id="wgoods-filer">
+              <option value="filer">Active Taxpayer (Filer)</option>
+              <option value="nonfiler">Non-Filer (×2 rate)</option>
+            </select>
+          </label>
+          <div class="calc-result">
+            <div class="calc-result-row hi"><span>WHT deductible</span><strong>Rs <span id="wgoods-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Rate applied</span><strong><span id="wgoods-rate">—</span>%</strong></div>
+            <div class="calc-result-row"><span>Net payment</span><strong>Rs <span id="wgoods-net">—</span></strong></div>
+          </div>
+        </div>
+        <!-- WHT Services -->
+        <div id="stab2-wsvc" class="calc-card stab2-panel" style="display:none">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Services WHT — Section 153(1)(b)</span>
+          <label class="form-field">Payment amount (Rs)<input id="wsvc-input" type="text" placeholder="e.g. 200,000" autocomplete="off"></label>
+          <label class="form-field">Service type
+            <select id="wsvc-cat">
+              <option value="7">Certain Specified Services (7%)</option>
+              <option value="4">IT / IT-Enabled Services (4%)</option>
+              <option value="15">Independent Professionals — doctors, lawyers, architects, accountants, software engineers (15%)</option>
+              <option value="1.5">Advertising — Print/Electronic Media (1.5%)</option>
+              <option value="12">Terminal &amp; Port Operating — Company (12%)</option>
+              <option value="14">Other Services (14%)</option>
+            </select>
+          </label>
+          <label class="form-field">Filer status
+            <select id="wsvc-filer">
+              <option value="filer">Active Taxpayer (Filer)</option>
+              <option value="nonfiler">Non-Filer (×2 rate)</option>
+            </select>
+          </label>
+          <div class="calc-result">
+            <div class="calc-result-row hi"><span>WHT deductible</span><strong>Rs <span id="wsvc-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Rate applied</span><strong><span id="wsvc-rate">—</span>%</strong></div>
+            <div class="calc-result-row"><span>Net payment</span><strong>Rs <span id="wsvc-net">—</span></strong></div>
+          </div>
+        </div>
+        <!-- WHT Other -->
+        <div id="stab2-wother" class="calc-card stab2-panel" style="display:none">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Other Withholding Taxes</span>
+          <label class="form-field">Amount (Rs)<input id="wother-input" type="text" placeholder="e.g. 1,000,000" autocomplete="off"></label>
+          <label class="form-field">Transaction type
+            <select id="wother-cat">
+              <option value="7.5|15">Contracts — Company (Sec 153(1)(c) — 7.5%)</option>
+              <option value="8|16">Contracts — Other AOP/Individual (8%)</option>
+              <option value="15|30">Dividend — General (Sec 150 — 15%)</option>
+              <option value="7.5|15">Dividend — IPP (Sec 150(a) — 7.5%)</option>
+              <option value="20|40">Profit on Debt — Bank (Sec 151 — 20%)</option>
+              <option value="15|30">Profit on Debt — Other (Sec 151 — 15%)</option>
+              <option value="2.75|11.5">Property Sale — ATL 2.75% / Non-ATL 11.5% (Sec 236C)</option>
+              <option value="1.25|10.5">Property Purchase — ATL 1.25% / Non-ATL 10.5% (Sec 236K)</option>
+              <option value="5.5|8">Imports — General Goods (Sec 148 — 5.5%)</option>
+              <option value="0|0.6">Banking Transactions Non-Filer (Sec 236P — 0%/0.6%)</option>
+              <option value="10|20">Commission — Advertising Agents (Sec 233 — 10%)</option>
+              <option value="12|24">Commission — Other Persons (Sec 233 — 12%)</option>
+              <option value="1.25|2.5">Export Proceeds (Sec 154 — 1.25%)</option>
+              <option value="15|30">Prize Bond / Crossword (Sec 156 — 15%)</option>
+              <option value="20|40">Lottery / Raffle / Quiz (Sec 156 — 20%)</option>
+            </select>
+          </label>
+          <label class="form-field">Filer status
+            <select id="wother-filer">
+              <option value="filer">Active Taxpayer (Filer)</option>
+              <option value="nonfiler">Non-Filer (Tenth Schedule)</option>
+            </select>
+          </label>
+          <div class="calc-result">
+            <div class="calc-result-row hi"><span>WHT deductible</span><strong>Rs <span id="wother-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Rate applied</span><strong><span id="wother-rate">—</span>%</strong></div>
+            <div class="calc-result-row"><span>Net payment</span><strong>Rs <span id="wother-net">—</span></strong></div>
+          </div>
+          <p class="calc-note">Finance Act 2026 rates. Property transactions use fixed rates regardless of value.</p>
+        </div>
+      </div>
+      <!-- ── SALES TAX ── -->
+      <div id="cat-salestax" class="calc-cat" style="display:none">
+        <div class="calc-card" style="margin-top:0">
+          <span class="hd" style="font-weight:700;font-size:17px;display:block;margin-bottom:14px">Sales Tax Calculator</span>
+          <label class="form-field">Amount (Rs)<input id="st-input" type="text" placeholder="e.g. 100,000" autocomplete="off"></label>
+          <label class="form-field">Tax type
+            <select id="st-cat">
+              <option value="18">Goods — Standard GST (Sales Tax Act — 18%)</option>
+              <option value="15">ICT Services — Standard (ICT Ordinance — 15%)</option>
+              <option value="15">Restaurant — Cash Payment (ICT Ordinance — 15%)</option>
+              <option value="5">Restaurant — Digital Payment (card/wallet/QR) (5% — no input adjustment)</option>
+              <option value="5">Reduced Rate Services — beauty parlours, workshops, travel agents (5%)</option>
+              <option value="0">Zero-Rated — construction, property dealers (0%)</option>
+            </select>
+          </label>
+          <label class="form-field">Amount is
+            <select id="st-dir">
+              <option value="excl">Exclusive of tax (tax added on top)</option>
+              <option value="incl">Inclusive of tax (tax already included)</option>
+            </select>
+          </label>
+          <div class="calc-result">
+            <div class="calc-result-row"><span>Base amount</span><strong>Rs <span id="st-base">—</span></strong></div>
+            <div class="calc-result-row hi"><span>Sales tax</span><strong>Rs <span id="st-tax">—</span></strong></div>
+            <div class="calc-result-row"><span>Total (incl. tax)</span><strong>Rs <span id="st-total">—</span></strong></div>
+            <div class="calc-result-row"><span>Rate applied</span><strong><span id="st-rate">—</span>%</strong></div>
+          </div>
         </div>
       </div>
     </div>
@@ -574,46 +793,244 @@ const countObs = new IntersectionObserver((entries) => {
 }, { threshold: 0.5 });
 counters.forEach(c => countObs.observe(c));
 
-// Regime toggle
-let currentRegime = 'TY2027';
-document.querySelectorAll('.regime').forEach(b => b.addEventListener('click', () => {
-  currentRegime = b.dataset.regime;
-  document.querySelectorAll('.regime').forEach(x => {
-    const on = x === b;
-    x.style.background = on ? '#0B2A55' : 'transparent';
-    x.style.color = on ? '#F4F0E6' : '#0B2A55';
-    x.setAttribute('aria-pressed', on);
+// ── Calculator tab switching ──
+document.querySelectorAll('.calc-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.calc-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.calc-cat').forEach(c => c.style.display = 'none');
+    document.getElementById('cat-' + btn.dataset.cat).style.display = '';
   });
-  document.getElementById('regimeLabel').textContent = currentRegime === 'TY2026' ? 'Tax Year 2026' : 'Tax Year 2027';
-  calcTax();
-}));
+});
+document.querySelectorAll('.calc-stab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.calc-stab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.stab-panel').forEach(p => p.style.display = 'none');
+    document.getElementById('stab-' + btn.dataset.stab).style.display = '';
+  });
+});
+document.querySelectorAll('.calc-stab2').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.calc-stab2').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.stab2-panel').forEach(p => p.style.display = 'none');
+    document.getElementById('stab2-' + btn.dataset.stab2).style.display = '';
+  });
+});
 
-// Salary calculator
-const SLABS_TY2026 = [[600000,0,0],[1200000,600000,.05],[2200000,1200000,.15],[3200000,2200000,.25],[4100000,3200000,.30],[Infinity,4100000,.35]];
-const SLABS_TY2027 = [[600000,0,0],[1200000,600000,.05],[2400000,1200000,.15],[3600000,2400000,.25],[6000000,3600000,.30],[Infinity,6000000,.35]];
-function computeTax(annual, slabs) {
-  let tax = 0;
-  for (const [upper, lower, rate] of slabs) {
-    if (annual <= lower) break;
-    tax += (Math.min(annual, upper) - lower) * rate;
-    if (annual <= upper) break;
-  }
-  return tax;
-}
 function fmt(n) { return Math.round(n).toLocaleString('en-PK'); }
-function calcTax() {
-  const raw = document.getElementById('salaryInput').value.replace(/,/g, '');
-  const monthly = parseFloat(raw);
-  if (!monthly || monthly <= 0) {
-    document.getElementById('annualTax').textContent = '—';
-    document.getElementById('monthlyTax').textContent = '—';
-    return;
-  }
-  const tax = computeTax(monthly * 12, currentRegime === 'TY2026' ? SLABS_TY2026 : SLABS_TY2027);
-  document.getElementById('annualTax').textContent = fmt(tax);
-  document.getElementById('monthlyTax').textContent = fmt(tax / 12);
+function set(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function numVal(id) { const el = document.getElementById(id); if (!el) return 0; return parseFloat(el.value.replace(/,/g,'')) || 0; }
+function selVal(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+// ── INCOME TAX SLABS ──
+const SAL_SLABS = [
+  {min:0,max:600000,fixed:0,rate:0},
+  {min:600000,max:1200000,fixed:0,rate:1},
+  {min:1200000,max:2200000,fixed:6000,rate:11},
+  {min:2200000,max:3200000,fixed:116000,rate:20},
+  {min:3200000,max:4100000,fixed:316000,rate:25},
+  {min:4100000,max:5600000,fixed:541000,rate:29},
+  {min:5600000,max:7000000,fixed:976000,rate:32},
+  {min:7000000,max:Infinity,fixed:1424000,rate:35}
+];
+const SAL_SLABS_27 = [
+  {min:0,max:600000,fixed:0,rate:0},
+  {min:600000,max:1200000,fixed:0,rate:5},
+  {min:1200000,max:2400000,fixed:30000,rate:15},
+  {min:2400000,max:3600000,fixed:210000,rate:25},
+  {min:3600000,max:6000000,fixed:510000,rate:30},
+  {min:6000000,max:Infinity,fixed:1230000,rate:35}
+];
+const IND_SLABS = [
+  {min:0,max:400000,fixed:0,rate:0,flat:0},
+  {min:400000,max:800000,fixed:0,rate:0,flat:1000},
+  {min:800000,max:1200000,fixed:0,rate:0,flat:2000},
+  {min:1200000,max:2400000,fixed:0,rate:5,flat:null},
+  {min:2400000,max:3000000,fixed:60000,rate:15,flat:null},
+  {min:3000000,max:4000000,fixed:150000,rate:20,flat:null},
+  {min:4000000,max:5000000,fixed:350000,rate:25,flat:null},
+  {min:5000000,max:Infinity,fixed:600000,rate:29,flat:null}
+];
+const AOP_SLABS = [
+  {min:0,max:600000,fixed:0,rate:0},
+  {min:600000,max:1200000,fixed:0,rate:15},
+  {min:1200000,max:1600000,fixed:90000,rate:20},
+  {min:1600000,max:3200000,fixed:170000,rate:30},
+  {min:3200000,max:5600000,fixed:650000,rate:40},
+  {min:5600000,max:Infinity,fixed:1610000,rate:45}
+];
+
+function calcSlabs(income, slabs) {
+  if (income <= 0) return 0;
+  let active = slabs[0];
+  for (let i = 0; i < slabs.length; i++) { if (income > slabs[i].min) active = slabs[i]; }
+  if (active.flat !== null && active.flat !== undefined) return active.flat;
+  return active.fixed + (income - active.min) * active.rate / 100;
 }
-document.getElementById('salaryInput').addEventListener('input', calcTax);
+
+// ── Salaried ──
+function calcSal() {
+  const mo = numVal('sal-input');
+  if (!mo) { ['sal-annual','sal-tax26','sal-mo26','sal-tax27','sal-mo27'].forEach(id => set(id,'—')); return; }
+  const ann = mo * 12;
+  const t26 = calcSlabs(ann, SAL_SLABS);
+  const t27 = calcSlabs(ann, SAL_SLABS_27);
+  set('sal-annual', fmt(ann));
+  set('sal-tax26', fmt(t26));
+  set('sal-mo26', fmt(t26/12));
+  set('sal-tax27', fmt(t27));
+  set('sal-mo27', fmt(t27/12));
+}
+document.getElementById('sal-input').addEventListener('input', calcSal);
+
+// ── Business Individual ──
+function calcInd() {
+  const inc = numVal('ind-input');
+  if (!inc) { ['ind-income','ind-tax','ind-rate','ind-after'].forEach(id => set(id,'—')); return; }
+  const tax = calcSlabs(inc, IND_SLABS);
+  set('ind-income', fmt(inc));
+  set('ind-tax', fmt(tax));
+  set('ind-rate', inc > 0 ? (tax/inc*100).toFixed(2)+'%' : '—');
+  set('ind-after', fmt(inc - tax));
+}
+document.getElementById('ind-input').addEventListener('input', calcInd);
+
+// ── AOP ──
+function calcAop() {
+  const inc = numVal('aop-input');
+  if (!inc) { ['aop-income','aop-tax','aop-rate'].forEach(id => set(id,'—')); return; }
+  const tax = calcSlabs(inc, AOP_SLABS);
+  set('aop-income', fmt(inc));
+  set('aop-tax', fmt(tax));
+  set('aop-rate', inc > 0 ? (tax/inc*100).toFixed(2)+'%' : '—');
+}
+document.getElementById('aop-input').addEventListener('input', calcAop);
+
+// ── Company ──
+function calcCo() {
+  const inc = numVal('co-input');
+  const rate = parseFloat(selVal('co-type')) || 29;
+  if (!inc) { ['co-income','co-tax','co-rate'].forEach(id => set(id,'—')); return; }
+  const tax = inc * rate / 100;
+  set('co-income', fmt(inc));
+  set('co-tax', fmt(tax));
+  set('co-rate', rate+'');
+}
+document.getElementById('co-input').addEventListener('input', calcCo);
+document.getElementById('co-type').addEventListener('change', calcCo);
+
+// ── WHT Salary ──
+function calcWsal() {
+  const mo = numVal('wsal-input');
+  if (!mo) { ['wsal-annual','wsal-mo26','wsal-mo27'].forEach(id => set(id,'—')); return; }
+  const ann = mo * 12;
+  const t26 = calcSlabs(ann, SAL_SLABS);
+  const t27 = calcSlabs(ann, SAL_SLABS_27);
+  set('wsal-annual', fmt(ann));
+  set('wsal-mo26', fmt(t26/12));
+  set('wsal-mo27', fmt(t27/12));
+}
+document.getElementById('wsal-input').addEventListener('input', calcWsal);
+
+// ── WHT Rent ──
+function rentWHT(r) {
+  if (r <= 300000) return 0;
+  if (r <= 600000) return (r-300000)*0.05;
+  if (r <= 2000000) return 15000+(r-600000)*0.10;
+  return 155000+(r-2000000)*0.25;
+}
+function calcWrent() {
+  const mo = numVal('wrent-input');
+  if (!mo) { ['wrent-annual','wrent-tax','wrent-mo','wrent-net'].forEach(id => set(id,'—')); return; }
+  const ann = mo * 12;
+  const type = selVal('wrent-type');
+  const filer = selVal('wrent-filer');
+  let tax;
+  if (type === 'co') {
+    const rate = filer === 'filer' ? 0.15 : 0.30;
+    tax = ann * rate;
+  } else {
+    tax = rentWHT(ann) * (filer === 'nonfiler' ? 2 : 1);
+  }
+  set('wrent-annual', fmt(ann));
+  set('wrent-tax', fmt(tax));
+  set('wrent-mo', fmt(tax/12));
+  set('wrent-net', fmt(ann - tax));
+}
+['wrent-input','wrent-type','wrent-filer'].forEach(id => {
+  document.getElementById(id).addEventListener('change', calcWrent);
+  if (id==='wrent-input') document.getElementById(id).addEventListener('input', calcWrent);
+});
+
+// ── WHT Goods ──
+function calcWgoods() {
+  const amt = numVal('wgoods-input');
+  if (!amt) { ['wgoods-tax','wgoods-rate','wgoods-net'].forEach(id => set(id,'—')); return; }
+  let rate = parseFloat(selVal('wgoods-cat')) || 5;
+  if (selVal('wgoods-filer') === 'nonfiler') rate *= 2;
+  const tax = amt * rate / 100;
+  set('wgoods-tax', fmt(tax));
+  set('wgoods-rate', rate+'');
+  set('wgoods-net', fmt(amt - tax));
+}
+['wgoods-input','wgoods-cat','wgoods-filer'].forEach(id => {
+  document.getElementById(id).addEventListener('change', calcWgoods);
+  if (id==='wgoods-input') document.getElementById(id).addEventListener('input', calcWgoods);
+});
+
+// ── WHT Services ──
+function calcWsvc() {
+  const amt = numVal('wsvc-input');
+  if (!amt) { ['wsvc-tax','wsvc-rate','wsvc-net'].forEach(id => set(id,'—')); return; }
+  let rate = parseFloat(selVal('wsvc-cat')) || 14;
+  if (selVal('wsvc-filer') === 'nonfiler') rate *= 2;
+  const tax = amt * rate / 100;
+  set('wsvc-tax', fmt(tax));
+  set('wsvc-rate', rate+'');
+  set('wsvc-net', fmt(amt - tax));
+}
+['wsvc-input','wsvc-cat','wsvc-filer'].forEach(id => {
+  document.getElementById(id).addEventListener('change', calcWsvc);
+  if (id==='wsvc-input') document.getElementById(id).addEventListener('input', calcWsvc);
+});
+
+// ── WHT Other ──
+function calcWother() {
+  const amt = numVal('wother-input');
+  if (!amt) { ['wother-tax','wother-rate','wother-net'].forEach(id => set(id,'—')); return; }
+  const parts = (selVal('wother-cat')||'').split('|');
+  const filer = selVal('wother-filer');
+  let rate = parseFloat(filer === 'nonfiler' ? (parts[1]||parts[0]) : parts[0]) || 0;
+  const tax = amt * rate / 100;
+  set('wother-tax', fmt(tax));
+  set('wother-rate', rate+'');
+  set('wother-net', fmt(amt - tax));
+}
+['wother-input','wother-cat','wother-filer'].forEach(id => {
+  document.getElementById(id).addEventListener('change', calcWother);
+  if (id==='wother-input') document.getElementById(id).addEventListener('input', calcWother);
+});
+
+// ── Sales Tax ──
+function calcST() {
+  const amt = numVal('st-input');
+  if (!amt) { ['st-base','st-tax','st-total','st-rate'].forEach(id => set(id,'—')); return; }
+  const rate = parseFloat(selVal('st-cat')) || 0;
+  const dir = selVal('st-dir');
+  let base, tax, total;
+  if (dir === 'excl') { base = amt; tax = base * rate/100; total = base + tax; }
+  else { total = amt; base = total / (1 + rate/100); tax = total - base; }
+  set('st-base', fmt(base));
+  set('st-tax', fmt(tax));
+  set('st-total', fmt(total));
+  set('st-rate', rate+'');
+}
+['st-input','st-cat','st-dir'].forEach(id => {
+  document.getElementById(id).addEventListener('change', calcST);
+  if (id==='st-input') document.getElementById(id).addEventListener('input', calcST);
+});
 
 // Contact form
 document.getElementById('contactForm').addEventListener('submit', async function(e) {
