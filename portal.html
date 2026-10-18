@@ -1201,12 +1201,8 @@ var SUBTYPES = {
     {id:"w_prize_bond",label:"Prize Bond / Crossword",           sub:"Sec 156(1) — 15%", filer:15, nonfiler:30},
     {id:"w_prize_lottery",label:"Lottery / Raffle / Quiz",       sub:"Sec 156(2) — 20%", filer:20, nonfiler:40},
     {id:"w_import",   label:"Imports — General Goods",           sub:"Sec 148 — 5.5% / 8% (non-filer)", filer:5.5, nonfiler:8},
-    {id:"w_prop_sell_u50",label:"Property Sale (up to Rs.50M)",  sub:"Sec 236C — ATL:2.75% | Non-ATL:11.5% (FA 2026)", filer:2.75, nonfiler:11.5},
-    {id:"w_prop_sell_m",label:"Property Sale (Rs.50M–100M)",     sub:"Sec 236C — ATL:2.75% | Non-ATL:11.5% (FA 2026)", filer:2.75, nonfiler:11.5},
-    {id:"w_prop_sell_o100",label:"Property Sale (above Rs.100M)",sub:"Sec 236C — ATL:2.75% | Non-ATL:11.5% (FA 2026)", filer:2.75, nonfiler:11.5},
-    {id:"w_prop_buy_u50",label:"Property Purchase (up to Rs.50M)",sub:"Sec 236K — ATL:1.25% | Non-ATL:10.5% (FA 2026)", filer:1.25, nonfiler:10.5},
-    {id:"w_prop_buy_m",label:"Property Purchase (Rs.50M–100M)",  sub:"Sec 236K — ATL:1.25% | Non-ATL:14.5% (FA 2026)", filer:1.25, nonfiler:14.5},
-    {id:"w_prop_buy_o100",label:"Property Purchase (above Rs.100M)",sub:"Sec 236K — ATL:1.25% | Non-ATL:18.5% (FA 2026)", filer:1.25, nonfiler:18.5},
+    {id:"w_prop_sell",label:"Property Sale",                     sub:"Sec 236C — ATL:2.75% | Non-ATL:11.5% (FA 2026 — flat rate all values)", filer:2.75, nonfiler:11.5},
+    {id:"w_prop_buy", label:"Property Purchase",                 sub:"Sec 236K — ATL:1.25% | Non-ATL:10.5% (FA 2026 — flat rate all values)", filer:1.25, nonfiler:10.5},
     {id:"w_dist_fert",label:"Sales to Distributors — Fertilizers",sub:"Sec 236G — 0.25% / 0.70% NF (FA 2026)", filer:0.25, nonfiler:0.70},
     {id:"w_dist_other",label:"Sales to Distributors — Other Goods",sub:"Sec 236G — 0.1% / 2% NF", filer:0.1, nonfiler:2},
     {id:"w_retail",   label:"Sales to Retailers — All Goods",    sub:"Sec 236H — 0.5% / 2.5% NF", filer:0.5, nonfiler:2.5},
@@ -2557,116 +2553,161 @@ function buildInvoiceHTML(inv){
   var sn=0;
   var rows=inv.items.map(function(it){
     sn++;
-    return '<tr style="border-bottom:1px solid #e5e7eb;">'+
-      '<td style="padding:9px 12px;font-size:12px;text-align:center;color:#6b7280;width:40px;">'+sn+'</td>'+
-      '<td style="padding:9px 12px;font-size:12px;">'+escHtml(it.desc||"")+'</td>'+
-      '<td style="padding:9px 12px;font-size:12px;">'+escHtml(it.name||"")+'</td>'+
-      '<td style="padding:9px 12px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;font-weight:600;">'+fmt(it.amount||0)+'</td>'+
+    return '<tr>'+
+      '<td style="padding:10px 14px;font-size:12px;text-align:center;border-bottom:1px solid #e5e7eb;">'+sn+'</td>'+
+      '<td style="padding:10px 14px;font-size:12px;border-bottom:1px solid #e5e7eb;">'+escHtml(it.desc||"")+'</td>'+
+      '<td style="padding:10px 14px;font-size:12px;border-bottom:1px solid #e5e7eb;">'+escHtml(it.name||"")+'</td>'+
+      '<td style="padding:10px 14px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;border-bottom:1px solid #e5e7eb;">'+fmt(it.amount||0)+'</td>'+
       '</tr>';
   }).join("");
   var dateLabel=inv.date?new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}):"—";
   var received=inv.received||0;
-  var payable=inv.total-received;
+  var subtotal=inv.total;
+  var payable=subtotal-received;
   var noteLines=(inv.notes||"").split("\n").filter(Boolean);
-  var notesHTML=noteLines.map(function(n,i){ return '<div style="font-size:11px;color:#374151;margin-bottom:3px;">'+(i+1)+'. '+escHtml(n)+'</div>'; }).join("");
+  var notesHTML=noteLines.map(function(n,i){ return '<p style="font-size:11px;color:#374151;margin:0 0 5px 0;">'+(i+1)+'.&nbsp;&nbsp;'+escHtml(n)+'</p>'; }).join("");
+
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+escHtml(inv.invoiceNo)+'</title>'+
-    '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono&display=swap" rel="stylesheet">'+
-    '<style>'+
-    '*{box-sizing:border-box;margin:0;padding:0;}'+
-    'body{font-family:\'IBM Plex Sans\',sans-serif;background:#f3f4f6;color:#1a2744;}'+
-    '.inv-wrap{max-width:820px;margin:24px auto;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.08);}'+
-    '.inv-header{background:#1a2744;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 32px;}'+
-    '.inv-header-firm{font-size:18px;font-weight:800;letter-spacing:.3px;}'+
-    '.inv-header-contact{font-size:10px;color:rgba(255,255,255,.75);margin-top:4px;line-height:1.6;}'+
-    '.inv-title-box{text-align:right;}'+
-    '.inv-title{font-size:32px;font-weight:800;color:#b8923a;letter-spacing:2px;}'+
-    '.inv-meta-table{width:180px;margin-top:8px;font-size:10px;border-collapse:collapse;}'+
-    '.inv-meta-table td{padding:2px 4px;color:rgba(255,255,255,.85);}'+
-    '.inv-meta-table td:first-child{color:rgba(255,255,255,.55);white-space:nowrap;}'+
-    '.inv-body{padding:28px 32px;}'+
-    '.inv-bill-row{display:flex;justify-content:space-between;margin-bottom:24px;}'+
-    '.inv-bill-label{font-size:10px;font-weight:700;color:#b8923a;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}'+
-    '.inv-bill-name{font-size:16px;font-weight:800;color:#1a2744;}'+
-    '.inv-bill-detail{font-size:11px;color:#6b7280;margin-top:3px;line-height:1.5;}'+
-    'table.inv-items{width:100%;border-collapse:collapse;margin-bottom:0;}'+
-    'table.inv-items thead tr{background:#1a2744;}'+
-    'table.inv-items thead th{padding:10px 12px;font-size:11px;font-weight:700;color:#fff;text-align:left;}'+
-    'table.inv-items thead th:last-child{text-align:right;}'+
-    'table.inv-items tbody tr:nth-child(even){background:#f9fafb;}'+
-    '.inv-totals{display:flex;justify-content:flex-end;margin-top:0;border-top:2px solid #1a2744;}'+
-    '.inv-totals-box{min-width:240px;padding:14px 20px;}'+
-    '.inv-total-row{display:flex;justify-content:space-between;gap:20px;padding:4px 0;font-size:12px;}'+
-    '.inv-total-row.grand{border-top:1.5px solid #1a2744;margin-top:6px;padding-top:10px;font-size:14px;font-weight:800;color:#b8923a;}'+
-    '.inv-bottom{display:flex;justify-content:space-between;padding:24px 32px;border-top:1px solid #e5e7eb;margin-top:24px;}'+
-    '.inv-notes-label{font-size:10px;font-weight:700;color:#b8923a;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}'+
-    '.inv-sig-label{font-size:10px;color:#6b7280;margin-bottom:6px;}'+
-    '.inv-sig-name{font-size:13px;font-weight:700;color:#1a2744;}'+
-    '.inv-sig-role{font-size:11px;color:#6b7280;}'+
-    '.inv-footer{background:#1a2744;color:rgba(255,255,255,.7);font-size:9px;text-align:center;padding:10px 32px;line-height:1.6;}'+
-    '.no-print{text-align:center;padding:16px;background:#f3f4f6;}'+
-    '@media print{'+
-    '@page{margin:0;size:A4;}'+
-    'html,body{background:#fff!important;}'+
-    '.inv-wrap{margin:0!important;box-shadow:none!important;max-width:100%!important;}'+
-    '.no-print{display:none!important;}'+
-    'body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'+
-    '}'+
-    '</style></head><body>'+
-    '<div class="inv-wrap">'+
-    '<div class="inv-header">'+
-    '<div>'+
-    '<div class="inv-header-firm">S. Saeed &amp; Co. Tax Consultants</div>'+
-    '<div class="inv-header-contact">Office No. 05, 3rd Floor, Bizzon Plaza, F-11 Markaz, Islamabad<br>Ph: 051-2152700 &nbsp;|&nbsp; +92-332-510-8858 &nbsp;|&nbsp; sohaib@saeedandcotax.com &nbsp;|&nbsp; www.saeedandcotax.com</div>'+
-    '</div>'+
-    '<div class="inv-title-box">'+
-    '<div class="inv-title">INVOICE</div>'+
-    '<table class="inv-meta-table"><tbody>'+
-    '<tr><td>Invoice No.:</td><td><b>'+escHtml(inv.invoiceNo)+'</b></td></tr>'+
-    '<tr><td>Date:</td><td>'+dateLabel+'</td></tr>'+
-    '<tr><td>Client ID:</td><td>'+(c.sr||"—")+'</td></tr>'+
-    '<tr><td>NTN:</td><td>'+(c.ntn||"—")+'</td></tr>'+
-    '</tbody></table>'+
-    '</div></div>'+
-    '<div class="inv-body">'+
-    '<div class="inv-bill-row">'+
-    '<div>'+
-    '<div class="inv-bill-label">Bill To</div>'+
-    '<div class="inv-bill-name">'+escHtml(c.name||inv.clientName)+'</div>'+
-    (c.address?'<div class="inv-bill-detail">'+escHtml(c.address)+'</div>':'')+
-    '</div>'+
-    '</div>'+
-    '<table class="inv-items">'+
-    '<thead><tr>'+
-    '<th style="width:40px;text-align:center;">S.N</th>'+
-    '<th>Description</th>'+
-    '<th style="width:180px;">Name</th>'+
-    '<th style="width:150px;text-align:right;">Amount (PKR)</th>'+
-    '</tr></thead>'+
-    '<tbody>'+rows+'</tbody>'+
-    '</table>'+
-    '<div class="inv-totals"><div class="inv-totals-box">'+
-    '<div class="inv-total-row"><span style="color:#6b7280;">Subtotal</span><span style="font-family:\'IBM Plex Mono\',monospace;">'+fmt(inv.total)+'</span></div>'+
-    '<div class="inv-total-row"><span style="color:#6b7280;">Received</span><span style="font-family:\'IBM Plex Mono\',monospace;color:#059669;">'+fmt(received)+'</span></div>'+
-    '<div class="inv-total-row grand"><span>Total Payable (PKR)</span><span style="font-family:\'IBM Plex Mono\',monospace;">'+fmt(payable>0?payable:0)+'</span></div>'+
-    '</div></div>'+
-    '</div>'+
-    '<div class="inv-bottom">'+
-    '<div>'+
-    '<div class="inv-notes-label">Notes</div>'+
-    notesHTML+
-    '</div>'+
-    '<div style="text-align:right;">'+
-    '<div class="inv-sig-label">For S. Saeed &amp; Co. Tax Consultants</div>'+
-    '<div style="border-bottom:1px solid #1a2744;width:180px;margin:24px 0 6px auto;"></div>'+
-    '<div class="inv-sig-name">Muhammad Saeed</div>'+
-    '<div class="inv-sig-role">Authorized Representative</div>'+
-    '</div>'+
-    '</div>'+
-    '<div class="inv-footer">S. Saeed &amp; Co. Tax Consultants &nbsp;|&nbsp; Office No. 05, 3rd Floor, Bizzon Plaza, F-11 Markaz, Islamabad &nbsp;|&nbsp; 051-2152700 &nbsp;|&nbsp; +92-332-510-8858 &nbsp;|&nbsp; sohaib@saeedandcotax.com &nbsp;|&nbsp; www.saeedandcotax.com</div>'+
-    '<div class="no-print"><button onclick="window.print()" style="background:#1a2744;color:#fff;border:none;padding:12px 36px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;font-family:sans-serif;margin-right:10px;">🖨 Print / Save PDF</button>'+
-    '<button onclick="window.close()" style="background:#f3f4f6;color:#374151;border:none;padding:12px 24px;font-size:14px;font-weight:600;border-radius:8px;cursor:pointer;font-family:sans-serif;">Close</button></div>'+
-    '</div>'+
-    '</body></html>';
+  '<style>'+
+  '*{box-sizing:border-box;margin:0;padding:0;}'+
+  'body{font-family:Arial,sans-serif;background:#e5e7eb;color:#1a2744;}'+
+  '.page{max-width:794px;margin:20px auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.15);}'+
+  /* TOP SECTION */
+  '.top{display:flex;justify-content:space-between;align-items:flex-start;padding:28px 36px 16px;}'+
+  /* LEFT: INVOICE big title */
+  '.top-left .inv-word{font-size:42px;font-weight:900;color:#b8923a;letter-spacing:3px;line-height:1;}'+
+  /* RIGHT: firm block */
+  '.top-right{text-align:right;}'+
+  '.firm-name{font-size:15px;font-weight:800;color:#1a2744;}'+
+  '.firm-detail{font-size:10px;color:#6b7280;margin-top:3px;line-height:1.7;}'+
+  /* gold divider */
+  '.divider{height:3px;background:linear-gradient(to right,#b8923a,#1a2744);margin:0 36px;}'+
+  /* META + BILL TO row */
+  '.mid{display:flex;justify-content:space-between;padding:20px 36px 16px;}'+
+  '.bill-label{font-size:9px;font-weight:800;color:#b8923a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}'+
+  '.bill-name{font-size:16px;font-weight:900;color:#1a2744;text-transform:uppercase;}'+
+  '.bill-addr{font-size:10px;color:#6b7280;margin-top:5px;line-height:1.6;max-width:260px;}'+
+  '.meta-box{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:14px 18px;min-width:220px;}'+
+  '.meta-row{display:flex;justify-content:space-between;gap:16px;padding:3px 0;font-size:11px;border-bottom:1px solid #e5e7eb;}'+
+  '.meta-row:last-child{border-bottom:none;}'+
+  '.meta-key{color:#9ca3af;font-weight:600;white-space:nowrap;}'+
+  '.meta-val{font-weight:700;color:#1a2744;text-align:right;}'+
+  /* table */
+  '.tbl-wrap{padding:0 36px;}'+
+  'table.items{width:100%;border-collapse:collapse;}'+
+  'table.items thead tr{background:#1a2744;}'+
+  'table.items thead th{padding:11px 14px;font-size:11px;font-weight:700;color:#fff;text-align:left;}'+
+  'table.items thead th:last-child{text-align:right;}'+
+  'table.items tbody tr:nth-child(even){background:#f9fafb;}'+
+  /* totals */
+  '.totals-wrap{display:flex;justify-content:flex-end;padding:0 36px;}'+
+  '.totals-box{min-width:260px;border:1px solid #e5e7eb;border-top:none;}'+
+  '.tot-row{display:flex;justify-content:space-between;padding:8px 16px;font-size:12px;border-bottom:1px solid #e5e7eb;}'+
+  '.tot-row:last-child{border-bottom:none;background:#1a2744;color:#fff;font-weight:800;font-size:13px;}'+
+  '.tot-row:last-child span:last-child{color:#b8923a;}'+
+  /* bottom */
+  '.bottom{display:flex;justify-content:space-between;align-items:flex-end;padding:24px 36px 20px;margin-top:8px;}'+
+  '.notes-label{font-size:9px;font-weight:800;color:#b8923a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}'+
+  '.notes-box{background:#fffbf0;border:1px solid #f3d89a;border-radius:5px;padding:12px 14px;max-width:340px;}'+
+  '.sig-right{text-align:right;}'+
+  '.sig-for{font-size:10px;color:#6b7280;margin-bottom:30px;}'+
+  '.sig-line{border-bottom:1.5px solid #1a2744;width:200px;margin:0 0 6px auto;}'+
+  '.sig-name{font-size:13px;font-weight:800;color:#1a2744;}'+
+  '.sig-role{font-size:10px;color:#6b7280;}'+
+  /* footer */
+  '.footer{background:#1a2744;color:rgba(255,255,255,.75);font-size:9px;text-align:center;padding:10px 36px;line-height:1.8;}'+
+  '.no-print{text-align:center;padding:20px;background:#f3f4f6;}'+
+  '@media print{'+
+  '@page{margin:0;size:A4;}'+
+  'html,body{background:#fff!important;}'+
+  '.page{margin:0!important;box-shadow:none!important;max-width:100%!important;}'+
+  '.no-print{display:none!important;}'+
+  'body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'+
+  '}'+
+  '</style></head><body>'+
+  '<div class="page">'+
+
+  /* TOP: INVOICE left, firm right */
+  '<div class="top">'+
+  '<div class="top-left"><div class="inv-word">INVOICE</div></div>'+
+  '<div class="top-right">'+
+  '<div class="firm-name">S. Saeed &amp; Co. Tax Consultants</div>'+
+  '<div class="firm-detail">'+
+  'Office No. 05, 3rd Floor, Bizzon Plaza,<br>'+
+  'F-11 Markaz, Islamabad<br>'+
+  'Ph: 051-2152700 &nbsp;|&nbsp; +92-332-510-8858<br>'+
+  'sohaib@saeedandcotax.com<br>'+
+  'www.saeedandcotax.com'+
+  '</div>'+
+  '</div>'+
+  '</div>'+
+
+  /* GOLD DIVIDER */
+  '<div class="divider"></div>'+
+
+  /* MID: BILL TO left, meta box right */
+  '<div class="mid">'+
+  '<div>'+
+  '<div class="bill-label">Bill To</div>'+
+  '<div class="bill-name">'+escHtml(c.name||inv.clientName)+'</div>'+
+  (c.ntn?'<div class="bill-addr" style="margin-top:4px;color:#374151;font-weight:600;">NTN: '+escHtml(c.ntn)+'</div>':'')+
+  (c.address?'<div class="bill-addr">'+escHtml(c.address)+'</div>':'')+
+  '</div>'+
+  '<div class="meta-box">'+
+  '<div class="meta-row"><span class="meta-key">INVOICE NO.</span><span class="meta-val">'+escHtml(inv.invoiceNo)+'</span></div>'+
+  '<div class="meta-row"><span class="meta-key">DATE</span><span class="meta-val">'+dateLabel+'</span></div>'+
+  '<div class="meta-row"><span class="meta-key">CLIENT ID</span><span class="meta-val">'+(c.sr||"—")+'</span></div>'+
+  '<div class="meta-row"><span class="meta-key">NTN</span><span class="meta-val">'+(c.ntn||"—")+'</span></div>'+
+  '</div>'+
+  '</div>'+
+
+  /* ITEMS TABLE */
+  '<div class="tbl-wrap">'+
+  '<table class="items">'+
+  '<thead><tr>'+
+  '<th style="width:44px;text-align:center;">S.N</th>'+
+  '<th>Description</th>'+
+  '<th style="width:180px;">Name</th>'+
+  '<th style="width:160px;text-align:right;">Amount (PKR)</th>'+
+  '</tr></thead>'+
+  '<tbody>'+rows+'</tbody>'+
+  '</table>'+
+  '</div>'+
+
+  /* TOTALS */
+  '<div class="totals-wrap">'+
+  '<div class="totals-box">'+
+  '<div class="tot-row"><span>Subtotal</span><span style="font-family:monospace;">'+fmt(subtotal)+'</span></div>'+
+  '<div class="tot-row"><span>Received</span><span style="font-family:monospace;color:#059669;">'+fmt(received)+'</span></div>'+
+  '<div class="tot-row"><span>TOTAL PAYABLE (PKR)</span><span style="font-family:monospace;">'+fmt(payable>0?payable:0)+'</span></div>'+
+  '</div>'+
+  '</div>'+
+
+  /* BOTTOM: notes left, signature right */
+  '<div class="bottom">'+
+  '<div>'+
+  '<div class="notes-label">Notes</div>'+
+  '<div class="notes-box">'+notesHTML+'</div>'+
+  '</div>'+
+  '<div class="sig-right">'+
+  '<div class="sig-for">For S. Saeed &amp; Co. Tax Consultants</div>'+
+  '<div class="sig-line"></div>'+
+  '<div class="sig-name">Muhammad Saeed</div>'+
+  '<div class="sig-role">Authorized Representative</div>'+
+  '</div>'+
+  '</div>'+
+
+  /* FOOTER */
+  '<div class="footer">'+
+  'S. Saeed &amp; Co. Tax Consultants &nbsp;|&nbsp; Office No. 05, 3rd Floor, Bizzon Plaza, F-11 Markaz, Islamabad &nbsp;|&nbsp; 051-2152700 &nbsp;|&nbsp; +92-332-510-8858 &nbsp;|&nbsp; sohaib@saeedandcotax.com &nbsp;|&nbsp; www.saeedandcotax.com'+
+  '</div>'+
+
+  '<div class="no-print">'+
+  '<button onclick="window.print()" style="background:#1a2744;color:#fff;border:none;padding:12px 36px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;margin-right:10px;">🖨 Print / Save as PDF</button>'+
+  '<button onclick="window.close()" style="background:#f3f4f6;color:#374151;border:none;padding:12px 24px;font-size:14px;font-weight:600;border-radius:8px;cursor:pointer;">Close</button>'+
+  '</div>'+
+  '</div>'+
+  '</body></html>';
 }
 
 window.viewInvoice=function(id){
