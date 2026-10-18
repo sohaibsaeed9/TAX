@@ -2384,6 +2384,228 @@ function renderFees(){
 window.deleteFee=function(id){ FEES=FEES.filter(function(f){ return f.id!==id; }); saveFees(); renderFees(); };
 
 /* ════════════════════════════════
+   INVOICE GENERATOR
+════════════════════════════════ */
+var INVOICES=[]; try{ INVOICES=JSON.parse(localStorage.getItem("sc_invoices")||"[]"); }catch(e){}
+function saveInvoices(){ try{ localStorage.setItem("sc_invoices",JSON.stringify(INVOICES)); }catch(e){} }
+
+function nextInvoiceNo(){
+  var seq=parseInt(localStorage.getItem("sc_invoice_seq")||"0")+1;
+  localStorage.setItem("sc_invoice_seq",String(seq));
+  return "INV-"+new Date().getFullYear()+"-"+String(seq).padStart(3,"0");
+}
+
+function wireInvoices(){
+  var clientSel=$("inv-client-sel");
+  if(clientSel && clientSel.options.length<=1){
+    for(var i=0;i<ALL_CLIENTS.length;i++){
+      var opt=document.createElement("option");
+      opt.value=String(i);
+      opt.textContent=ALL_CLIENTS[i].name+(ALL_CLIENTS[i].ntn?" (NTN: "+ALL_CLIENTS[i].ntn+")":"");
+      clientSel.appendChild(opt);
+    }
+  }
+  var invNo=$("inv-number"); if(invNo && !invNo.value) invNo.value=nextInvoiceNo(); else if(invNo) invNo.value=nextInvoiceNo();
+  var d=$("inv-date"); if(d) d.value=new Date().toISOString().slice(0,10);
+  var saveBtn=$("inv-save-btn"); if(saveBtn) saveBtn.addEventListener("click",saveInvoice);
+  var addLineBtn=$("inv-add-line"); if(addLineBtn) addLineBtn.addEventListener("click",addInvoiceLine);
+  renderInvoiceList();
+  addInvoiceLine(); addInvoiceLine();
+}
+
+function addInvoiceLine(){
+  var tbody=$("inv-lines");
+  if(!tbody) return;
+  var tr=document.createElement("tr");
+  tr.innerHTML='<td><input type="text" placeholder="Service / Description" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:6px 8px;font-size:12px;font-family:inherit;"></td>'+
+    '<td style="width:60px;"><input type="number" value="1" min="1" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:6px 8px;font-size:12px;text-align:center;" oninput="calcInvoiceTotal()"></td>'+
+    '<td style="width:120px;"><input type="number" placeholder="0" min="0" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:6px 8px;font-size:12px;text-align:right;" oninput="calcInvoiceTotal()"></td>'+
+    '<td style="width:120px;text-align:right;font-size:12px;font-family:\'IBM Plex Mono\',monospace;padding:6px 8px;" class="inv-line-amt">—</td>'+
+    '<td style="width:36px;text-align:center;"><button onclick="this.closest(\'tr\').remove();calcInvoiceTotal();" style="background:none;border:none;color:#dc2626;font-size:16px;cursor:pointer;line-height:1;">×</button></td>';
+  tbody.appendChild(tr);
+}
+
+window.calcInvoiceTotal=function(){
+  var rows=document.querySelectorAll("#inv-lines tr");
+  var subtotal=0;
+  rows.forEach(function(tr){
+    var inputs=tr.querySelectorAll("input");
+    var qty=parseFloat(inputs[1]&&inputs[1].value)||0;
+    var price=parseFloat(inputs[2]&&inputs[2].value)||0;
+    var amt=qty*price;
+    subtotal+=amt;
+    var amtCell=tr.querySelector(".inv-line-amt");
+    if(amtCell) amtCell.textContent=amt>0?fmt(amt):"—";
+  });
+  var stEl=$("inv-subtotal"); if(stEl) stEl.textContent=fmt(subtotal);
+  var totalEl=$("inv-total"); if(totalEl) totalEl.textContent=fmt(subtotal);
+};
+
+function saveInvoice(){
+  var clientSel=$("inv-client-sel");
+  if(!clientSel||clientSel.value==="") { alert("Please select a client."); return; }
+  var clientIdx=parseInt(clientSel.value);
+  var invNo=($("inv-number")||{}).value||nextInvoiceNo();
+  var date=($("inv-date")||{}).value||"";
+  var dueDate=($("inv-due")||{}).value||"";
+  var notes=($("inv-notes")||{}).value||"";
+  var rows=document.querySelectorAll("#inv-lines tr");
+  var items=[];
+  rows.forEach(function(tr){
+    var inputs=tr.querySelectorAll("input");
+    var desc=(inputs[0]&&inputs[0].value.trim())||"";
+    var qty=parseFloat(inputs[1]&&inputs[1].value)||1;
+    var price=parseFloat(inputs[2]&&inputs[2].value)||0;
+    if(desc||price) items.push({desc:desc,qty:qty,price:price,amount:qty*price});
+  });
+  if(!items.length){ alert("Please add at least one line item."); return; }
+  var total=items.reduce(function(s,it){ return s+it.amount; },0);
+  var inv={
+    id:String(Date.now()),
+    invoiceNo:invNo,
+    clientIdx:clientIdx,
+    clientName:ALL_CLIENTS[clientIdx].name,
+    date:date,
+    dueDate:dueDate,
+    items:items,
+    notes:notes,
+    total:total,
+    paid:false,
+    createdAt:new Date().toISOString()
+  };
+  INVOICES.unshift(inv);
+  saveInvoices();
+  // Reset form
+  var invNoNew=$("inv-number"); if(invNoNew) invNoNew.value=nextInvoiceNo();
+  if(clientSel) clientSel.value="";
+  var tbody=$("inv-lines"); if(tbody){ tbody.innerHTML=""; addInvoiceLine(); addInvoiceLine(); }
+  if($("inv-notes")) $("inv-notes").value="";
+  if($("inv-due")) $("inv-due").value="";
+  calcInvoiceTotal();
+  renderInvoiceList();
+  alert("Invoice "+inv.invoiceNo+" saved!");
+}
+
+function renderInvoiceList(){
+  var list=$("inv-list"); if(!list) return;
+  var filt=($("inv-filter")||{}).value||"all";
+  var search=(($("inv-search")||{}).value||"").toLowerCase();
+  var filtered=INVOICES.filter(function(inv){
+    if(filt==="paid"&&!inv.paid) return false;
+    if(filt==="unpaid"&&inv.paid) return false;
+    if(search && inv.clientName.toLowerCase().indexOf(search)<0 && inv.invoiceNo.toLowerCase().indexOf(search)<0) return false;
+    return true;
+  });
+  var totalBilled=INVOICES.reduce(function(s,i){ return s+i.total; },0);
+  var totalPaid=INVOICES.filter(function(i){ return i.paid; }).reduce(function(s,i){ return s+i.total; },0);
+  var summary=$("inv-summary");
+  if(summary) summary.innerHTML=
+    '<div class="cstat"><div class="cstat-val">'+INVOICES.length+'</div><div class="cstat-label">Total Invoices</div></div>'+
+    '<div class="cstat"><div class="cstat-val">'+fmt(totalBilled)+'</div><div class="cstat-label">Total Billed</div></div>'+
+    '<div class="cstat"><div class="cstat-val active">'+fmt(totalPaid)+'</div><div class="cstat-label">Collected</div></div>'+
+    '<div class="cstat"><div class="cstat-val inactive">'+fmt(totalBilled-totalPaid)+'</div><div class="cstat-label">Outstanding</div></div>';
+  if(!filtered.length){ list.innerHTML='<div class="task-empty">No invoices found.</div>'; return; }
+  var html='<div class="client-table-wrap"><div class="client-table-header" style="grid-template-columns:120px 1fr 140px 110px 90px 160px;"><div>Invoice #</div><div>Client</div><div>Date</div><div>Amount</div><div>Status</div><div>Actions</div></div>';
+  filtered.forEach(function(inv){
+    var dateLabel=inv.date?new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"}):"—";
+    html+='<div class="client-row" style="grid-template-columns:120px 1fr 140px 110px 90px 160px;">';
+    html+='<div style="font-weight:600;font-size:12px;color:#1a2744;">'+escHtml(inv.invoiceNo)+'</div>';
+    html+='<div class="client-name">'+escHtml(inv.clientName)+'</div>';
+    html+='<div style="font-size:12px;color:#6b7280;">'+dateLabel+'</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:600;">'+fmt(inv.total)+'</div>';
+    html+='<div><span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:'+(inv.paid?'#d1fae5':'#fee2e2')+';color:'+(inv.paid?'#065f46':'#991b1b')+';">'+(inv.paid?'PAID':'UNPAID')+'</span></div>';
+    html+='<div style="display:flex;gap:6px;">';
+    html+='<button onclick="viewInvoice(\''+inv.id+'\')" style="background:#1a2744;color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">View/Print</button>';
+    html+='<button onclick="toggleInvoicePaid(\''+inv.id+'\')" style="background:#f3f4f6;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">'+(inv.paid?'Unpaid':'Mark Paid')+'</button>';
+    html+='<button onclick="deleteInvoice(\''+inv.id+'\')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">Del</button>';
+    html+='</div></div>';
+  });
+  html+='</div>';
+  list.innerHTML=html;
+}
+
+window.toggleInvoicePaid=function(id){
+  var inv=INVOICES.find(function(i){ return i.id===id; });
+  if(inv){ inv.paid=!inv.paid; saveInvoices(); renderInvoiceList(); if(profileIdx!==null&&profileTab==="invoices") renderProfileTab(); }
+};
+window.deleteInvoice=function(id){
+  if(!confirm("Delete this invoice permanently?")) return;
+  INVOICES=INVOICES.filter(function(i){ return i.id!==id; });
+  saveInvoices(); renderInvoiceList();
+};
+window.openNewInvoice=function(clientIdx){
+  showPage("invoices");
+  setTimeout(function(){
+    var sel=$("inv-client-sel");
+    if(sel) sel.value=String(clientIdx);
+  },100);
+};
+window.viewInvoice=function(id){
+  var inv=INVOICES.find(function(i){ return i.id===id; });
+  if(!inv) return;
+  var c=getClient(inv.clientIdx)||{name:inv.clientName,address:"",ntn:""};
+  var rows=inv.items.map(function(it){
+    return '<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">'+escHtml(it.desc)+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">'+it.qty+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-family:\'IBM Plex Mono\',monospace;">'+fmt(it.price)+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-family:\'IBM Plex Mono\',monospace;font-weight:600;">'+fmt(it.amount)+'</td></tr>';
+  }).join("");
+  var dateLabel=inv.date?new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}):"—";
+  var dueDateLabel=inv.dueDate?new Date(inv.dueDate+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}):"—";
+  var html='<div id="inv-printout" style="max-width:780px;margin:0 auto;padding:40px;font-family:\'IBM Plex Sans\',sans-serif;background:#fff;color:#1a2744;">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:3px solid #b8923a;">'+
+    '<div>'+
+    '<div style="font-size:22px;font-weight:800;color:#1a2744;letter-spacing:.5px;">S. Saeed Tax Consultants</div>'+
+    '<div style="font-size:12px;color:#6b7280;margin-top:4px;">NTN: 3740240-9 &nbsp;|&nbsp; info@saeedandcotax.com &nbsp;|&nbsp; Islamabad, Pakistan</div>'+
+    '</div>'+
+    '<div style="text-align:right;">'+
+    '<div style="font-size:28px;font-weight:800;color:#b8923a;letter-spacing:1px;">INVOICE</div>'+
+    '<div style="font-size:13px;font-weight:700;color:#1a2744;margin-top:4px;">'+escHtml(inv.invoiceNo)+'</div>'+
+    '</div></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px;">'+
+    '<div style="background:#f8f9fb;border-radius:8px;padding:16px;">'+
+    '<div style="font-size:11px;font-weight:700;color:#b8923a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Billed To</div>'+
+    '<div style="font-size:14px;font-weight:700;color:#1a2744;">'+escHtml(c.name||inv.clientName)+'</div>'+
+    (c.ntn?'<div style="font-size:12px;color:#6b7280;margin-top:2px;">NTN: '+escHtml(c.ntn)+'</div>':'')+
+    (c.address?'<div style="font-size:12px;color:#6b7280;margin-top:2px;">'+escHtml(c.address)+'</div>':'')+
+    '</div>'+
+    '<div style="background:#f8f9fb;border-radius:8px;padding:16px;">'+
+    '<div style="font-size:11px;font-weight:700;color:#b8923a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Invoice Details</div>'+
+    '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;">'+
+    '<span style="color:#6b7280;">Invoice No:</span><span style="font-weight:600;">'+escHtml(inv.invoiceNo)+'</span>'+
+    '<span style="color:#6b7280;">Date:</span><span>'+dateLabel+'</span>'+
+    '<span style="color:#6b7280;">Due Date:</span><span>'+dueDateLabel+'</span>'+
+    '<span style="color:#6b7280;">Status:</span><span style="font-weight:700;color:'+(inv.paid?'#059669':'#dc2626')+'">'+(inv.paid?'PAID':'UNPAID')+'</span>'+
+    '</div></div></div>'+
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">'+
+    '<thead><tr style="background:#1a2744;color:#fff;">'+
+    '<th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;">Description</th>'+
+    '<th style="padding:10px 12px;text-align:center;font-size:12px;font-weight:600;width:60px;">Qty</th>'+
+    '<th style="padding:10px 12px;text-align:right;font-size:12px;font-weight:600;width:130px;">Unit Price</th>'+
+    '<th style="padding:10px 12px;text-align:right;font-size:12px;font-weight:600;width:130px;">Amount</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div style="display:flex;justify-content:flex-end;margin-bottom:32px;">'+
+    '<div style="background:#f8f9fb;border-radius:8px;padding:16px 24px;min-width:240px;">'+
+    '<div style="display:flex;justify-content:space-between;gap:32px;padding:6px 0;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280;">'+
+    '<span>Subtotal</span><span style="font-family:\'IBM Plex Mono\',monospace;">'+fmt(inv.total)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;gap:32px;padding:10px 0 4px;font-size:15px;font-weight:800;color:#1a2744;">'+
+    '<span>Total</span><span style="font-family:\'IBM Plex Mono\',monospace;color:#b8923a;">'+fmt(inv.total)+'</span></div>'+
+    '</div></div>'+
+    (inv.notes?'<div style="background:#fffbf0;border:1px solid #f3d89a;border-radius:8px;padding:14px 16px;font-size:12px;color:#6b7280;margin-bottom:20px;"><span style="font-weight:600;color:#1a2744;">Notes: </span>'+escHtml(inv.notes)+'</div>':'')+
+    '<div style="text-align:center;padding-top:20px;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">Thank you for your business &mdash; S. Saeed Tax Consultants</div>'+
+    '</div>';
+  var w=window.open("","_blank","width=860,height=900");
+  w.document.write('<!DOCTYPE html><html><head><title>'+inv.invoiceNo+'</title>'+
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'+
+    '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono&display=swap" rel="stylesheet">'+
+    '<style>@media print{@page{margin:15mm;size:A4}body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}body{margin:0;background:#f3f4f6;}</style>'+
+    '</head><body>'+html+
+    '<div style="text-align:center;padding:16px;"><button onclick="window.print()" style="background:#1a2744;color:#fff;border:none;padding:12px 32px;font-size:14px;font-weight:600;border-radius:8px;cursor:pointer;font-family:sans-serif;">🖨 Print / Save as PDF</button></div>'+
+    '</body></html>');
+  w.document.close();
+};
+
+/* ════════════════════════════════
    COMMUNICATION LOG
 ════════════════════════════════ */
 var COMMS=[]; try{ COMMS=JSON.parse(localStorage.getItem("sc_comms")||"[]"); }catch(e){}
@@ -4498,6 +4720,67 @@ window.advInsertTable = function(){
     <button class="task-fbtn" data-feefilter="paid">Fully Paid</button>
   </div>
   <div id="fee-list"></div>
+</div>
+
+<!-- INVOICE GENERATOR -->
+<div id="tpl-invoices" style="display:none">
+  <div class="page-header">
+    <div class="page-title">Invoice Generator</div>
+    <div class="page-sub">Create professional invoices for clients — saved to each client's profile</div>
+  </div>
+  <div class="task-add-card" style="margin-bottom:24px;">
+    <div class="card-title">New Invoice</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div class="task-field">
+        <label>Client</label>
+        <select id="inv-client-sel" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;">
+          <option value="">— Select Client —</option>
+        </select>
+      </div>
+      <div class="task-field"><label>Invoice No.</label><input type="text" id="inv-number" placeholder="INV-2026-001" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
+      <div class="task-field"><label>Invoice Date</label><input type="date" id="inv-date" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
+      <div class="task-field"><label>Due Date</label><input type="date" id="inv-due" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Line Items</label>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f3f4f6;">
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;">Description</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;width:160px;">Name (Person)</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;width:140px;">Amount (PKR)</th>
+          <th style="width:36px;border-bottom:1px solid #e5e7eb;"></th>
+        </tr></thead>
+        <tbody id="inv-lines"></tbody>
+      </table>
+      <button id="inv-add-line" style="margin-top:8px;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:6px;padding:7px 16px;font-size:12px;cursor:pointer;color:#374151;">+ Add Row</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start;margin-bottom:14px;">
+      <div class="task-field"><label>Notes</label><textarea id="inv-notes" rows="3" style="width:100%;box-sizing:border-box;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:12px;padding:9px 14px;border-radius:7px;outline:none;resize:vertical;">Kindly make payment at your earliest convenience.
+Separate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.</textarea></div>
+      <div style="background:#f8f9fb;border-radius:8px;padding:16px;min-width:220px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding-bottom:8px;border-bottom:1px solid #e5e7eb;margin-bottom:8px;"><span style="color:#6b7280;">Subtotal</span><span id="inv-subtotal" style="font-family:'IBM Plex Mono',monospace;font-weight:600;">Rs. 0</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding-bottom:8px;border-bottom:1px solid #e5e7eb;margin-bottom:8px;">
+          <span style="color:#6b7280;">Received</span>
+          <input type="number" id="inv-received" placeholder="0" min="0" oninput="calcInvoiceTotal()" style="width:100px;border:1px solid #e5e7eb;border-radius:5px;padding:4px 8px;font-size:12px;text-align:right;font-family:'IBM Plex Mono',monospace;">
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;"><span style="color:#1a2744;">Total Payable</span><span id="inv-total" style="font-family:'IBM Plex Mono',monospace;color:#b8923a;">Rs. 0</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button id="inv-save-btn" style="background:#1a2744;color:#fff;border:none;border-radius:7px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;">Save Invoice</button>
+      <button onclick="previewCurrentInvoice()" style="background:#b8923a;color:#fff;border:none;border-radius:7px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;">Preview &amp; Print</button>
+    </div>
+  </div>
+  <div class="client-stats" id="inv-summary" style="margin-bottom:16px;"></div>
+  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+    <input type="text" id="inv-search" placeholder="Search client or invoice..." oninput="renderInvoiceList()" style="background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;width:260px;">
+    <select id="inv-filter" onchange="renderInvoiceList()" style="background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;">
+      <option value="all">All Invoices</option>
+      <option value="unpaid">Unpaid</option>
+      <option value="paid">Paid</option>
+    </select>
+  </div>
+  <div id="inv-list"></div>
 </div>
 
 <!-- COMMUNICATION LOG -->
