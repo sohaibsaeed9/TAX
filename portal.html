@@ -2425,9 +2425,9 @@ function addInvoiceLine(){
   var tbody=$("inv-lines");
   if(!tbody) return;
   var tr=document.createElement("tr");
-  tr.innerHTML='<td style="padding:4px 2px;"><input type="text" placeholder="Service / Description" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
-    '<td style="padding:4px 6px;width:160px;"><input type="text" placeholder="Person name" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
-    '<td style="padding:4px 6px;width:140px;"><input type="number" placeholder="0" min="0" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;box-sizing:border-box;" oninput="calcInvoiceTotal()"></td>'+
+  tr.innerHTML='<td style="padding:4px 2px;"><input type="text" placeholder="e.g. Income Tax Return filing TY 2026" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
+    '<td style="padding:4px 6px;width:170px;"><input type="text" placeholder="Person name (optional)" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
+    '<td style="padding:4px 6px;width:150px;"><input type="number" placeholder="Enter PKR amount" min="0" style="width:100%;border:2px solid #b8923a;border-radius:5px;padding:7px 9px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;box-sizing:border-box;background:#fffbf0;" oninput="calcInvoiceTotal()"></td>'+
     '<td style="width:36px;text-align:center;padding:4px 2px;"><button onclick="this.closest(\'tr\').remove();calcInvoiceTotal();" style="background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;line-height:1;padding:4px;">×</button></td>';
   tbody.appendChild(tr);
 }
@@ -4882,11 +4882,11 @@ window.advInsertTable = function(){
     <div style="margin-bottom:12px;">
       <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Line Items</label>
       <table style="width:100%;border-collapse:collapse;">
-        <thead><tr style="background:#f3f4f6;">
-          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;">Description</th>
-          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;width:160px;">Name (Person)</th>
-          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;width:140px;">Amount (PKR)</th>
-          <th style="width:36px;border-bottom:1px solid #e5e7eb;"></th>
+        <thead><tr style="background:#1a2744;">
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;">Description / Service</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid #243460;width:170px;">Name (optional — person the service is for)</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#b8923a;border-bottom:1px solid #243460;width:150px;">★ Amount (PKR)</th>
+          <th style="width:36px;border-bottom:1px solid #243460;"></th>
         </tr></thead>
         <tbody id="inv-lines"></tbody>
       </table>
