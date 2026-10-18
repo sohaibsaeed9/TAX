@@ -2580,13 +2580,14 @@ window.openNewInvoice=function(clientIdx){
 };
 function buildInvoiceHTML(inv){
   var c=getClient(inv.clientIdx)||{name:inv.clientName,address:"",ntn:"",sr:""};
+  var hasName=inv.items.some(function(it){ return (it.name||"").trim(); });
   var sn=0;
   var rows=inv.items.map(function(it){
     sn++;
     return '<tr>'+
       '<td style="padding:10px 14px;font-size:12px;text-align:center;border-bottom:1px solid #e5e7eb;">'+sn+'</td>'+
       '<td style="padding:10px 14px;font-size:12px;border-bottom:1px solid #e5e7eb;">'+escHtml(it.desc||"")+'</td>'+
-      '<td style="padding:10px 14px;font-size:12px;border-bottom:1px solid #e5e7eb;">'+escHtml(it.name||"")+'</td>'+
+      (hasName?'<td style="padding:10px 14px;font-size:12px;border-bottom:1px solid #e5e7eb;">'+escHtml(it.name||"")+'</td>':'')+
       '<td style="padding:10px 14px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;border-bottom:1px solid #e5e7eb;">'+fmt(it.amount||0)+'</td>'+
       '</tr>';
   }).join("");
@@ -2642,7 +2643,7 @@ function buildInvoiceHTML(inv){
   '.notes-label{font-size:9px;font-weight:800;color:#b8923a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}'+
   '.notes-box{background:#fffbf0;border:1px solid #f3d89a;border-radius:5px;padding:12px 14px;max-width:340px;}'+
   '.sig-right{text-align:right;}'+
-  '.sig-for{font-size:10px;color:#6b7280;margin-bottom:30px;}'+
+  '.sig-for{font-size:10px;color:#6b7280;margin-bottom:70px;}'+
   '.sig-line{border-bottom:1.5px solid #1a2744;width:200px;margin:0 0 6px auto;}'+
   '.sig-name{font-size:13px;font-weight:800;color:#1a2744;}'+
   '.sig-role{font-size:10px;color:#6b7280;}'+
@@ -2705,7 +2706,7 @@ function buildInvoiceHTML(inv){
   '<thead><tr>'+
   '<th style="width:44px;text-align:center;">S.N</th>'+
   '<th>Description of Service</th>'+
-  '<th style="width:160px;">Name / Person</th>'+
+  (hasName?'<th style="width:160px;">Name / Person</th>':'')+
   '<th style="width:160px;text-align:right;">Amount (PKR)</th>'+
   '</tr></thead>'+
   '<tbody>'+rows+'</tbody>'+
