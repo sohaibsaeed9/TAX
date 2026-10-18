@@ -629,6 +629,9 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
     <div class="sitem hide" id="tab-fees" data-page="fees">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Fee Register
     </div>
+    <div class="sitem hide" id="tab-invoices" data-page="invoices">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Invoices
+    </div>
     <div class="sitem hide" id="tab-comms" data-page="comms">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Communication Log
     </div>
@@ -663,6 +666,7 @@ body{background:#f4f6fb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
     <div id="pg-notices" class="pg"></div>
     <div id="pg-returns" class="pg"></div>
     <div id="pg-fees" class="pg"></div>
+    <div id="pg-invoices" class="pg"></div>
     <div id="pg-comms" class="pg"></div>
     <div id="pg-tools" class="pg"></div>
     <div id="pg-library" class="pg"></div>
@@ -883,8 +887,8 @@ var USERS = {
   staff2: { pw:"Staff2@2025", role:"staff", name:"Staff 2" }
 };
 var PERMS = {
-  admin: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:1, comms:1, tools:1, library:1, exttools:1, advisories:1 },
-  staff: { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, fees:0, comms:0, tools:0, library:1, exttools:0, advisories:0 }
+  admin: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1 },
+  staff: { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0 }
 };
 
 /* ════════════════════════════════
@@ -954,7 +958,7 @@ function doLogin(){
 function loginOK(u,usr){
   role=usr.role; userName=usr.name; sessStart=Date.now();
   var p=PERMS[role];
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library","exttools","advisories"].forEach(function(k){
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","invoices","comms","tools","library","exttools","advisories"].forEach(function(k){
     var el=$("tab-"+k); if(el) el.classList.toggle("hide",!p[k]);
   });
   buildPages(p);
@@ -979,7 +983,7 @@ function doLogout(){
   $("lpass").value=""; $("luser").value="";
   $("lbtn").textContent="Sign In →"; $("lbtn").disabled=false;
   att=0; updateDots(); hideErr();
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","comms","tools","library","advisories"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","invoices","comms","tools","library","advisories"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
 }
 
 /* ════════════════════════════════
@@ -995,6 +999,7 @@ function buildPages(p){
   if(p.notices){ var nt=$("tpl-notices"); $("pg-notices").innerHTML=nt?nt.innerHTML:""; wireNotices(); }
   if(p.returns){ var rt=$("tpl-returns"); $("pg-returns").innerHTML=rt?rt.innerHTML:""; wireReturns(); }
   if(p.fees){ var ft=$("tpl-fees"); $("pg-fees").innerHTML=ft?ft.innerHTML:""; wireFees(); }
+  if(p.invoices){ var iv=$("tpl-invoices"); $("pg-invoices").innerHTML=iv?iv.innerHTML:""; wireInvoices(); }
   if(p.comms){ var ct=$("tpl-comms"); $("pg-comms").innerHTML=ct?ct.innerHTML:""; wireComms(); }
   if(p.tools){ var tt=$("tpl-tools"); $("pg-tools").innerHTML=tt?tt.innerHTML:""; wireTools(); }
   if(p.library){ var l=$("tpl-library"); $("pg-library").innerHTML=l?l.innerHTML:""; wirePDFs(); }
@@ -2989,6 +2994,30 @@ function renderProfileTab(){
       });
     } else { html += '<div class="cp-empty">No fee records.</div>'; }
 
+  } else if(profileTab === "invoices"){
+    var clientInvs = INVOICES.filter(function(inv){ return inv.clientIdx === idx; });
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+    html += '<div style="font-size:13px;color:#6b7280;">'+clientInvs.length+' invoice'+(clientInvs.length!==1?'s':'')+' for this client</div>';
+    html += '<button onclick="openNewInvoice('+idx+')" style="background:#1a2744;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;">+ New Invoice</button>';
+    html += '</div>';
+    if(clientInvs.length){
+      clientInvs.forEach(function(inv){
+        var dateLabel = inv.date ? new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"}) : "—";
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f3f4f6;">';
+        html += '<div>';
+        html += '<div style="font-size:13px;font-weight:600;color:#1a2744;">'+escHtml(inv.invoiceNo)+'</div>';
+        html += '<div style="font-size:11px;color:#9ca3af;">'+dateLabel+'</div>';
+        html += '</div>';
+        html += '<div style="display:flex;align-items:center;gap:10px;">';
+        html += '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;font-weight:600;color:#1a2744;">'+fmt(inv.total)+'</span>';
+        html += '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:'+(inv.paid?'#d1fae5':'#fee2e2')+';color:'+(inv.paid?'#065f46':'#991b1b')+';">'+(inv.paid?'PAID':'UNPAID')+'</span>';
+        html += '<button onclick="viewInvoice(\''+inv.id+'\')" style="background:#f3f4f6;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;color:#374151;">View</button>';
+        html += '<button onclick="toggleInvoicePaid(\''+inv.id+'\')" style="background:#f3f4f6;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;color:#374151;">'+(inv.paid?'Mark Unpaid':'Mark Paid')+'</button>';
+        html += '</div>';
+        html += '</div>';
+      });
+    } else { html += '<div class="cp-empty">No invoices yet. Click "+ New Invoice" to create one.</div>'; }
+
   } else if(profileTab === "comms"){
     var clientComms = COMMS.filter(function(cm){ return cm.client.toLowerCase() === c.name.toLowerCase(); });
     if(clientComms.length){
@@ -4746,6 +4775,7 @@ window.advInsertTable = function(){
       <div class="cp-tab" data-cptab="notices">Notices</div>
       <div class="cp-tab" data-cptab="returns">Returns</div>
       <div class="cp-tab" data-cptab="fees">Fees</div>
+      <div class="cp-tab" data-cptab="invoices">Invoices</div>
       <div class="cp-tab" data-cptab="comms">Communications</div>
       <div class="cp-tab" data-cptab="advisories">Advisories</div>
     </div>
