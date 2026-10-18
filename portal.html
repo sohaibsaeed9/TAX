@@ -2602,9 +2602,9 @@ function buildInvoiceHTML(inv){
   '<style>'+
   '*{box-sizing:border-box;margin:0;padding:0;}'+
   'body{font-family:Arial,sans-serif;background:#e5e7eb;color:#1a2744;margin:0;padding:20px 0;}'+
-  '.page{width:794px;height:1123px;margin:0 auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.15);position:relative;overflow:hidden;}'+
-  '.page-content{position:absolute;top:0;left:0;right:0;bottom:48px;overflow:hidden;}'+
-  '.footer{position:absolute;bottom:0;left:0;right:0;}'+
+  '.page{width:794px;min-height:1123px;margin:0 auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.15);display:flex;flex-direction:column;}'+
+  '.page-content{flex:1;display:flex;flex-direction:column;}'+
+  '.bottom{margin-top:auto;}'+
   /* TOP SECTION */
   '.top{display:flex;justify-content:space-between;align-items:flex-start;padding:28px 36px 16px;}'+
   /* LEFT: INVOICE big title */
@@ -2639,9 +2639,10 @@ function buildInvoiceHTML(inv){
   '.tot-row:last-child{border-bottom:none;background:#1a2744;color:#fff;font-weight:800;font-size:13px;}'+
   '.tot-row:last-child span:last-child{color:#b8923a;}'+
   /* bottom */
-  '.bottom{display:flex;justify-content:space-between;align-items:flex-end;padding:24px 36px 20px;margin-top:8px;}'+
+  '.bottom{display:flex;justify-content:space-between;align-items:flex-end;padding:24px 36px 20px;margin-top:auto;}'+
   '.notes-label{font-size:9px;font-weight:800;color:#b8923a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}'+
   '.notes-box{background:#fffbf0;border:1px solid #f3d89a;border-radius:5px;padding:12px 14px;max-width:340px;}'+
+  '.notes-box p{text-align:justify;}'+
   '.sig-right{text-align:right;}'+
   '.sig-for{font-size:10px;color:#6b7280;margin-bottom:70px;}'+
   '.sig-line{border-bottom:1.5px solid #1a2744;width:200px;margin:0 0 6px auto;}'+
@@ -2653,7 +2654,7 @@ function buildInvoiceHTML(inv){
   '@media print{'+
   '@page{margin:0;size:A4;}'+
   'html,body{background:#fff!important;padding:0!important;margin:0!important;}'+
-  '.page{margin:0!important;box-shadow:none!important;width:100%!important;height:100vh!important;}'+
+  '.page{margin:0!important;box-shadow:none!important;width:100%!important;min-height:100vh!important;}'+
   '.no-print{display:none!important;}'+
   'body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'+
   '}'+
