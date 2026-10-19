@@ -2323,6 +2323,124 @@ function renderClients(){
 }
 
 /* ════════════════════════════════
+   FILE TAG PRINTING
+════════════════════════════════ */
+var _tagClientIdx = null;
+
+function tagFontSize(name, isBox){
+  var len = name.length;
+  if(isBox){
+    if(len <= 10) return "36pt";
+    if(len <= 15) return "28pt";
+    if(len <= 22) return "20pt";
+    if(len <= 30) return "15pt";
+    return "12pt";
+  }
+  if(len <= 18) return "12pt";
+  if(len <= 26) return "10pt";
+  if(len <= 36) return "8.5pt";
+  return "7pt";
+}
+
+function buildTagHTML(name, fileNo, taxYear, isBox){
+  var fs = tagFontSize(name, isBox);
+  var sideText = escHtml(fileNo||"");
+  var nameText = escHtml(name);
+  var yearText = "TAX YEAR " + escHtml(String(taxYear));
+  if(isBox){
+    return '<div class="file-tag" style="width:172.5mm;grid-template-columns:14.93mm 1fr;margin-bottom:8mm;">'
+      + '<div class="tag-side" style="border-right:1px solid #000;border-left:none;">' + sideText + '</div>'
+      + '<div class="tag-main">'
+      +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
+      +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
+      + '</div></div>';
+  }
+  return '<div class="file-tag" style="margin-bottom:4mm;">'
+    + '<div class="tag-side">' + sideText + '</div>'
+    + '<div class="tag-main">'
+    +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
+    +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
+    + '</div>'
+    + '<div class="tag-side right">' + sideText + '</div>'
+    + '</div>';
+}
+
+function refreshTagPreview(){
+  var preview = document.getElementById("tag-preview");
+  if(!preview || _tagClientIdx===null) return;
+  var c = getClient(_tagClientIdx);
+  var fileNo = c.sr || String(_tagClientIdx+1);
+  var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
+  var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
+  var isBox = !isPaper;
+  var count = isPaper ? 2 : 1;
+  var html = "";
+  for(var i=0;i<count;i++) html += buildTagHTML(c.name, fileNo, taxYear, isBox);
+  preview.innerHTML = html;
+  var tagW = isBox ? 651 : 708;
+  var avail = preview.offsetWidth || 440;
+  var scale = Math.min(1, (avail - 24) / tagW);
+  if(scale > 0){
+    preview.style.transform = "scale("+scale+")";
+    preview.style.transformOrigin = "top left";
+    preview.style.marginBottom = ((41 * 3.78 * count * scale) - (41 * 3.78 * count) + count * (isBox?30:15)) + "px";
+  }
+}
+
+window.openTagModal = function(idx){
+  _tagClientIdx = idx;
+  var c = getClient(idx);
+  var fileNo = c.sr || String(idx+1);
+  var info = document.getElementById("tag-client-info");
+  if(info) info.innerHTML = "<strong>" + escHtml(c.name) + "</strong> &nbsp;<span style='color:#6b7280;font-size:13px;'>File No: " + escHtml(fileNo) + " | ID: " + escHtml(c.id||"N/A") + "</span>";
+  var yearInp = document.getElementById("tag-year-input");
+  if(yearInp) yearInp.value = new Date().getFullYear();
+  document.querySelectorAll("input[name='tag-file-type']").forEach(function(r){ r.onchange = refreshTagPreview; });
+  if(yearInp) yearInp.oninput = refreshTagPreview;
+  var modal = document.getElementById("tag-modal");
+  if(modal){ modal.style.display = "flex"; }
+  // refresh preview after modal is visible so offsetWidth is correct
+  setTimeout(refreshTagPreview, 50);
+};
+
+window.closeTagModal = function(){
+  var modal = document.getElementById("tag-modal");
+  if(modal) modal.style.display = "none";
+  _tagClientIdx = null;
+};
+
+window.printTags = function(){
+  if(_tagClientIdx===null) return;
+  var c = getClient(_tagClientIdx);
+  var fileNo = c.sr || String(_tagClientIdx+1);
+  var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
+  var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
+  var isBox = !isPaper;
+  var count = isPaper ? 2 : 1;
+  var tagsHtml = "";
+  for(var i=0;i<count;i++) tagsHtml += buildTagHTML(c.name, fileNo, taxYear, isBox);
+  var win = window.open("","_blank","width=800,height=600");
+  if(!win){ alert("Please allow pop-ups for this site to print tags."); return; }
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>File Tags — '+escHtml(c.name)+'</title>'
+    + '<style>'
+    + '@page{margin:10mm;size:A4;}'
+    + 'body{margin:20px;padding:0;font-family:"Times New Roman",Times,serif;}'
+    + '.file-tag{width:187.4mm;height:41mm;display:grid;grid-template-columns:14.93mm 1fr 14.93mm;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:4mm;box-sizing:border-box;overflow:hidden;}'
+    + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;border-left:1px solid #000;font-size:9pt;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;writing-mode:vertical-lr;text-orientation:mixed;}'
+    + '.tag-side.right{writing-mode:vertical-rl;transform:rotate(180deg);}'
+    + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
+    + '.tag-name,.tag-year{font-weight:700;white-space:nowrap;display:block;}'
+    + '@media print{.no-print{display:none!important;}}'
+    + '</style></head><body>'
+    + tagsHtml
+    + '<p class="no-print" style="margin-top:16px;"><button onclick="window.print()" style="padding:10px 24px;font-size:14px;cursor:pointer;background:#1a2744;color:#fff;border:none;border-radius:6px;">Print</button>&nbsp;<button onclick="window.close()" style="padding:10px 24px;font-size:14px;cursor:pointer;">Close</button></p>'
+    + '</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); }, 600);
+};
+
+/* ════════════════════════════════
    FBR NOTICE TRACKER
 ════════════════════════════════ */
 var NOTICES=[]; try{ NOTICES=JSON.parse(localStorage.getItem("sc_notices")||"[]"); }catch(e){}
@@ -5912,129 +6030,6 @@ window.generateAdvisoryAI = function(){
   });
 };
 
-/* ════════════════════════════════
-   FILE TAG PRINTING
-════════════════════════════════ */
-var _tagClientIdx = null;
-
-// Paper file: 187.4mm wide, 3 cols (side|main|side), 12pt font, 2 tags
-// Box file:   172.5mm wide, 2 cols (side|main),       36pt font, 1 tag
-function tagFontSize(name, isBox){
-  var len = name.length;
-  if(isBox){
-    if(len <= 10) return "36pt";
-    if(len <= 15) return "28pt";
-    if(len <= 22) return "20pt";
-    if(len <= 30) return "15pt";
-    return "12pt";
-  }
-  if(len <= 18) return "12pt";
-  if(len <= 26) return "10pt";
-  if(len <= 36) return "8.5pt";
-  return "7pt";
-}
-
-function buildTagHTML(name, fileNo, taxYear, isBox){
-  var fs = tagFontSize(name, isBox);
-  var sideText = escHtml(fileNo||"");
-  var nameText = escHtml(name);
-  var yearText = "TAX YEAR " + escHtml(String(taxYear));
-  if(isBox){
-    // Box file: 2 columns, wider content, 36pt
-    return '<div class="file-tag" style="width:172.5mm;grid-template-columns:14.93mm 1fr;margin-bottom:8mm;">'
-      + '<div class="tag-side" style="border-right:1px solid #000;border-left:none;">' + sideText + '</div>'
-      + '<div class="tag-main">'
-      +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
-      +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
-      + '</div>'
-      + '</div>';
-  }
-  // Paper file: 3 columns with both side tabs
-  return '<div class="file-tag" style="margin-bottom:4mm;">'
-    + '<div class="tag-side">' + sideText + '</div>'
-    + '<div class="tag-main">'
-    +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
-    +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
-    + '</div>'
-    + '<div class="tag-side right">' + sideText + '</div>'
-    + '</div>';
-}
-
-function refreshTagPreview(){
-  var preview = document.getElementById("tag-preview");
-  if(!preview || _tagClientIdx===null) return;
-  var c = getClient(_tagClientIdx);
-  var fileNo = c.sr || String(_tagClientIdx+1);
-  var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
-  var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
-  var isBox = !isPaper;
-  var count = isPaper ? 2 : 1;
-  var html = "";
-  for(var i=0;i<count;i++) html += buildTagHTML(c.name, fileNo, taxYear, isBox);
-  preview.innerHTML = html;
-  // Scale preview to fit the modal (preview area ~440px wide, tag is 187mm≈708px or 172mm≈651px)
-  var tagW = isBox ? 651 : 708;
-  var scale = Math.min(1, (preview.offsetWidth - 24) / tagW);
-  preview.style.transform = "scale("+scale+")";
-  preview.style.transformOrigin = "top left";
-  preview.style.height = (41 * scale * count * 3.78 + count * (isBox?30:15) + 24) + "px";
-}
-
-window.openTagModal = function(idx){
-  _tagClientIdx = idx;
-  var c = getClient(idx);
-  var fileNo = c.sr || String(idx+1);
-  var info = document.getElementById("tag-client-info");
-  if(info) info.innerHTML = "<strong>" + escHtml(c.name) + "</strong> &nbsp; <span style='color:#6b7280;font-size:13px;'>File No: " + escHtml(fileNo) + " &nbsp;|&nbsp; ID: " + escHtml(c.id||"—") + "</span>";
-  var yearInp = document.getElementById("tag-year-input");
-  if(yearInp) yearInp.value = new Date().getFullYear();
-  // wire live preview updates
-  document.querySelectorAll("input[name='tag-file-type']").forEach(function(r){
-    r.onchange = refreshTagPreview;
-  });
-  if(yearInp) yearInp.oninput = refreshTagPreview;
-  refreshTagPreview();
-  var modal = document.getElementById("tag-modal");
-  if(modal){ modal.style.display = "flex"; }
-};
-
-window.closeTagModal = function(){
-  var modal = document.getElementById("tag-modal");
-  if(modal) modal.style.display = "none";
-  _tagClientIdx = null;
-};
-
-window.printTags = function(){
-  if(_tagClientIdx===null) return;
-  var c = getClient(_tagClientIdx);
-  var fileNo = c.sr || String(_tagClientIdx+1);
-  var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
-  var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
-  var isBox = !isPaper;
-  var count = isPaper ? 2 : 1;
-  var tagsHtml = "";
-  for(var i=0;i<count;i++) tagsHtml += buildTagHTML(c.name, fileNo, taxYear, isBox);
-
-  var win = window.open("","_blank","width=800,height=600");
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>File Tags</title>'
-    + '<style>'
-    + '@page{margin:10mm;size:A4;}'
-    + 'body{margin:0;padding:0;font-family:"Times New Roman",Times,serif;}'
-    + '.file-tag{width:187.4mm;height:41mm;display:grid;grid-template-columns:14.93mm 1fr 14.93mm;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:4mm;box-sizing:border-box;overflow:hidden;}'
-    + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;border-left:1px solid #000;font-size:9pt;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;writing-mode:vertical-lr;text-orientation:mixed;font-family:"Times New Roman",Times,serif;}'
-    + '.tag-side.right{writing-mode:vertical-rl;transform:rotate(180deg);}'
-    + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
-    + '.tag-name{font-size:12pt;font-weight:700;white-space:nowrap;display:block;max-width:100%;overflow:hidden;font-family:"Times New Roman",Times,serif;}'
-    + '.tag-year{font-size:12pt;font-weight:700;white-space:nowrap;margin-top:2mm;font-family:"Times New Roman",Times,serif;}'
-    + '@media print{button{display:none!important;}}'
-    + '</style></head><body>'
-    + tagsHtml
-    + '<br><button onclick="window.print()" style="margin-top:10px;padding:10px 24px;font-size:14px;cursor:pointer;">Print</button>'
-    + '</body></html>');
-  win.document.close();
-  win.focus();
-  setTimeout(function(){ win.print(); }, 500);
-};
 
 </script>
 
