@@ -984,6 +984,14 @@ function reloadLsKey(key){
   try{
     if(key==="sc_tasks"){ TASKS=JSON.parse(localStorage.getItem(key)||"[]"); }
     else if(key==="sc_client_overrides"){ CLIENT_OVERRIDES=JSON.parse(localStorage.getItem(key)||"{}"); renderClients&&renderClients(); }
+    else if(key==="sc_extra_clients"){
+      var newExtra=JSON.parse(localStorage.getItem(key)||"[]");
+      // Remove previously added extra clients and re-add updated list
+      ALL_CLIENTS.splice(ALL_CLIENTS.length - EXTRA_CLIENTS.length, EXTRA_CLIENTS.length);
+      EXTRA_CLIENTS=newExtra;
+      for(var _ei=0;_ei<EXTRA_CLIENTS.length;_ei++){ if(EXTRA_CLIENTS[_ei]) ALL_CLIENTS.push(EXTRA_CLIENTS[_ei]); }
+      renderClients&&renderClients();
+    }
     else if(key==="sc_notices"){ NOTICES=JSON.parse(localStorage.getItem(key)||"[]"); }
     else if(key==="sc_returns"){ RETURNS=JSON.parse(localStorage.getItem(key)||"[]"); }
     else if(key==="sc_comms"){ COMMS=JSON.parse(localStorage.getItem(key)||"[]"); }
@@ -2175,7 +2183,14 @@ window.updateDashPins = function(){
 var CLIENT_OVERRIDES = {};
 try{ CLIENT_OVERRIDES = JSON.parse(localStorage.getItem("sc_client_overrides")||"{}"); }catch(e){}
 
+var EXTRA_CLIENTS = [];
+try{ EXTRA_CLIENTS = JSON.parse(localStorage.getItem("sc_extra_clients")||"[]"); }catch(e){}
+// Merge extra clients into ALL_CLIENTS at load time (they get indices >= ALL_CLIENTS base length)
+(function(){ for(var i=0;i<EXTRA_CLIENTS.length;i++){ if(EXTRA_CLIENTS[i]) ALL_CLIENTS.push(EXTRA_CLIENTS[i]); } })();
+
 function saveClientOverrides(desc){ guardedSave("sc_client_overrides", JSON.stringify(CLIENT_OVERRIDES), desc||"Updated client record", function(){ try{ localStorage.setItem("sc_client_overrides", JSON.stringify(CLIENT_OVERRIDES)); }catch(e){} }); }
+
+function saveExtraClients(desc){ guardedSave("sc_extra_clients", JSON.stringify(EXTRA_CLIENTS), desc||"Updated client list", function(){ try{ localStorage.setItem("sc_extra_clients", JSON.stringify(EXTRA_CLIENTS)); }catch(e){} }); }
 
 function getClient(idx){
   var c = Object.assign({}, ALL_CLIENTS[idx]);
@@ -2185,16 +2200,62 @@ function getClient(idx){
 
 window.openEditPanel = function openEditPanel(idx){
   var c = getClient(idx);
+  var h = $("edit-panel-heading"); if(h) h.textContent = "Edit Client";
   var np = $("edit-client-name"); if(np) np.textContent = c.name;
+  // show/hide name row (only for add)
+  var nameRow = $("edit-name-row"); if(nameRow) nameRow.style.display = "none";
+  var srRow = $("edit-sr-row"); if(srRow) srRow.style.display = "none";
+  var ntnRow = $("edit-ntn-row"); if(ntnRow) ntnRow.style.display = "block";
   var pp = $("edit-phone"); if(pp) pp.value = c.phone||"";
   var ep = $("edit-email"); if(ep) ep.value = c.email||"";
   var ap = $("edit-address"); if(ap) ap.value = c.address||"";
-  var np2 = $("edit-ntn"); if(np2) np2.value = c.ntn||"";
+  var np2 = $("edit-ntn"); if(np2){ np2.value = c.ntn||""; np2.readOnly = true; np2.style.background="#f3f4f6"; }
   var ip = $("edit-client-idx"); if(ip) ip.textContent = idx;
   var panel = $("client-edit-panel"); if(panel) panel.style.display="block";
   var saveBtn = $("edit-save-btn");
-  if(saveBtn){ saveBtn.onclick = function(){ saveClientEdit(idx); }; }
+  if(saveBtn){ saveBtn.textContent = "Save Changes"; saveBtn.onclick = function(){ saveClientEdit(idx); }; }
 };
+
+window.openAddClientPanel = function(){
+  if(role !== "admin") return;
+  var h = $("edit-panel-heading"); if(h) h.textContent = "Add New Client";
+  var np = $("edit-client-name"); if(np) np.textContent = "";
+  var nameRow = $("edit-name-row"); if(nameRow) nameRow.style.display = "block";
+  var srRow = $("edit-sr-row"); if(srRow) srRow.style.display = "block";
+  var ntnRow = $("edit-ntn-row"); if(ntnRow) ntnRow.style.display = "block";
+  var en = $("edit-new-name"); if(en) en.value = "";
+  var entn = $("edit-ntn"); if(entn){ entn.value = ""; entn.readOnly = false; entn.style.background=""; }
+  var esr = $("edit-new-sr"); if(esr) esr.value = "";
+  var eid = $("edit-new-id"); if(eid) eid.value = "";
+  var est = $("edit-new-status"); if(est) est.value = "Active";
+  var pp = $("edit-phone"); if(pp) pp.value = "";
+  var ep = $("edit-email"); if(ep) ep.value = "";
+  var ap = $("edit-address"); if(ap) ap.value = "";
+  var panel = $("client-edit-panel"); if(panel) panel.style.display="block";
+  var saveBtn = $("edit-save-btn");
+  if(saveBtn){ saveBtn.textContent = "Add Client"; saveBtn.onclick = addNewClient; }
+};
+
+function addNewClient(){
+  var name = (($("edit-new-name")||{}).value||"").trim();
+  if(!name){ alert("Client name is required."); return; }
+  var sr    = (($("edit-new-sr")||{}).value||"").trim();
+  var id    = (($("edit-new-id")||{}).value||"").trim();
+  var ntn   = (($("edit-ntn")||{}).value||"").trim();
+  var status= (($("edit-new-status")||{}).value||"Active").trim();
+  var phone = (($("edit-phone")||{}).value||"").trim();
+  var email = (($("edit-email")||{}).value||"").trim();
+  var addr  = (($("edit-address")||{}).value||"").trim();
+  var pc = phone.replace(/[-\s+]/g,"");
+  if(pc && !pc.startsWith("92")){ if(pc.startsWith("0")) pc="92"+pc.slice(1); else if(pc.length===10) pc="92"+pc; }
+  var newClient = { name:name, sr:sr, id:id||ntn, ntn:ntn, status:status, phone:phone, phoneWA:pc, email:email, address:addr };
+  EXTRA_CLIENTS.push(newClient);
+  ALL_CLIENTS.push(newClient);
+  saveExtraClients("Added new client: " + name);
+  closeEditPanel();
+  renderClients();
+}
+
 window.saveClientEdit = function saveClientEdit(idx){
   var phone   = ($("edit-phone")||{}).value||"";
   var email   = ($("edit-email")||{}).value||"";
@@ -2207,7 +2268,7 @@ window.saveClientEdit = function saveClientEdit(idx){
   var pc = phone.replace(/[-\s+]/g,"");
   if(pc && !pc.startsWith("92")){ if(pc.startsWith("0")) pc="92"+pc.slice(1); else if(pc.length===10) pc="92"+pc; }
   CLIENT_OVERRIDES[idx].phoneWA = pc;
-  saveClientOverrides();
+  saveClientOverrides("Edited client: " + (ALL_CLIENTS[idx]||{}).name);
   closeEditPanel();
   renderClients();
 };
@@ -2235,6 +2296,9 @@ function wireClients(){
     impInput.addEventListener("change", function(e){ importExcel(e.target.files[0]); });
   }
   curSearch=""; curFilter="ALL";
+  // Show Add Client button for admin only
+  var addBtn = $("add-client-btn");
+  if(addBtn) addBtn.style.display = (role === "admin") ? "inline-block" : "none";
   renderClients();
 }
 
@@ -5009,10 +5073,11 @@ window.advInsertTable = function(){
     </div>
   </div>
   <div class="client-count" id="client-count">Showing all 473 clients</div>
-  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
     <button class="task-add-btn" style="background:#1a2744;color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="document.getElementById('status-update-input').click()">🔄 Update ATL Status</button>
     <input type="file" id="status-update-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="autoUpdateStatus(this.files[0])">
     <button class="task-add-btn" style="background:#075e54;color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="openIrisBatch()">📂 Batch Upload IRIS Data</button>
+    <button id="add-client-btn" class="task-add-btn" style="background:#16a34a;color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openAddClientPanel()">+ Add Client</button>
     <span style="font-size:12px;color:#9ca3af;">Click a client name to view profile</span>
   </div>
   <div class="client-table-wrap">
@@ -5027,16 +5092,34 @@ window.advInsertTable = function(){
     </div>
     <div id="client-list"></div>
   </div>
-  <!-- CLIENT EDIT PANEL -->
+  <!-- CLIENT EDIT / ADD PANEL -->
   <div id="client-edit-panel" style="display:none;position:fixed;right:0;top:52px;bottom:0;width:340px;background:#fff;border-left:1px solid #e5e7eb;z-index:500;padding:20px;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.08);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <div style="font-size:15px;font-weight:600;color:#1a2744;" id="edit-client-name">Edit Client</div>
+      <div style="font-size:15px;font-weight:600;color:#1a2744;" id="edit-panel-heading">Edit Client</div>
       <button onclick="closeEditPanel()" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;">&times;</button>
+    </div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:14px;" id="edit-client-name"></div>
+    <!-- Add-only fields -->
+    <div id="edit-name-row" style="display:none;">
+      <div class="task-field" style="margin-bottom:12px;"><label>Client Name <span style="color:red">*</span></label><input type="text" id="edit-new-name" placeholder="Full client / business name"></div>
+      <div class="task-field" style="margin-bottom:12px;"><label>File No. (SR)</label><input type="text" id="edit-new-sr" placeholder="e.g. 474"></div>
+      <div class="task-field" style="margin-bottom:12px;"><label>Client ID / IRIS ID</label><input type="text" id="edit-new-id" placeholder="e.g. 1234567 or code"></div>
+      <div class="task-field" style="margin-bottom:12px;"><label>Status</label>
+        <select id="edit-new-status" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Late Filer">Late Filer</option>
+          <option value="">Unverified</option>
+        </select>
+      </div>
+    </div>
+    <!-- Shared fields -->
+    <div id="edit-ntn-row" style="display:block;">
+      <div class="task-field" style="margin-bottom:12px;"><label>NTN</label><input type="text" id="edit-ntn" placeholder="NTN number" readonly style="background:#f3f4f6;"></div>
     </div>
     <div class="task-field" style="margin-bottom:12px;"><label>Phone Number</label><input type="text" id="edit-phone" placeholder="+92-3XX-XXXXXXX"></div>
     <div class="task-field" style="margin-bottom:12px;"><label>Email</label><input type="email" id="edit-email" placeholder="email@example.com"></div>
-    <div class="task-field" style="margin-bottom:12px;"><label>Address</label><input type="text" id="edit-address" placeholder="Business address"></div>
-    <div class="task-field" style="margin-bottom:16px;"><label>NTN</label><input type="text" id="edit-ntn" placeholder="NTN number" readonly style="background:#f3f4f6;"></div>
+    <div class="task-field" style="margin-bottom:16px;"><label>Address</label><input type="text" id="edit-address" placeholder="Business address"></div>
     <button class="task-add-btn" id="edit-save-btn" style="width:100%;margin-bottom:8px;">Save Changes</button>
     <div id="edit-client-idx" style="display:none;"></div>
   </div>
