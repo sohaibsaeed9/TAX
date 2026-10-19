@@ -5737,9 +5737,10 @@ window.renderAdvisoriesPage = function(){
     if(a.date) html += '<span style="font-size:11px;color:#9ca3af;">'+escHtml(a.date)+'</span>';
     html += '</div></div>';
     html += '<div style="display:flex;gap:8px;flex-shrink:0;">';
-    html += '<button onclick="viewAdvisory(''+a.id+'')" style="background:#1a2744;border:none;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">View</button>';
-    html += '<button onclick="openAdvisoryEditor(-1,-1,''+a.id+'')" style="background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;">Edit</button>';
-    html += '<button onclick="deleteAdvisory(''+a.id+'')" style="background:#fff;border:1.5px solid #fecaca;color:#ef4444;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;">Del</button>';
+    var qid = JSON.stringify(a.id);
+    html += '<button onclick="viewAdvisory('+qid+')" style="background:#1a2744;border:none;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">View</button>';
+    html += '<button onclick="openAdvisoryEditor(-1,-1,'+qid+')" style="background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;">Edit</button>';
+    html += '<button onclick="deleteAdvisory('+qid+')" style="background:#fff;border:1.5px solid #fecaca;color:#ef4444;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;">Del</button>';
     html += '</div></div>';
   });
   html += '</div>';
