@@ -715,6 +715,14 @@ body{background:#f5f4f0;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
       </a>
     </div>
   </div>
+  <!-- PENDING CHANGES (admin only) -->
+  <div id="pending-card" class="card" style="margin-bottom:20px;display:none;border-left:4px solid #b8923a">
+    <div class="card-title" style="display:flex;align-items:center;gap:10px">
+      Pending Changes
+      <span id="pending-badge" style="background:#c62828;color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;display:none"></span>
+    </div>
+    <div id="pending-changes-panel"><p style="color:#888;font-size:14px">No pending changes.</p></div>
+  </div>
   <!-- QUICK TOOL TILES -->
   <div class="card" style="margin-bottom:20px;">
     <div class="card-title">Quick Access</div>
@@ -884,12 +892,111 @@ var USERS = {
   sohaib: { pw:"Sohaib@2025", role:"admin", name:"Sohaib" },
   staff1: { pw:"Staff1@2025", role:"staff", name:"Staff 1" },
   staff2: { pw:"Staff2@2025", role:"staff", name:"Staff 2" },
-  ubaid: { pw:"Ubaid@2025", role:"staff", name:"Ubaid" }
+  ubaid:  { pw:"Ubaid@2025", role:"reviewer", name:"Ubaid", needsApproval:true }
 };
 var PERMS = {
-  admin: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1 },
-  staff: { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0 }
+  admin:    { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1 },
+  reviewer: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:0, invoices:0, comms:1, tools:1, library:1, exttools:1, advisories:1 },
+  staff:    { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0 }
 };
+
+/* ════════════════════════════════
+   PENDING CHANGES (APPROVAL WORKFLOW)
+════════════════════════════════ */
+var PENDING = [];
+try{ PENDING = JSON.parse(localStorage.getItem("sc_pending")||"[]"); }catch(e){ PENDING=[]; }
+
+function savePending(){ try{ localStorage.setItem("sc_pending", JSON.stringify(PENDING)); }catch(e){} }
+
+// Call instead of localStorage.setItem when user needsApproval
+function queueChange(lsKey, newData, description){
+  var id = "chg_" + Date.now() + "_" + Math.random().toString(36).slice(2,6);
+  PENDING.push({ id:id, user:userName, name:USERS[userName].name, lsKey:lsKey, data:newData, desc:description, ts:new Date().toISOString() });
+  savePending();
+  showToast("⏳ Change queued for admin approval: " + description);
+  updatePendingBadge();
+}
+
+// Wrapper used by every save function — routes through queue if user needs approval
+function guardedSave(lsKey, data, description, directFn){
+  if(userName && USERS[userName] && USERS[userName].needsApproval){
+    queueChange(lsKey, data, description);
+  } else {
+    directFn();
+  }
+}
+
+function updatePendingBadge(){
+  var badge = document.getElementById("pending-badge");
+  var count = PENDING.filter(function(c){ return !c.resolved; }).length;
+  if(badge){ badge.textContent = count; badge.style.display = count > 0 ? "inline-flex" : "none"; }
+}
+
+function approvePending(id){
+  var chg = PENDING.find(function(c){ return c.id===id; });
+  if(!chg) return;
+  try{ localStorage.setItem(chg.lsKey, chg.data); }catch(e){ alert("Could not apply change: "+e); return; }
+  chg.resolved = "approved";
+  savePending();
+  // Reload affected data in memory
+  reloadLsKey(chg.lsKey);
+  renderPendingPanel();
+  updatePendingBadge();
+  showToast("✅ Change approved and applied.");
+}
+
+function rejectPending(id){
+  var chg = PENDING.find(function(c){ return c.id===id; });
+  if(!chg) return;
+  chg.resolved = "rejected";
+  savePending();
+  renderPendingPanel();
+  updatePendingBadge();
+  showToast("❌ Change rejected.");
+}
+
+function reloadLsKey(key){
+  try{
+    if(key==="sc_tasks"){ TASKS=JSON.parse(localStorage.getItem(key)||"[]"); }
+    else if(key==="sc_client_overrides"){ CLIENT_OVERRIDES=JSON.parse(localStorage.getItem(key)||"{}"); renderClients&&renderClients(); }
+    else if(key==="sc_notices"){ NOTICES=JSON.parse(localStorage.getItem(key)||"[]"); }
+    else if(key==="sc_returns"){ RETURNS=JSON.parse(localStorage.getItem(key)||"[]"); }
+    else if(key==="sc_comms"){ COMMS=JSON.parse(localStorage.getItem(key)||"[]"); }
+    else if(key==="sc_iris"){ IRIS_DATA=JSON.parse(localStorage.getItem(key)||"{}"); }
+    else if(key==="sc_advisories"){ ADVISORIES=JSON.parse(localStorage.getItem(key)||"[]"); }
+  }catch(e){}
+}
+
+function renderPendingPanel(){
+  var panel = document.getElementById("pending-changes-panel");
+  if(!panel) return;
+  var open = PENDING.filter(function(c){ return !c.resolved; });
+  if(open.length === 0){
+    panel.innerHTML = '<p style="color:#888;font-size:14px">No pending changes.</p>';
+    return;
+  }
+  var html = "";
+  open.forEach(function(c){
+    var dt = new Date(c.ts).toLocaleString("en-PK",{dateStyle:"medium",timeStyle:"short"});
+    html += '<div style="background:#f8f6f0;border:1px solid #e0dbd0;border-radius:8px;padding:14px 16px;margin-bottom:10px">'
+          + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+          + '<div><strong style="font-size:14px">'+c.name+'</strong> &nbsp;<span style="font-size:12px;color:#888">'+dt+'</span>'
+          + '<div style="font-size:14px;margin-top:4px;color:#2d3748">'+c.desc+'</div></div>'
+          + '<div style="display:flex;gap:8px;flex-shrink:0">'
+          + '<button onclick="approvePending(\''+c.id+'\')" style="background:#2F5A3F;color:#fff;border:0;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600">Approve</button>'
+          + '<button onclick="rejectPending(\''+c.id+'\')" style="background:#c62828;color:#fff;border:0;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600">Reject</button>'
+          + '</div></div></div>';
+  });
+  panel.innerHTML = html;
+}
+
+function showToast(msg){
+  var t = document.getElementById("portal-toast");
+  if(!t){ t=document.createElement("div"); t.id="portal-toast"; t.style.cssText="position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#243460;color:#fff;padding:12px 22px;border-radius:8px;font-size:14px;z-index:99999;pointer-events:none;transition:opacity .3s;max-width:90vw;text-align:center"; document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity="1";
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.style.opacity="0"; }, 3200);
+}
 
 /* ════════════════════════════════
    STATE
@@ -969,6 +1076,7 @@ function loginOK(u,usr){
   $("buser").textContent=userName;
   var rb=$("brole"); rb.textContent=role==="admin"?"Administrator":"Staff"; rb.className="rbadge "+role;
   $("sbar").classList.add("on");
+  updatePendingBadge();
   startIdle(); setInterval(tick,1000); tick();
 }
 
@@ -1041,6 +1149,10 @@ function startDash(){
   setInterval(updateDashClock,1000);
   // Build pins after short delay to ensure DOM ready
   setTimeout(function(){ if(window.updateDashPins) window.updateDashPins(); }, 200);
+  // Show pending-changes card for admin only
+  var pc = document.getElementById("pending-card");
+  if(pc){ pc.style.display = (role==="admin") ? "block" : "none"; }
+  if(role==="admin"){ renderPendingPanel(); updatePendingBadge(); }
   // Next deadline
   var now=new Date(); now.setHours(0,0,0,0);
   var yr=now.getFullYear();
@@ -1864,7 +1976,7 @@ var TASKS = [];
 try{ TASKS = JSON.parse(localStorage.getItem("sc_tasks")||"[]"); }catch(e){ TASKS=[]; }
 var taskFilter = "ALL";
 
-function saveTasks(){ try{ localStorage.setItem("sc_tasks", JSON.stringify(TASKS)); }catch(e){} }
+function saveTasks(desc){ guardedSave("sc_tasks", JSON.stringify(TASKS), desc||"Updated tasks", function(){ try{ localStorage.setItem("sc_tasks", JSON.stringify(TASKS)); }catch(e){} }); }
 
 function wireTasks(){
   // Populate client datalist
@@ -2038,7 +2150,7 @@ window.updateDashPins = function(){
 var CLIENT_OVERRIDES = {};
 try{ CLIENT_OVERRIDES = JSON.parse(localStorage.getItem("sc_client_overrides")||"{}"); }catch(e){}
 
-function saveClientOverrides(){ try{ localStorage.setItem("sc_client_overrides", JSON.stringify(CLIENT_OVERRIDES)); }catch(e){} }
+function saveClientOverrides(desc){ guardedSave("sc_client_overrides", JSON.stringify(CLIENT_OVERRIDES), desc||"Updated client record", function(){ try{ localStorage.setItem("sc_client_overrides", JSON.stringify(CLIENT_OVERRIDES)); }catch(e){} }); }
 
 function getClient(idx){
   var c = Object.assign({}, ALL_CLIENTS[idx]);
@@ -2186,7 +2298,7 @@ function renderClients(){
 ════════════════════════════════ */
 var NOTICES=[]; try{ NOTICES=JSON.parse(localStorage.getItem("sc_notices")||"[]"); }catch(e){}
 var ntFilter="ALL";
-function saveNotices(){ try{ localStorage.setItem("sc_notices",JSON.stringify(NOTICES)); }catch(e){} }
+function saveNotices(desc){ guardedSave("sc_notices", JSON.stringify(NOTICES), desc||"Updated notices", function(){ try{ localStorage.setItem("sc_notices",JSON.stringify(NOTICES)); }catch(e){} }); }
 
 function wireNotices(){
   populateClientDatalist("nt-client-list");
@@ -2253,7 +2365,7 @@ window.deleteNotice=function(id){ NOTICES=NOTICES.filter(function(n){ return n.i
    RETURN FILING REGISTER
 ════════════════════════════════ */
 var RETURNS=[]; try{ RETURNS=JSON.parse(localStorage.getItem("sc_returns")||"[]"); }catch(e){}
-function saveReturns(){ try{ localStorage.setItem("sc_returns",JSON.stringify(RETURNS)); }catch(e){} }
+function saveReturns(desc){ guardedSave("sc_returns", JSON.stringify(RETURNS), desc||"Updated returns", function(){ try{ localStorage.setItem("sc_returns",JSON.stringify(RETURNS)); }catch(e){} }); }
 window.deleteReturn = function(id){ RETURNS=RETURNS.filter(function(r){ return r.id!==id; }); saveReturns(); renderReturns(); };
 
 function wireReturns(){
@@ -2787,7 +2899,7 @@ window.previewCurrentInvoice=function(){
    COMMUNICATION LOG
 ════════════════════════════════ */
 var COMMS=[]; try{ COMMS=JSON.parse(localStorage.getItem("sc_comms")||"[]"); }catch(e){}
-function saveComms(){ try{ localStorage.setItem("sc_comms",JSON.stringify(COMMS)); }catch(e){} }
+function saveComms(desc){ guardedSave("sc_comms", JSON.stringify(COMMS), desc||"Updated communications", function(){ try{ localStorage.setItem("sc_comms",JSON.stringify(COMMS)); }catch(e){} }); }
 
 function wireComms(){
   populateClientDatalist("com-client-list");
@@ -3159,7 +3271,7 @@ var profileIdx = null;
 var profileTab = "info";
 var IRIS_DATA = {};
 try{ IRIS_DATA = JSON.parse(localStorage.getItem("sc_iris")||"{}"); }catch(e){}
-function saveIrisData(){ try{ localStorage.setItem("sc_iris",JSON.stringify(IRIS_DATA)); }catch(e){} }
+function saveIrisData(desc){ guardedSave("sc_iris", JSON.stringify(IRIS_DATA), desc||"Updated IRIS data", function(){ try{ localStorage.setItem("sc_iris",JSON.stringify(IRIS_DATA)); }catch(e){} }); }
 
 window.openProfile = function(idx){
   // Reset all state for new client upfront
@@ -4506,7 +4618,7 @@ function showStatusBanner(updated, skipped, notFound, filename){
 ════════════════════════════════ */
 var ADVISORIES = [];
 try{ ADVISORIES = JSON.parse(localStorage.getItem("sc_advisories")||"[]"); }catch(e){}
-function saveAdvisories(){ try{ localStorage.setItem("sc_advisories",JSON.stringify(ADVISORIES)); }catch(e){} }
+function saveAdvisories(desc){ guardedSave("sc_advisories", JSON.stringify(ADVISORIES), desc||"Updated advisories", function(){ try{ localStorage.setItem("sc_advisories",JSON.stringify(ADVISORIES)); }catch(e){} }); }
 
 function wireAdvisories(){ renderAdvisoriesPage(); }
 
@@ -5550,7 +5662,7 @@ Separate professional charges shall apply in the event of any tax proceeding / l
 var ADVISORIES = [];
 try{ ADVISORIES = JSON.parse(localStorage.getItem("sc_advisories")||"[]"); }catch(e){}
 
-function saveAdvisories(){ localStorage.setItem("sc_advisories", JSON.stringify(ADVISORIES)); }
+// saveAdvisories defined above
 
 function wireAdvisories(){
   // Populate client filter
