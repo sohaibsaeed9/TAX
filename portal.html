@@ -389,7 +389,7 @@ body{background:#f5f4f0;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
   display:flex; align-items:center; justify-content:center;
   border-right:1px solid #000;
   font-weight:700; text-align:center;
-  padding:1mm; overflow:hidden;
+  padding:1mm; overflow:hidden; word-break:break-all;
 }
 .tag-main{
   display:flex; flex-direction:column;
@@ -2370,7 +2370,8 @@ function renderClients(){
     var waBtn = (phoneWA||phone)
       ? "<button onclick=\"openWAPanel("+idx+")\" style=\"background:#25d366;border:none;color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;\">&#128172; Msg</button>"
       : "<button onclick=\"openEditPanel("+idx+")\" style=\"background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;\">+ Add</button>";
-    html+="<div class=\"client-row\" style=\"grid-template-columns:60px 1fr 140px 100px 80px 80px 65px;\">";
+    html+="<div class=\"client-row\" style=\"grid-template-columns:32px 60px 1fr 140px 100px 80px 80px 65px;\">";
+    html+="<div><input type=\"checkbox\" class=\"tag-select-cb\" data-idx=\""+idx+"\" onchange=\"updateBatchPrintBtn()\"></div>";
     html+="<div class=\"client-file\" style=\"font-weight:700;color:#1a2744;\">"+escHtml(c.sr||String(idx+1))+"</div>";
     html+="<div class=\"client-name\" style=\"cursor:pointer;color:#1a2744;\" onclick=\"openProfile("+idx+")\">"+escHtml(c.name)+"</div>";
     html+="<div class=\"client-id\">"+escHtml(c.id)+"</div>";
@@ -2417,10 +2418,26 @@ function tagNameFontSize(name, isLarge){
   }
 }
 
+function tagSideFontSize(fileNo, isLarge){
+  var len = String(fileNo||"").length;
+  if(isLarge){
+    if(len <= 2) return "28pt";
+    if(len <= 3) return "22pt";
+    if(len <= 4) return "17pt";
+    if(len <= 5) return "14pt";
+    return "11pt";
+  } else {
+    if(len <= 2) return "18pt";
+    if(len <= 3) return "14pt";
+    if(len <= 4) return "11pt";
+    if(len <= 5) return "9pt";
+    return "8pt";
+  }
+}
 function buildTagHTML(name, fileNo, taxYear, size){
   // size: "small" (22pt base, auto-height) or "large" (36pt base, 41mm)
   var isLarge = (size === "large");
-  var sideSize  = isLarge ? "36pt" : "22pt";
+  var sideSize  = tagSideFontSize(fileNo, isLarge);
   var yearSize  = isLarge ? "13pt" : "9pt";    // year clearly smaller than name
   var nameFontSize = tagNameFontSize(name, isLarge);
   var heightStyle = isLarge ? "height:41mm;" : "height:auto;min-height:18mm;";
@@ -2481,6 +2498,88 @@ window.closeTagModal = function(){
   _tagClientIdx = null;
 };
 
+window.updateBatchPrintBtn = function(){
+  var checked = document.querySelectorAll(".tag-select-cb:checked").length;
+  var btn = document.getElementById("batch-print-btn");
+  if(btn) btn.style.display = checked > 0 ? "inline-block" : "none";
+  var selectAll = document.getElementById("select-all-tags");
+  if(selectAll){
+    var all = document.querySelectorAll(".tag-select-cb").length;
+    selectAll.indeterminate = checked > 0 && checked < all;
+    selectAll.checked = all > 0 && checked === all;
+  }
+};
+
+window.toggleSelectAllTags = function(checked){
+  document.querySelectorAll(".tag-select-cb").forEach(function(cb){ cb.checked = checked; });
+  updateBatchPrintBtn();
+};
+
+window.openBatchTagModal = function(){
+  var checked = document.querySelectorAll(".tag-select-cb:checked");
+  if(!checked.length) return;
+  // Collect unique indices
+  var indices = [];
+  checked.forEach(function(cb){ indices.push(parseInt(cb.getAttribute("data-idx"),10)); });
+  // Show batch tag modal
+  var modal = document.getElementById("batch-tag-modal");
+  if(!modal) return;
+  var yearInp = document.getElementById("batch-tag-year");
+  if(yearInp) yearInp.value = new Date().getFullYear();
+  var count = document.getElementById("batch-tag-count");
+  if(count) count.textContent = indices.length + " client" + (indices.length===1?"":"s") + " selected";
+  modal.style.display = "flex";
+  modal._indices = indices;
+};
+
+window.closeBatchTagModal = function(){
+  var modal = document.getElementById("batch-tag-modal");
+  if(modal) modal.style.display = "none";
+};
+
+window.printBatchTags = function(){
+  var modal = document.getElementById("batch-tag-modal");
+  if(!modal || !modal._indices) return;
+  var indices = modal._indices;
+  var taxYear = (document.getElementById("batch-tag-year")||{}).value || new Date().getFullYear();
+  var isPaper = document.getElementById("batch-type-paper") && document.getElementById("batch-type-paper").checked;
+  var tagsHtml = "";
+  for(var i=0;i<indices.length;i++){
+    var idx = indices[i];
+    var c = getClient(idx);
+    var fileNo = c.sr || String(idx+1);
+    if(isPaper){
+      tagsHtml += buildTagHTML(c.name, fileNo, taxYear, "small");
+      tagsHtml += buildTagHTML(c.name, fileNo, taxYear, "large");
+    } else {
+      tagsHtml += buildTagHTML(c.name, fileNo, taxYear, "large");
+    }
+  }
+  closeBatchTagModal();
+  openTagPrintWindow(tagsHtml, "Batch File Tags — " + indices.length + " clients");
+};
+
+function openTagPrintWindow(tagsHtml, title){
+  var win = window.open("","_blank","width=800,height=600");
+  if(!win){ alert("Please allow pop-ups for this site to print tags."); return; }
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+escHtml(title)+'</title>'
+    + '<style>'
+    + '@page{margin:10mm;size:A4;}'
+    + 'body{margin:20px;padding:0;font-family:"Times New Roman",Times,serif;}'
+    + '.file-tag{width:172.5mm;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:4mm;box-sizing:border-box;overflow:hidden;}'
+    + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;}'
+    + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
+    + '.tag-name,.tag-year{font-weight:700;white-space:nowrap;display:block;font-family:"Times New Roman",Times,serif;}'
+    + '@media print{.no-print{display:none!important;}body{margin:0;}}'
+    + '</style></head><body>'
+    + tagsHtml
+    + '<p class="no-print" style="margin-top:16px;"><button onclick="window.print()" style="padding:10px 24px;font-size:14px;cursor:pointer;background:#1a2744;color:#fff;border:none;border-radius:6px;">Print</button>&nbsp;<button onclick="window.close()" style="padding:10px 24px;font-size:14px;cursor:pointer;">Close</button></p>'
+    + '</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); }, 600);
+}
+
 window.printTags = function(){
   if(_tagClientIdx===null) return;
   var c = getClient(_tagClientIdx);
@@ -2494,24 +2593,7 @@ window.printTags = function(){
   } else {
     tagsHtml += buildTagHTML(c.name, fileNo, taxYear, "large");
   }
-  var win = window.open("","_blank","width=800,height=600");
-  if(!win){ alert("Please allow pop-ups for this site to print tags."); return; }
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>File Tags — '+escHtml(c.name)+'</title>'
-    + '<style>'
-    + '@page{margin:10mm;size:A4;}'
-    + 'body{margin:20px;padding:0;font-family:"Times New Roman",Times,serif;}'
-    + '.file-tag{width:172.5mm;height:41mm;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:6mm;box-sizing:border-box;overflow:hidden;}'
-    + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;font-weight:700;text-align:center;padding:1mm;overflow:hidden;}'
-    + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
-    + '.tag-name,.tag-year{font-weight:700;white-space:nowrap;display:block;font-family:"Times New Roman",Times,serif;}'
-    + '@media print{.no-print{display:none!important;}}'
-    + '</style></head><body>'
-    + tagsHtml
-    + '<p class="no-print" style="margin-top:16px;"><button onclick="window.print()" style="padding:10px 24px;font-size:14px;cursor:pointer;background:#1a2744;color:#fff;border:none;border-radius:6px;">Print</button>&nbsp;<button onclick="window.close()" style="padding:10px 24px;font-size:14px;cursor:pointer;">Close</button></p>'
-    + '</body></html>');
-  win.document.close();
-  win.focus();
-  setTimeout(function(){ win.print(); }, 600);
+  openTagPrintWindow(tagsHtml, "File Tags — " + c.name);
 };
 
 /* ════════════════════════════════
@@ -5079,9 +5161,11 @@ window.advInsertTable = function(){
     <button class="task-add-btn" style="background:#075e54;color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="openIrisBatch()">📂 Batch Upload IRIS Data</button>
     <button id="add-client-btn" class="task-add-btn" style="background:#16a34a;color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openAddClientPanel()">+ Add Client</button>
     <span style="font-size:12px;color:#9ca3af;">Click a client name to view profile</span>
+    <button id="batch-print-btn" class="task-add-btn" style="background:#7c3aed;color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openBatchTagModal()">&#127991; Print Selected Tags</button>
   </div>
   <div class="client-table-wrap">
-    <div class="client-table-header" style="grid-template-columns:60px 1fr 140px 100px 80px 80px 65px;">
+    <div class="client-table-header" style="grid-template-columns:32px 60px 1fr 140px 100px 80px 80px 65px;">
+      <div><input type="checkbox" id="select-all-tags" title="Select all" onchange="toggleSelectAllTags(this.checked)"></div>
       <div>SR No.</div>
       <div>Client Name</div>
       <div>ID</div>
@@ -6162,6 +6246,33 @@ window.generateAdvisoryAI = function(){
   </div>
 </div>
 <div id="tag-print-area" style="display:none;"></div>
+
+<!-- BATCH TAG MODAL -->
+<div id="batch-tag-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px;width:380px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div style="font-size:17px;font-weight:700;color:#1a2744;">&#127991; Batch Print Tags</div>
+      <button onclick="closeBatchTagModal()" style="background:none;border:none;font-size:22px;color:#9ca3af;cursor:pointer;">&times;</button>
+    </div>
+    <div id="batch-tag-count" style="font-size:13px;color:#6b7280;margin-bottom:16px;"></div>
+    <div style="display:flex;gap:12px;margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+        <input type="radio" name="batch-file-type" id="batch-type-paper" value="paper" checked> Paper File (2 tags)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+        <input type="radio" name="batch-file-type" id="batch-type-box" value="box"> Box File (1 tag)
+      </label>
+    </div>
+    <div class="task-field" style="margin-bottom:20px;">
+      <label>Tax Year</label>
+      <input type="number" id="batch-tag-year" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:14px;" min="2000" max="2099">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closeBatchTagModal()" style="background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;cursor:pointer;">Cancel</button>
+      <button onclick="printBatchTags()" style="background:#1a2744;border:none;color:#fff;font-size:13px;font-weight:600;padding:10px 24px;border-radius:8px;cursor:pointer;">&#128438; Print All Tags</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
