@@ -3222,15 +3222,16 @@ function buildInvoiceHTML(inv){
   '<th style="text-align:right;">Amount (PKR)</th>'+
   '</tr></thead>'+
   '<tbody>'+rows+
-  /* Totals rows */
-  '<tr><td colspan="'+(1+(hasTaxYear?1:0)+(hasName?1:0)+1)+'" style="border:none;padding:0;"></td>'+
-  '<td style="padding:8px 14px;font-size:12px;text-align:right;border-top:2px solid #e5e7eb;border-bottom:1px solid #e5e7eb;"><span style="color:#6b7280;">Subtotal&nbsp;&nbsp;</span><span style="font-family:monospace;font-weight:700;">'+fmt(subtotal)+'</span></td></tr>'+
-  '<tr><td colspan="'+(1+(hasTaxYear?1:0)+(hasName?1:0)+1)+'" style="border:none;padding:0;"></td>'+
-  '<td style="padding:8px 14px;font-size:12px;text-align:right;border-bottom:1px solid #e5e7eb;"><span style="color:#6b7280;">Received&nbsp;&nbsp;</span><span style="font-family:monospace;font-weight:700;color:#059669;">'+fmt(received)+'</span></td></tr>'+
-  '<tr><td colspan="'+(1+(hasTaxYear?1:0)+(hasName?1:0)+1)+'" style="border:none;padding:0;"></td>'+
-  '<td style="padding:10px 14px;font-size:13px;text-align:right;background:#fff;font-weight:800;border-top:2px solid #111;"><span style="color:#111;font-size:11px;display:block;">TOTAL PAYABLE</span><span style="font-family:monospace;color:#111;font-size:14px;">'+fmt(payable>0?payable:0)+'</span></td></tr>'+
   '</tbody>'+
   '</table>'+
+  /* Totals block outside table, right-aligned */
+  '<div style="display:flex;justify-content:flex-end;padding:0 0 0 0;margin-top:2px;">'+
+  '<div style="min-width:260px;">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:2px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Subtotal</span><span style="font-family:monospace;font-weight:700;">'+fmt(subtotal)+'</span></div>'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Received</span><span style="font-family:monospace;font-weight:700;color:#059669;">'+fmt(received)+'</span></div>'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:2px solid #111;font-size:13px;font-weight:800;"><span style="color:#111;font-size:11px;">TOTAL PAYABLE</span><span style="font-family:monospace;color:#111;font-size:14px;">'+fmt(payable>0?payable:0)+'</span></div>'+
+  '</div>'+
+  '</div>'+
   '</div>'+
 
   /* BOTTOM: notes left, signature right */
