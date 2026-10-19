@@ -2331,23 +2331,25 @@ var _tagClientIdx = null;
 function tagNameFontSize(name, isLarge){
   var len = name.length;
   if(isLarge){
+    // year is 13pt — name must always be bigger
     if(len <= 10) return "36pt";
     if(len <= 14) return "32pt";
     if(len <= 18) return "28pt";
     if(len <= 23) return "24pt";
-    if(len <= 29) return "20pt";
-    if(len <= 36) return "17pt";
-    if(len <= 44) return "14pt";
-    return "12pt";
+    if(len <= 29) return "21pt";
+    if(len <= 36) return "18pt";
+    if(len <= 44) return "16pt";
+    return "14pt";
   } else {
+    // year is 9pt — name must always be bigger
     if(len <= 10) return "22pt";
     if(len <= 14) return "20pt";
     if(len <= 18) return "17pt";
     if(len <= 23) return "15pt";
     if(len <= 29) return "13pt";
     if(len <= 36) return "11pt";
-    if(len <= 44) return "9pt";
-    return "8pt";
+    if(len <= 44) return "10pt";
+    return "9pt";
   }
 }
 
@@ -2355,7 +2357,7 @@ function buildTagHTML(name, fileNo, taxYear, size){
   // size: "small" (22pt base, auto-height) or "large" (36pt base, 41mm)
   var isLarge = (size === "large");
   var sideSize  = isLarge ? "36pt" : "22pt";
-  var yearSize  = isLarge ? "20pt" : "13pt";   // year slightly smaller than base
+  var yearSize  = isLarge ? "13pt" : "9pt";    // year clearly smaller than name
   var nameFontSize = tagNameFontSize(name, isLarge);
   var heightStyle = isLarge ? "height:41mm;" : "height:auto;min-height:18mm;";
   var sideText = escHtml(fileNo||"");
