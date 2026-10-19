@@ -2324,31 +2324,48 @@ function renderClients(){
 ════════════════════════════════ */
 var _tagClientIdx = null;
 
-// Paper file: 2 tags — small (22pt, auto-height) + large (36pt, 41mm)
-// Box  file:  1 tag  — large (36pt, 41mm)
-function tagNameFontSize(name, basePt){
+// Paper file: 2 tags — small (22pt base) + large (36pt base, 41mm)
+// Box  file:  1 tag  — large (36pt base, 41mm)
+// Available text width in main cell: ~149mm
+// Max font for L chars ≈ min(base, 800/L) pt  (Times NR avg char ~0.55em)
+function tagNameFontSize(name, isLarge){
   var len = name.length;
-  if(len <= 12) return basePt + "pt";
-  if(len <= 18) return Math.round(basePt * 0.85) + "pt";
-  if(len <= 26) return Math.round(basePt * 0.70) + "pt";
-  if(len <= 36) return Math.round(basePt * 0.58) + "pt";
-  return Math.round(basePt * 0.48) + "pt";
+  if(isLarge){
+    if(len <= 10) return "36pt";
+    if(len <= 14) return "32pt";
+    if(len <= 18) return "28pt";
+    if(len <= 23) return "24pt";
+    if(len <= 29) return "20pt";
+    if(len <= 36) return "17pt";
+    if(len <= 44) return "14pt";
+    return "12pt";
+  } else {
+    if(len <= 10) return "22pt";
+    if(len <= 14) return "20pt";
+    if(len <= 18) return "17pt";
+    if(len <= 23) return "15pt";
+    if(len <= 29) return "13pt";
+    if(len <= 36) return "11pt";
+    if(len <= 44) return "9pt";
+    return "8pt";
+  }
 }
 
 function buildTagHTML(name, fileNo, taxYear, size){
-  // size: "small" (22pt, auto-height) or "large" (36pt, 41mm)
-  var basePt = (size === "small") ? 22 : 36;
-  var fixedSize = basePt + "pt";
-  var nameFontSize = tagNameFontSize(name, basePt);
-  var heightStyle = (size === "small") ? "height:auto;min-height:18mm;" : "height:41mm;";
+  // size: "small" (22pt base, auto-height) or "large" (36pt base, 41mm)
+  var isLarge = (size === "large");
+  var sideSize  = isLarge ? "36pt" : "22pt";
+  var yearSize  = isLarge ? "20pt" : "13pt";   // year slightly smaller than base
+  var nameFontSize = tagNameFontSize(name, isLarge);
+  var heightStyle = isLarge ? "height:41mm;" : "height:auto;min-height:18mm;";
   var sideText = escHtml(fileNo||"");
   var nameText = escHtml(name);
   var yearText = "TAX YEAR " + escHtml(String(taxYear));
   return '<div class="file-tag" style="width:172.5mm;grid-template-columns:14.93mm 1fr;'+heightStyle+'">'
-    + '<div class="tag-side" style="font-size:'+fixedSize+';">' + sideText + '</div>'
+    + '<div class="tag-side" style="font-size:'+sideSize+';">' + sideText + '</div>'
     + '<div class="tag-main">'
     +   '<span class="tag-name" style="font-size:' + nameFontSize + ';">' + nameText + '</span>'
-    +   '<span class="tag-year" style="font-size:' + fixedSize + ';">' + yearText + '</span>'
+    +   '<span class="tag-year" style="font-size:' + yearSize + ';">' + yearText + '</span>'
     + '</div></div>';
 }
 
