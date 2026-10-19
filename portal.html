@@ -3109,7 +3109,7 @@ function buildInvoiceHTML(inv){
   '<style>'+
   '*{box-sizing:border-box;margin:0;padding:0;}'+
   'body{font-family:Arial,sans-serif;background:#e5e7eb;color:#1a2744;margin:0;padding:20px 0;}'+
-  '.page{width:794px;min-height:1123px;margin:0 auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.15);display:flex;flex-direction:column;}'+
+  '.page{width:794px;min-height:1123px;margin:0 auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden;}'+
   '.page-content{flex:1;}'+
   /* TOP SECTION */
   '.top{display:flex;justify-content:space-between;align-items:flex-start;padding:28px 36px 16px;}'+
@@ -3132,8 +3132,9 @@ function buildInvoiceHTML(inv){
   '.meta-key{color:#9ca3af;font-weight:600;white-space:nowrap;}'+
   '.meta-val{font-weight:700;color:#1a2744;text-align:right;}'+
   /* table */
-  '.tbl-wrap{padding:0 36px;overflow:hidden;}'+
-  'table.items{width:100%;border-collapse:collapse;table-layout:fixed;}'+
+  '.tbl-wrap{padding:0 36px;overflow:hidden;max-width:100%;box-sizing:border-box;}'+
+  'table.items{width:100%;border-collapse:collapse;table-layout:fixed;max-width:100%;}'+
+  'table.items td,table.items th{overflow:hidden;word-break:break-word;}'+
   'table.items thead tr{background:#fff;border-bottom:2px solid #1a2744;}'+
   'table.items thead th{padding:11px 14px;font-size:11px;font-weight:700;color:#1a2744;text-align:left;border-right:1px solid #e5e7eb;}'+
   'table.items thead th:last-child{text-align:right;border-right:none;}'+
@@ -3210,8 +3211,8 @@ function buildInvoiceHTML(inv){
   '<col style="width:44px;">'+
   '<col>'+ /* description fills remaining */
   (hasTaxYear?'<col style="width:80px;">':'')+
-  (hasName?'<col style="width:140px;">':'')+
-  '<col style="width:160px;">'+
+  (hasName?'<col style="width:130px;">':'')+
+  '<col style="width:150px;">'+
   '</colgroup>'+
   '<thead><tr>'+
   '<th style="text-align:center;">S.N</th>'+
