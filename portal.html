@@ -397,11 +397,10 @@ body{background:#f5f4f0;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
   text-align:center; padding:2mm 4mm; overflow:hidden;
 }
 .tag-name{
-  font-size:12pt; font-weight:700;
-  white-space:nowrap; display:block;
+  font-weight:700; white-space:nowrap; display:block;
   max-width:100%; overflow:hidden;
 }
-.tag-year{ font-size:12pt; font-weight:700; white-space:nowrap; margin-top:1mm; }
+.tag-year{ font-weight:700; white-space:nowrap; margin-top:1mm; }
 
 @media print{
   /* Hide everything except print content */
@@ -2325,43 +2324,45 @@ function renderClients(){
 ════════════════════════════════ */
 var _tagClientIdx = null;
 
-function tagFontSize(name, isBox){
+function tagNameFontSize(name, isBox){
+  // Only the name scales down — file number and tax year stay at doc size
   var len = name.length;
   if(isBox){
+    // Base 36pt; shrink for long names
     if(len <= 10) return "36pt";
-    if(len <= 15) return "28pt";
-    if(len <= 22) return "20pt";
-    if(len <= 30) return "15pt";
-    return "12pt";
+    if(len <= 14) return "30pt";
+    if(len <= 20) return "24pt";
+    if(len <= 28) return "18pt";
+    return "14pt";
   }
-  if(len <= 18) return "12pt";
-  if(len <= 26) return "10pt";
-  if(len <= 36) return "8.5pt";
+  // Base 12pt; shrink for long names
+  if(len <= 22) return "12pt";
+  if(len <= 30) return "10pt";
+  if(len <= 40) return "8.5pt";
   return "7pt";
 }
 
 function buildTagHTML(name, fileNo, taxYear, isBox){
-  var fs = tagFontSize(name, isBox);
+  var nameFontSize = tagNameFontSize(name, isBox);
+  var fixedSize = isBox ? "36pt" : "12pt";
   var sideText = escHtml(fileNo||"");
   var nameText = escHtml(name);
   var yearText = "TAX YEAR " + escHtml(String(taxYear));
   if(isBox){
-    // Box file: 2 cols (side | main), 36pt, no right tab
     return '<div class="file-tag" style="width:172.5mm;grid-template-columns:14.93mm 1fr;">'
-      + '<div class="tag-side">' + sideText + '</div>'
+      + '<div class="tag-side" style="font-size:'+fixedSize+';">' + sideText + '</div>'
       + '<div class="tag-main">'
-      +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
-      +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
+      +   '<span class="tag-name" style="font-size:' + nameFontSize + ';">' + nameText + '</span>'
+      +   '<span class="tag-year" style="font-size:' + fixedSize + ';">' + yearText + '</span>'
       + '</div></div>';
   }
-  // Paper file: 3 cols (side | main | side), 12pt
   return '<div class="file-tag">'
-    + '<div class="tag-side">' + sideText + '</div>'
+    + '<div class="tag-side" style="font-size:'+fixedSize+';">' + sideText + '</div>'
     + '<div class="tag-main">'
-    +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
-    +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
+    +   '<span class="tag-name" style="font-size:' + nameFontSize + ';">' + nameText + '</span>'
+    +   '<span class="tag-year" style="font-size:' + fixedSize + ';">' + yearText + '</span>'
     + '</div>'
-    + '<div class="tag-side">' + sideText + '</div>'
+    + '<div class="tag-side" style="font-size:'+fixedSize+';">' + sideText + '</div>'
     + '</div>';
 }
 
