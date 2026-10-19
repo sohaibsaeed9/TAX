@@ -3043,9 +3043,11 @@ function buildInvoiceHTML(inv){
   /* table */
   '.tbl-wrap{padding:0 36px;}'+
   'table.items{width:100%;border-collapse:collapse;}'+
-  'table.items thead tr{background:#1a2744;}'+
-  'table.items thead th{padding:11px 14px;font-size:11px;font-weight:700;color:#fff;text-align:left;}'+
-  'table.items thead th:last-child{text-align:right;}'+
+  'table.items thead tr{background:#fff;border-bottom:2px solid #1a2744;}'+
+  'table.items thead th{padding:11px 14px;font-size:11px;font-weight:700;color:#1a2744;text-align:left;border-right:1px solid #e5e7eb;}'+
+  'table.items thead th:last-child{text-align:right;border-right:none;}'+
+  'table.items tbody td{border-right:1px solid #e5e7eb;}'+
+  'table.items tbody td:last-child{border-right:none;}'+
   'table.items tbody tr:nth-child(even){background:#f9fafb;}'+
   /* bottom */
   '.bottom{display:flex;justify-content:space-between;align-items:flex-end;padding:24px 36px 20px;margin-top:16px;}'+
@@ -3132,7 +3134,7 @@ function buildInvoiceHTML(inv){
   '<tr><td colspan="'+(hasName?3:2)+'" style="border:none;padding:0;"></td>'+
   '<td style="padding:8px 14px;font-size:12px;text-align:right;border-bottom:1px solid #e5e7eb;"><span style="color:#6b7280;">Received&nbsp;&nbsp;</span><span style="font-family:monospace;font-weight:700;color:#059669;">'+fmt(received)+'</span></td></tr>'+
   '<tr><td colspan="'+(hasName?3:2)+'" style="border:none;padding:0;"></td>'+
-  '<td style="padding:10px 14px;font-size:13px;text-align:right;background:#1a2744;font-weight:800;"><span style="color:rgba(255,255,255,.8);font-size:11px;">TOTAL PAYABLE&nbsp;&nbsp;</span><span style="font-family:monospace;color:#b8923a;">'+fmt(payable>0?payable:0)+'</span></td></tr>'+
+  '<td style="padding:10px 14px;font-size:13px;text-align:right;background:#111;font-weight:800;"><span style="color:rgba(255,255,255,.8);font-size:11px;">TOTAL PAYABLE&nbsp;&nbsp;</span><span style="font-family:monospace;color:#b8923a;">'+fmt(payable>0?payable:0)+'</span></td></tr>'+
   '</tbody>'+
   '</table>'+
   '</div>'+
