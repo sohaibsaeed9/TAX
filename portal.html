@@ -3317,11 +3317,18 @@ window.openProfile = function(idx){
   var cpm = document.getElementById("cp-client-meta");
   if(cpm) cpm.textContent = "NTN: "+(c.ntn||"N/A")+" | Status: "+(c.status||"Unknown")+" | File No: "+(c.sr||"—");
 
+  // Hide restricted tabs based on role
+  var restrictedTabs = (PERMS[role] && !PERMS[role].fees) ? ["fees","invoices"] : [];
+  document.querySelectorAll("#cp-tabs .cp-tab").forEach(function(t){
+    t.style.display = restrictedTabs.indexOf(t.getAttribute("data-cptab")) > -1 ? "none" : "";
+  });
+
   // Wire tabs — read profileIdx at click time to avoid stale closures
-  var tabs = document.querySelectorAll("#cp-tabs .cp-tab");
+  var allCpTabs = document.querySelectorAll("#cp-tabs .cp-tab");
+  var tabs = Array.prototype.filter.call(allCpTabs, function(t){ return t.style.display !== "none"; });
   for(var i=0;i<tabs.length;i++){
     tabs[i].onclick = function(){
-      for(var j=0;j<tabs.length;j++) tabs[j].classList.remove("on");
+      tabs.forEach(function(t){ t.classList.remove("on"); });
       this.classList.add("on");
       profileTab = this.getAttribute("data-cptab");
       irisActiveSectionFilter = "ALL";
@@ -5375,6 +5382,7 @@ Separate professional charges shall apply in the event of any tax proceeding / l
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <button onclick="printProfile()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">🖨 Print</button>
+        <button onclick="openTagModal(profileIdx)" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">🏷 Tags</button>
         <button onclick="openWAFromProfile()" style="background:#25d366;border:none;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">💬 WhatsApp</button>
         <button class="cp-close" onclick="closeProfile()">&times;</button>
       </div>
