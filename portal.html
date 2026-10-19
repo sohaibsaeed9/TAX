@@ -2972,6 +2972,7 @@ function renderInvoiceList(){
     html+='<div><span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:'+(inv.paid?'#d1fae5':'#fee2e2')+';color:'+(inv.paid?'#065f46':'#991b1b')+';">'+(inv.paid?'PAID':'UNPAID')+'</span></div>';
     html+='<div style="display:flex;gap:6px;">';
     html+='<button onclick="viewInvoice(\''+inv.id+'\')" style="background:#1a2744;color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">View/Print</button>';
+    html+='<button onclick="editInvoice(\''+inv.id+'\')" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">Edit</button>';
     html+='<button onclick="toggleInvoicePaid(\''+inv.id+'\')" style="background:#f3f4f6;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">'+(inv.paid?'Unpaid':'Mark Paid')+'</button>';
     html+='<button onclick="deleteInvoice(\''+inv.id+'\')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">Del</button>';
     html+='</div></div>';
@@ -2989,6 +2990,90 @@ window.deleteInvoice=function(id){
   INVOICES=INVOICES.filter(function(i){ return i.id!==id; });
   saveInvoices(); renderInvoiceList();
 };
+
+window.editInvoice=function(id){
+  var inv=INVOICES.find(function(i){ return i.id===id; });
+  if(!inv) return;
+  // Switch to invoice form tab
+  showPage("invoices");
+  // Scroll to form
+  var form=$("inv-form-section"); if(form) form.scrollIntoView({behavior:"smooth"});
+  // Pre-fill header fields
+  var sel=$("inv-client-sel");
+  if(sel){ sel.value=String(inv.clientIdx); sel.dispatchEvent(new Event("change")); }
+  var invNo=$("inv-number"); if(invNo) invNo.value=inv.invoiceNo;
+  var dt=$("inv-date"); if(dt) dt.value=inv.date||"";
+  var due=$("inv-due"); if(due) due.value=inv.dueDate||"";
+  var rec=$("inv-received"); if(rec){ rec.value=inv.received||0; calcInvoiceTotal(); }
+  var notes=$("inv-notes"); if(notes) notes.value=inv.notes||"";
+  // Clear and re-populate line items
+  var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
+  (inv.items||[]).forEach(function(it){
+    addInvoiceLine(it.desc||"");
+    var rows=document.querySelectorAll("#inv-lines tr");
+    var tr=rows[rows.length-1];
+    var inputs=tr.querySelectorAll("input");
+    if(inputs[1]) inputs[1].value=it.taxYear||"";
+    if(inputs[2]) inputs[2].value=it.name||"";
+    if(inputs[3]){ inputs[3].value=it.amount||0; calcInvoiceTotal(); }
+  });
+  // Mark form as editing this invoice
+  var saveBtn=$("inv-save-btn");
+  if(saveBtn){
+    saveBtn.textContent="Update Invoice";
+    saveBtn.dataset.editId=id;
+  }
+  var title=$("inv-form-title"); if(title) title.textContent="Edit Invoice — "+inv.invoiceNo;
+};
+
+// Patch saveInvoice to handle updates
+(function(){
+  var _origSave=window.saveInvoice;
+  window.saveInvoice=function(){
+    var saveBtn=$("inv-save-btn");
+    var editId=saveBtn&&saveBtn.dataset.editId;
+    if(!editId){ _origSave&&_origSave(); return; }
+    // Collect form data same as saveInvoice
+    var clientSel=$("inv-client-sel");
+    if(!clientSel||clientSel.value==="") { alert("Please select a client."); return; }
+    var clientIdx=parseInt(clientSel.value);
+    var invNo=($("inv-number")||{}).value||"";
+    var date=($("inv-date")||{}).value||"";
+    var dueDate=($("inv-due")||{}).value||"";
+    var notes=($("inv-notes")||{}).value||"";
+    var rows=document.querySelectorAll("#inv-lines tr");
+    var items=[];
+    rows.forEach(function(tr){
+      var inputs=tr.querySelectorAll("input");
+      var desc=(inputs[0]&&inputs[0].value.trim())||"";
+      var taxYear=(inputs[1]&&inputs[1].value.trim())||"";
+      var name=(inputs[2]&&inputs[2].value.trim())||"";
+      var amount=parseFloat(inputs[3]&&inputs[3].value)||0;
+      if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount});
+    });
+    if(!items.length){ alert("Please add at least one line item."); return; }
+    var total=items.reduce(function(s,it){ return s+it.amount; },0);
+    var received=parseFloat(($("inv-received")||{}).value)||0;
+    // Update existing invoice in place
+    var idx=INVOICES.findIndex(function(i){ return i.id===editId; });
+    if(idx>-1){
+      INVOICES[idx]=Object.assign(INVOICES[idx],{invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,received:received,paid:received>=total&&total>0});
+      saveInvoices(); renderInvoiceList();
+    }
+    // Reset form back to new-invoice mode
+    delete saveBtn.dataset.editId;
+    saveBtn.textContent="Save Invoice";
+    var title=$("inv-form-title"); if(title) title.textContent="New Invoice";
+    var invNoNew=$("inv-number"); if(invNoNew) invNoNew.value=nextInvoiceNo();
+    if(clientSel) clientSel.value="";
+    var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
+    if($("inv-notes")) $("inv-notes").value="Kindly make payment at your earliest convenience.\nSeparate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.";
+    if($("inv-due")) $("inv-due").value="";
+    if($("inv-received")) $("inv-received").value="";
+    calcInvoiceTotal();
+    alert("Invoice updated!");
+  };
+})();
 window.openNewInvoice=function(clientIdx){
   showPage("invoices");
   setTimeout(function(){
@@ -5362,8 +5447,8 @@ window.advInsertTable = function(){
     <div class="page-title">Invoice Generator</div>
     <div class="page-sub">Create professional invoices for clients — saved to each client's profile</div>
   </div>
-  <div class="task-add-card" style="margin-bottom:24px;">
-    <div class="card-title">New Invoice</div>
+  <div class="task-add-card" id="inv-form-section" style="margin-bottom:24px;">
+    <div class="card-title" id="inv-form-title">New Invoice</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
       <div class="task-field">
         <label>Client</label>
