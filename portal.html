@@ -2324,27 +2324,27 @@ function renderClients(){
 ════════════════════════════════ */
 var _tagClientIdx = null;
 
-// Paper file: sz=44 = 22pt, 2 cols, 172.5mm wide, 2 tags
-// Box  file:  sz=72 = 36pt, 2 cols, 172.5mm wide, 1 tag
-function tagNameFontSize(name, isBox){
+// Paper file: 2 tags — small (22pt, auto-height) + large (36pt, 41mm)
+// Box  file:  1 tag  — large (36pt, 41mm)
+function tagNameFontSize(name, basePt){
   var len = name.length;
-  var base = isBox ? 36 : 22;
-  // Only the name shrinks; side tab and year stay fixed
-  if(len <= 12) return base + "pt";
-  if(len <= 18) return Math.round(base * 0.85) + "pt";
-  if(len <= 26) return Math.round(base * 0.70) + "pt";
-  if(len <= 36) return Math.round(base * 0.58) + "pt";
-  return Math.round(base * 0.48) + "pt";
+  if(len <= 12) return basePt + "pt";
+  if(len <= 18) return Math.round(basePt * 0.85) + "pt";
+  if(len <= 26) return Math.round(basePt * 0.70) + "pt";
+  if(len <= 36) return Math.round(basePt * 0.58) + "pt";
+  return Math.round(basePt * 0.48) + "pt";
 }
 
-function buildTagHTML(name, fileNo, taxYear, isBox){
-  var nameFontSize = tagNameFontSize(name, isBox);
-  var fixedSize = isBox ? "36pt" : "22pt";
+function buildTagHTML(name, fileNo, taxYear, size){
+  // size: "small" (22pt, auto-height) or "large" (36pt, 41mm)
+  var basePt = (size === "small") ? 22 : 36;
+  var fixedSize = basePt + "pt";
+  var nameFontSize = tagNameFontSize(name, basePt);
+  var heightStyle = (size === "small") ? "height:auto;min-height:18mm;" : "height:41mm;";
   var sideText = escHtml(fileNo||"");
   var nameText = escHtml(name);
   var yearText = "TAX YEAR " + escHtml(String(taxYear));
-  // Both paper and box: 2 columns (side | main), 172.5mm wide
-  return '<div class="file-tag" style="width:172.5mm;grid-template-columns:14.93mm 1fr;">'
+  return '<div class="file-tag" style="width:172.5mm;grid-template-columns:14.93mm 1fr;'+heightStyle+'">'
     + '<div class="tag-side" style="font-size:'+fixedSize+';">' + sideText + '</div>'
     + '<div class="tag-main">'
     +   '<span class="tag-name" style="font-size:' + nameFontSize + ';">' + nameText + '</span>'
@@ -2359,18 +2359,20 @@ function refreshTagPreview(){
   var fileNo = c.sr || String(_tagClientIdx+1);
   var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
   var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
-  var isBox = !isPaper;
-  var count = isPaper ? 2 : 1;
   var html = "";
-  for(var i=0;i<count;i++) html += buildTagHTML(c.name, fileNo, taxYear, isBox);
+  if(isPaper){
+    html += buildTagHTML(c.name, fileNo, taxYear, "small");
+    html += buildTagHTML(c.name, fileNo, taxYear, "large");
+  } else {
+    html += buildTagHTML(c.name, fileNo, taxYear, "large");
+  }
   preview.innerHTML = html;
-  var tagW = isBox ? 651 : 708;
   var avail = preview.offsetWidth || 440;
-  var scale = Math.min(1, (avail - 24) / tagW);
+  var scale = Math.min(1, (avail - 24) / 652);
   if(scale > 0){
     preview.style.transform = "scale("+scale+")";
     preview.style.transformOrigin = "top left";
-    preview.style.marginBottom = ((41 * 3.78 * count * scale) - (41 * 3.78 * count) + count * (isBox?30:15)) + "px";
+    preview.style.height = ((isPaper ? 120 : 60) * scale + 20) + "px";
   }
 }
 
@@ -2402,10 +2404,13 @@ window.printTags = function(){
   var fileNo = c.sr || String(_tagClientIdx+1);
   var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
   var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
-  var isBox = !isPaper;
-  var count = isPaper ? 2 : 1;
   var tagsHtml = "";
-  for(var i=0;i<count;i++) tagsHtml += buildTagHTML(c.name, fileNo, taxYear, isBox);
+  if(isPaper){
+    tagsHtml += buildTagHTML(c.name, fileNo, taxYear, "small");
+    tagsHtml += buildTagHTML(c.name, fileNo, taxYear, "large");
+  } else {
+    tagsHtml += buildTagHTML(c.name, fileNo, taxYear, "large");
+  }
   var win = window.open("","_blank","width=800,height=600");
   if(!win){ alert("Please allow pop-ups for this site to print tags."); return; }
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>File Tags — '+escHtml(c.name)+'</title>'
