@@ -3132,8 +3132,8 @@ function buildInvoiceHTML(inv){
   '.meta-key{color:#9ca3af;font-weight:600;white-space:nowrap;}'+
   '.meta-val{font-weight:700;color:#1a2744;text-align:right;}'+
   /* table */
-  '.tbl-wrap{padding:0 36px;}'+
-  'table.items{width:100%;border-collapse:collapse;}'+
+  '.tbl-wrap{padding:0 36px;overflow:hidden;}'+
+  'table.items{width:100%;border-collapse:collapse;table-layout:fixed;}'+
   'table.items thead tr{background:#fff;border-bottom:2px solid #1a2744;}'+
   'table.items thead th{padding:11px 14px;font-size:11px;font-weight:700;color:#1a2744;text-align:left;border-right:1px solid #e5e7eb;}'+
   'table.items thead th:last-child{text-align:right;border-right:none;}'+
@@ -3209,9 +3209,9 @@ function buildInvoiceHTML(inv){
   '<colgroup>'+
   '<col style="width:44px;">'+
   '<col>'+ /* description fills remaining */
-  (hasTaxYear?'<col style="width:90px;">':'')+
-  (hasName?'<col style="width:160px;">':'')+
-  '<col style="width:180px;">'+
+  (hasTaxYear?'<col style="width:80px;">':'')+
+  (hasName?'<col style="width:140px;">':'')+
+  '<col style="width:160px;">'+
   '</colgroup>'+
   '<thead><tr>'+
   '<th style="text-align:center;">S.N</th>'+
