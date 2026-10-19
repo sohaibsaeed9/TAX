@@ -2564,9 +2564,10 @@ function openTagPrintWindow(tagsHtml, title){
   if(!win){ alert("Please allow pop-ups for this site to print tags."); return; }
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+escHtml(title)+'</title>'
     + '<style>'
-    + '@page{margin:10mm;size:A4;}'
-    + 'body{margin:20px;padding:0;font-family:"Times New Roman",Times,serif;}'
-    + '.file-tag{width:172.5mm;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:4mm;box-sizing:border-box;overflow:hidden;}'
+    + '@page{margin:8mm;size:A4;}'
+    + 'body{margin:0;padding:0;font-family:"Times New Roman",Times,serif;}'
+    + '.file-tag{width:172.5mm;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;border-bottom:none;page-break-inside:avoid;box-sizing:border-box;overflow:hidden;}'
+    + '.file-tag:last-child{border-bottom:1.5px solid #000;}'
     + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;}'
     + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
     + '.tag-name,.tag-year{font-weight:700;white-space:nowrap;display:block;font-family:"Times New Roman",Times,serif;}'
