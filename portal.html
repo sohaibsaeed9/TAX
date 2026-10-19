@@ -377,6 +377,34 @@ body{background:#f5f4f0;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;min
 .print-btn{background:#fff;border:1.5px solid #1a2744;color:#1a2744;font-size:13px;font-weight:600;padding:10px 20px;border-radius:7px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
 .print-btn:hover{background:#1a2744;color:#fff;}
 .print-btn svg{width:15px;height:15px;}
+/* ── FILE TAG PRINT STYLES ── */
+.file-tag{
+  width:187.4mm; height:41mm;
+  display:grid; grid-template-columns:14.93mm 1fr 14.93mm;
+  border:1.5px solid #000; page-break-inside:avoid;
+  font-family:'Times New Roman',Times,serif; font-weight:700;
+  box-sizing:border-box; overflow:hidden;
+}
+.tag-side{
+  display:flex; align-items:center; justify-content:center;
+  border-right:1px solid #000; border-left:1px solid #000;
+  font-size:9pt; font-weight:700; text-align:center;
+  padding:1mm; overflow:hidden; word-break:break-all;
+  writing-mode:vertical-lr; text-orientation:mixed;
+}
+.tag-side.right{ writing-mode:vertical-rl; transform:rotate(180deg); }
+.tag-main{
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center; padding:2mm 4mm; overflow:hidden;
+}
+.tag-name{
+  font-size:12pt; font-weight:700;
+  white-space:nowrap; display:block;
+  max-width:100%; overflow:hidden;
+}
+.tag-year{ font-size:12pt; font-weight:700; white-space:nowrap; margin-top:2mm; }
+
 @media print{
   /* Hide everything except print content */
   #sbar, .sidebar, #imodal, #pmodal, #wa-panel, #client-edit-panel,
@@ -2281,13 +2309,14 @@ function renderClients(){
     var waBtn = (phoneWA||phone)
       ? "<button onclick=\"openWAPanel("+idx+")\" style=\"background:#25d366;border:none;color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;\">&#128172; Msg</button>"
       : "<button onclick=\"openEditPanel("+idx+")\" style=\"background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;\">+ Add</button>";
-    html+="<div class=\"client-row\" style=\"grid-template-columns:60px 1fr 140px 100px 80px 80px;\">";
+    html+="<div class=\"client-row\" style=\"grid-template-columns:60px 1fr 140px 100px 80px 80px 65px;\">";
     html+="<div class=\"client-file\" style=\"font-weight:700;color:#1a2744;\">"+escHtml(c.sr||String(idx+1))+"</div>";
     html+="<div class=\"client-name\" style=\"cursor:pointer;color:#1a2744;\" onclick=\"openProfile("+idx+")\">"+escHtml(c.name)+"</div>";
     html+="<div class=\"client-id\">"+escHtml(c.id)+"</div>";
     html+="<div><span class=\"sbadge "+sc+"\">"+sl+"</span></div>";
     html+="<div>"+waBtn+"</div>";
     html+="<div><button onclick=\"openEditPanel("+idx+")\" style=\"background:none;border:1px solid #e5e7eb;color:#6b7280;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;\">Edit</button></div>";
+    html+="<div><button onclick=\"openTagModal("+idx+")\" style=\"background:#1a2744;border:none;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;\">&#127991; Tags</button></div>";
     html+="</div>";
   }
   list.innerHTML=html;
@@ -4852,13 +4881,14 @@ window.advInsertTable = function(){
     <span style="font-size:12px;color:#9ca3af;">Click a client name to view profile</span>
   </div>
   <div class="client-table-wrap">
-    <div class="client-table-header" style="grid-template-columns:60px 1fr 140px 100px 80px 80px;">
+    <div class="client-table-header" style="grid-template-columns:60px 1fr 140px 100px 80px 80px 65px;">
       <div>SR No.</div>
       <div>Client Name</div>
       <div>ID</div>
       <div>Status</div>
       <div>WhatsApp</div>
       <div>Edit</div>
+      <div>Tags</div>
     </div>
     <div id="client-list"></div>
   </div>
@@ -5872,7 +5902,141 @@ window.generateAdvisoryAI = function(){
     if(statusEl){ statusEl.textContent="Error: "+err.message; statusEl.style.display="block"; }
   });
 };
+
+/* ════════════════════════════════
+   FILE TAG PRINTING
+════════════════════════════════ */
+var _tagClientIdx = null;
+
+function tagFontSize(name){
+  var len = name.length;
+  if(len <= 18) return "12pt";
+  if(len <= 26) return "10pt";
+  if(len <= 36) return "8.5pt";
+  return "7pt";
+}
+
+function buildTagHTML(name, fileNo, taxYear){
+  var fs = tagFontSize(name);
+  var sideText = escHtml(fileNo||"");
+  var nameText = escHtml(name);
+  var yearText = "TAX YEAR " + escHtml(String(taxYear));
+  return '<div class="file-tag" style="margin-bottom:4mm;">'
+    + '<div class="tag-side">' + sideText + '</div>'
+    + '<div class="tag-main">'
+    +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
+    +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
+    + '</div>'
+    + '<div class="tag-side right">' + sideText + '</div>'
+    + '</div>';
+}
+
+function refreshTagPreview(){
+  var preview = document.getElementById("tag-preview");
+  if(!preview || _tagClientIdx===null) return;
+  var c = getClient(_tagClientIdx);
+  var fileNo = c.sr || String(_tagClientIdx+1);
+  var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
+  var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
+  var count = isPaper ? 2 : 1;
+  var html = "";
+  for(var i=0;i<count;i++) html += buildTagHTML(c.name, fileNo, taxYear);
+  preview.innerHTML = html;
+}
+
+window.openTagModal = function(idx){
+  _tagClientIdx = idx;
+  var c = getClient(idx);
+  var fileNo = c.sr || String(idx+1);
+  var info = document.getElementById("tag-client-info");
+  if(info) info.innerHTML = "<strong>" + escHtml(c.name) + "</strong> &nbsp; <span style='color:#6b7280;font-size:13px;'>File No: " + escHtml(fileNo) + " &nbsp;|&nbsp; ID: " + escHtml(c.id||"—") + "</span>";
+  var yearInp = document.getElementById("tag-year-input");
+  if(yearInp) yearInp.value = new Date().getFullYear();
+  // wire live preview updates
+  document.querySelectorAll("input[name='tag-file-type']").forEach(function(r){
+    r.onchange = refreshTagPreview;
+  });
+  if(yearInp) yearInp.oninput = refreshTagPreview;
+  refreshTagPreview();
+  var modal = document.getElementById("tag-modal");
+  if(modal){ modal.style.display = "flex"; }
+};
+
+window.closeTagModal = function(){
+  var modal = document.getElementById("tag-modal");
+  if(modal) modal.style.display = "none";
+  _tagClientIdx = null;
+};
+
+window.printTags = function(){
+  if(_tagClientIdx===null) return;
+  var c = getClient(_tagClientIdx);
+  var fileNo = c.sr || String(_tagClientIdx+1);
+  var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
+  var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
+  var count = isPaper ? 2 : 1;
+  var tagsHtml = "";
+  for(var i=0;i<count;i++) tagsHtml += buildTagHTML(c.name, fileNo, taxYear);
+
+  var win = window.open("","_blank","width=800,height=600");
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>File Tags</title>'
+    + '<style>'
+    + '@page{margin:10mm;size:A4;}'
+    + 'body{margin:0;padding:0;font-family:"Times New Roman",Times,serif;}'
+    + '.file-tag{width:187.4mm;height:41mm;display:grid;grid-template-columns:14.93mm 1fr 14.93mm;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:8mm;box-sizing:border-box;overflow:hidden;}'
+    + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;border-left:1px solid #000;font-size:9pt;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;writing-mode:vertical-lr;text-orientation:mixed;font-family:"Times New Roman",Times,serif;}'
+    + '.tag-side.right{writing-mode:vertical-rl;transform:rotate(180deg);}'
+    + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
+    + '.tag-name{font-size:12pt;font-weight:700;white-space:nowrap;display:block;max-width:100%;overflow:hidden;font-family:"Times New Roman",Times,serif;}'
+    + '.tag-year{font-size:12pt;font-weight:700;white-space:nowrap;margin-top:2mm;font-family:"Times New Roman",Times,serif;}'
+    + '@media print{button{display:none!important;}}'
+    + '</style></head><body>'
+    + tagsHtml
+    + '<br><button onclick="window.print()" style="margin-top:10px;padding:10px 24px;font-size:14px;cursor:pointer;">Print</button>'
+    + '</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); }, 500);
+};
+
 </script>
+
+<!-- ── FILE TAG MODAL ── -->
+<div id="tag-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;width:520px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:#1a2744;">Print File Tags</div>
+      <button onclick="closeTagModal()" style="background:none;border:none;font-size:22px;color:#9ca3af;cursor:pointer;">&times;</button>
+    </div>
+    <div id="tag-client-info" style="font-size:14px;color:#1a2744;margin-bottom:16px;padding:10px 14px;background:#f5f4f0;border-radius:8px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;display:block;margin-bottom:8px;">File Type</label>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+            <input type="radio" name="tag-file-type" value="paper" checked id="tag-type-paper"> Paper File <span style="font-size:12px;color:#9ca3af;">(2 tags)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+            <input type="radio" name="tag-file-type" value="box" id="tag-type-box"> Box File <span style="font-size:12px;color:#9ca3af;">(1 tag)</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;display:block;margin-bottom:8px;">Tax Year</label>
+        <input type="number" id="tag-year-input" min="2000" max="2099" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:15px;padding:10px 14px;border-radius:8px;outline:none;">
+      </div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Preview</div>
+      <div id="tag-preview" style="background:#f5f4f0;padding:12px;border-radius:8px;overflow-x:auto;"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closeTagModal()" style="background:#fff;border:1.5px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;cursor:pointer;">Cancel</button>
+      <button onclick="printTags()" style="background:#1a2744;border:none;color:#fff;font-size:13px;font-weight:600;padding:10px 24px;border-radius:8px;cursor:pointer;">&#128438; Print Tags</button>
+    </div>
+  </div>
+</div>
+<div id="tag-print-area" style="display:none;"></div>
 
 </body>
 </html>
