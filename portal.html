@@ -5908,19 +5908,39 @@ window.generateAdvisoryAI = function(){
 ════════════════════════════════ */
 var _tagClientIdx = null;
 
-function tagFontSize(name){
+// Paper file: 187.4mm wide, 3 cols (side|main|side), 12pt font, 2 tags
+// Box file:   172.5mm wide, 2 cols (side|main),       36pt font, 1 tag
+function tagFontSize(name, isBox){
   var len = name.length;
+  if(isBox){
+    if(len <= 10) return "36pt";
+    if(len <= 15) return "28pt";
+    if(len <= 22) return "20pt";
+    if(len <= 30) return "15pt";
+    return "12pt";
+  }
   if(len <= 18) return "12pt";
   if(len <= 26) return "10pt";
   if(len <= 36) return "8.5pt";
   return "7pt";
 }
 
-function buildTagHTML(name, fileNo, taxYear){
-  var fs = tagFontSize(name);
+function buildTagHTML(name, fileNo, taxYear, isBox){
+  var fs = tagFontSize(name, isBox);
   var sideText = escHtml(fileNo||"");
   var nameText = escHtml(name);
   var yearText = "TAX YEAR " + escHtml(String(taxYear));
+  if(isBox){
+    // Box file: 2 columns, wider content, 36pt
+    return '<div class="file-tag" style="width:172.5mm;grid-template-columns:14.93mm 1fr;margin-bottom:8mm;">'
+      + '<div class="tag-side" style="border-right:1px solid #000;border-left:none;">' + sideText + '</div>'
+      + '<div class="tag-main">'
+      +   '<span class="tag-name" style="font-size:' + fs + ';">' + nameText + '</span>'
+      +   '<span class="tag-year" style="font-size:' + fs + ';">' + yearText + '</span>'
+      + '</div>'
+      + '</div>';
+  }
+  // Paper file: 3 columns with both side tabs
   return '<div class="file-tag" style="margin-bottom:4mm;">'
     + '<div class="tag-side">' + sideText + '</div>'
     + '<div class="tag-main">'
@@ -5938,10 +5958,17 @@ function refreshTagPreview(){
   var fileNo = c.sr || String(_tagClientIdx+1);
   var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
   var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
+  var isBox = !isPaper;
   var count = isPaper ? 2 : 1;
   var html = "";
-  for(var i=0;i<count;i++) html += buildTagHTML(c.name, fileNo, taxYear);
+  for(var i=0;i<count;i++) html += buildTagHTML(c.name, fileNo, taxYear, isBox);
   preview.innerHTML = html;
+  // Scale preview to fit the modal (preview area ~440px wide, tag is 187mm≈708px or 172mm≈651px)
+  var tagW = isBox ? 651 : 708;
+  var scale = Math.min(1, (preview.offsetWidth - 24) / tagW);
+  preview.style.transform = "scale("+scale+")";
+  preview.style.transformOrigin = "top left";
+  preview.style.height = (41 * scale * count * 3.78 + count * (isBox?30:15) + 24) + "px";
 }
 
 window.openTagModal = function(idx){
@@ -5974,16 +6001,17 @@ window.printTags = function(){
   var fileNo = c.sr || String(_tagClientIdx+1);
   var taxYear = (document.getElementById("tag-year-input")||{}).value || new Date().getFullYear();
   var isPaper = document.getElementById("tag-type-paper") && document.getElementById("tag-type-paper").checked;
+  var isBox = !isPaper;
   var count = isPaper ? 2 : 1;
   var tagsHtml = "";
-  for(var i=0;i<count;i++) tagsHtml += buildTagHTML(c.name, fileNo, taxYear);
+  for(var i=0;i<count;i++) tagsHtml += buildTagHTML(c.name, fileNo, taxYear, isBox);
 
   var win = window.open("","_blank","width=800,height=600");
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>File Tags</title>'
     + '<style>'
     + '@page{margin:10mm;size:A4;}'
     + 'body{margin:0;padding:0;font-family:"Times New Roman",Times,serif;}'
-    + '.file-tag{width:187.4mm;height:41mm;display:grid;grid-template-columns:14.93mm 1fr 14.93mm;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:8mm;box-sizing:border-box;overflow:hidden;}'
+    + '.file-tag{width:187.4mm;height:41mm;display:grid;grid-template-columns:14.93mm 1fr 14.93mm;border:1.5px solid #000;page-break-inside:avoid;margin-bottom:4mm;box-sizing:border-box;overflow:hidden;}'
     + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;border-left:1px solid #000;font-size:9pt;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;writing-mode:vertical-lr;text-orientation:mixed;font-family:"Times New Roman",Times,serif;}'
     + '.tag-side.right{writing-mode:vertical-rl;transform:rotate(180deg);}'
     + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
