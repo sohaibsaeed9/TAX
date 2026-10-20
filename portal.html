@@ -5057,6 +5057,85 @@ function showStatusBanner(updated, skipped, notFound, filename){
 }
 
 
+
+/* ════════════════════════════════
+   EXPORT TO EXCEL / PRINT
+════════════════════════════════ */
+function _fd(d){ if(!d) return ""; var o=new Date(String(d).length===10?d+"T00:00:00":d); return isNaN(o)?String(d):o.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
+function _q(id){ return ((document.getElementById(id)||{}).value||"").toLowerCase().trim(); }
+function _has(r,q,keys){ if(!q) return true; return keys.some(function(k){ return String(r[k]||"").toLowerCase().indexOf(q)>-1; }); }
+var EXPORTERS={
+  clients:function(){
+    var q=(curSearch||"").toLowerCase().trim(), rows=[];
+    for(var i=0;i<ALL_CLIENTS.length;i++){
+      var c=getClient(i), sc=getStatusClass(c.status);
+      if(curFilter==="F26"){ if(!FILED26[i]) continue; }
+      else if(curFilter==="P26"){ if(FILED26[i]) continue; }
+      else if(curFilter!=="ALL" && sc!==curFilter) continue;
+      if(q && !_has(c,q,["name","id","sr","newFile","phone"])) continue;
+      rows.push([c.sr||"",c.newFile||"",c.name,c.ntn||"",c.id||"",getStatusLabel(c.status),FILED26[i]?"Filed":"Pending",FILED26[i]?_fd(FILED26[i][0][4]):"",c.phone||"",c.email||"",c.address||""]);
+    }
+    return {title:"Client Index",cols:["SR No.","File No.","Name","NTN","ID / Reg. No.","Status","TY2026","TY2026 Filed On","Phone","Email","Address"],rows:rows};
+  },
+  deadlines:function(){
+    var now=new Date(); now.setHours(0,0,0,0); var yr=now.getFullYear(), all=[];
+    FBR_ALL_DEADLINES.forEach(function(d){ d.months.forEach(function(m){ var dt=new Date(yr,m,d.day); if(dt<now) dt=new Date(yr+1,m,d.day); all.push({d:d,dt:dt}); }); });
+    all.sort(function(a,b){ return a.dt-b.dt; });
+    return {title:"FBR Deadlines",cols:["Due Date","Deadline","Section","Category","Days Left"],rows:all.map(function(x){ return [_fd(x.dt.toISOString()),x.d.name,x.d.section||"",x.d.category||"",Math.round((x.dt-now)/86400000)]; })};
+  },
+  tasks:function(){ return {title:"Client Tasks",cols:["Client","Task","Type","Due Date","Status"],rows:TASKS.map(function(t){ return [t.client,t.desc,t.type||"",_fd(t.due),t.status==="done"?"Done":"Pending"]; })}; },
+  notices:function(){ return {title:"FBR Notices",cols:["Client","Notice Type","Reference","Tax Year","Received","Deadline","Amount (PKR)","Status","Notes"],rows:NOTICES.map(function(n){ return [n.client,n.type||"",n.ref||"",n.year||"",_fd(n.received),_fd(n.deadline),n.amount||0,n.status==="resolved"?"Resolved":"Open",n.notes||""]; })}; },
+  returns:function(){ var q=_q("ret-search"), T={income:"Income Tax",sales:"Sales Tax",wealth:"Wealth Statement",wht:"WHT Statement"};
+    return {title:"Return Filing Register",cols:["Client","Tax Year","Return Type","Filed Date","Status"],rows:RETURNS.filter(function(r){ return _has(r,q,["client"]); }).map(function(r){ return [r.client,r.year,T[r.type]||r.type,_fd(r.date),r.status==="filed"?"Filed":r.status==="pending"?"Pending":"N/A"]; })}; },
+  fees:function(){ return {title:"Fee Register",cols:["Client","Description","Date","Fee (PKR)","Received (PKR)","Outstanding (PKR)"],rows:FEES.map(function(f){ return [f.client,f.desc||"",_fd(f.date),f.amount||0,f.received||0,(f.amount||0)-(f.received||0)]; })}; },
+  invoices:function(){ return {title:"Invoices",cols:["Invoice No.","Client","Date","Due Date","Total (PKR)","Received (PKR)","Balance (PKR)","Status"],rows:INVOICES.map(function(v){ return [v.invoiceNo,v.clientName,_fd(v.date),_fd(v.dueDate),v.total||0,v.received||0,(v.total||0)-(v.received||0),v.paid?"Paid":"Unpaid"]; })}; },
+  comms:function(){ return {title:"Communication Log",cols:["Client","Type","Date","Follow-up","Notes"],rows:COMMS.map(function(c){ return [c.client,c.type||"",_fd(c.date),_fd(c.followup),c.notes||""]; })}; },
+  iris:function(){ var q=_q("iris-global-search"), rows=[];
+    Object.keys(IRIS_DATA).forEach(function(k){ var recs=IRIS_DATA[k]; if(!recs||!recs.length) return; var i=parseInt(k,10), c=(i>=0&&i<ALL_CLIENTS.length)?getClient(i):{name:"Unknown Client"};
+      if(q && (c.name||"").toLowerCase().indexOf(q)===-1 && (c.ntn||"").toLowerCase().indexOf(q)===-1) return;
+      rows.push([c.name,c.ntn||"",getStatusLabel(c.status),recs.length]); });
+    rows.sort(function(a,b){ return String(a[0]).localeCompare(b[0]); });
+    return {title:"IRIS Payments",cols:["Client","NTN","Status","Records"],rows:rows}; },
+  advisories:function(){ var A=window.ADVISORIES||[]; return {title:"Advisories",cols:["Title","Type","Client","Date","Effective Date"],rows:A.map(function(a){ var c=ALL_CLIENTS[a.clientIdx]; return [a.title||"",a.type||"",c?c.name:"",_fd(a.date),_fd(a.effectiveDate)]; })}; }
+};
+function _stamp(){ return new Date().toISOString().slice(0,10); }
+window.exportPageExcel=function(id){
+  var d=EXPORTERS[id](); if(!d.rows.length){ alert("Nothing to export on this page yet."); return; }
+  if(typeof XLSX==="undefined"){ alert("Excel library not loaded. Check your internet connection and reload."); return; }
+  var ws=XLSX.utils.aoa_to_sheet([d.cols].concat(d.rows));
+  ws["!cols"]=d.cols.map(function(c,ci){ var w=c.length; d.rows.forEach(function(r){ w=Math.max(w,String(r[ci]==null?"":r[ci]).length); }); return {wch:Math.min(w+2,60)}; });
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,d.title.slice(0,31));
+  XLSX.writeFile(wb,d.title.replace(/[^A-Za-z0-9]+/g,"_")+"_"+_stamp()+".xlsx");
+};
+window.printPage=function(id){
+  var d=EXPORTERS[id](); if(!d.rows.length){ alert("Nothing to print on this page yet."); return; }
+  var num=function(v){ return typeof v==="number"; };
+  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+escHtml(d.title)+'</title><style>'
+    +'@page{size:A4 landscape;margin:12mm;}body{font-family:Arial,sans-serif;color:#000;background:#fff;margin:0;}'
+    +'.lh{text-align:center;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px;}.lh b{font-size:15pt;letter-spacing:1px;}.lh div{font-size:8.5pt;}'
+    +'h2{font-size:12pt;margin:0 0 2px;}.meta{font-size:8.5pt;margin-bottom:8px;}'
+    +'table{width:100%;border-collapse:collapse;font-size:8.5pt;}th,td{border:1px solid #000;padding:3px 5px;text-align:left;vertical-align:top;}th{font-weight:bold;}td.n{text-align:right;}thead{display:table-header-group;}tr{page-break-inside:avoid;}'
+    +'</style></head><body><div class="lh"><b>S. SAEED &amp; CO. TAX CONSULTANTS</b><div>Office No. 05, 3rd Floor, Bizzon Plaza, F-11 Markaz, Islamabad</div><div>Phone: 051-2152700 / +92-315-510-8858 &middot; Email: sohaib@saeedandcotax.com &middot; Web: saeedandcotax.com</div></div>'
+    +'<h2>'+escHtml(d.title)+'</h2><div class="meta">'+d.rows.length+' record(s) &middot; Printed '+_fd(_stamp())+'</div>'
+    +'<table><thead><tr><th>#</th>'+d.cols.map(function(c){ return '<th>'+escHtml(c)+'</th>'; }).join("")+'</tr></thead><tbody>'
+    +d.rows.map(function(r,i){ return '<tr><td>'+(i+1)+'</td>'+r.map(function(v){ return num(v)?'<td class="n">'+v.toLocaleString("en-PK")+'</td>':'<td>'+escHtml(v==null?"":String(v))+'</td>'; }).join("")+'</tr>'; }).join("")
+    +'</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>';
+  var w=window.open("","_blank"); if(!w){ alert("Please allow pop-ups to print."); return; }
+  w.document.write(h); w.document.close();
+};
+function addExportBar(id){
+  if(!EXPORTERS[id]) return;
+  var pg=document.getElementById("pg-"+id); if(!pg||pg.querySelector(".exp-bar")) return;
+  var t=pg.querySelector(".page-title"); if(!t) return;
+  var hd=t.parentElement;
+  var bar=document.createElement("div"); bar.className="exp-bar";
+  bar.style.cssText="display:flex;gap:8px;margin-top:10px;";
+  var bs="border:1.5px solid #e5e7eb;background:#fff;color:#1a2744;font-size:12px;font-weight:600;padding:7px 14px;border-radius:7px;cursor:pointer;";
+  bar.innerHTML='<button style="'+bs+'" onclick="exportPageExcel(\''+id+'\')">&#128202; Export Excel</button><button style="'+bs+'" onclick="printPage(\''+id+'\')">&#128424; Print</button>';
+  hd.appendChild(bar);
+}
+(function(){ var _sp=window.showPage; window.showPage=function(id){ _sp(id); try{ addExportBar(id); }catch(e){} }; })();
+
 })();
 
 /* ════════════════════════════════
