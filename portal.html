@@ -6365,9 +6365,8 @@ var SECP_FORMS = [
     id:"fA", label:"Form A", sub:"Annual Return / AGM",
     icon:"📅",
     fields:[
-      {id:"agm_date",    label:"AGM Date",             type:"date"},
-      {id:"board_date",  label:"Board Meeting Date",    type:"date"},
-      {id:"fye_date",    label:"Financial Year End",    type:"date"}
+      {id:"_datechain", type:"datechain"},
+      {id:"fye_date",   label:"Financial Year End (optional — for 120-day check)", type:"date"}
     ],
     build: function(inp, co){
       var agm = inp.agm_date;
@@ -6375,8 +6374,8 @@ var SECP_FORMS = [
       var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
       var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
       var feeOnline= SECP_ROUTINE_ONLINE*mult, feePhys=SECP_ROUTINE_PHYSICAL*mult;
-      var noticeDate = agm ? secpAddDays(agm,-21) : null;
-      var boardDate  = agm ? secpAddDays(agm,-14) : null;
+      var noticeDate = inp.notice_date || (agm ? secpAddDays(agm,-21) : null);
+      var boardDate  = inp.board_date  || (agm ? secpAddDays(agm,-14) : null);
       var schedule=[];
       if(boardDate)  schedule.push({label:"Board Meeting (latest)",     date:boardDate});
       if(noticeDate) schedule.push({label:"Notice to Members (AGM−21)", date:noticeDate});
@@ -6602,6 +6601,69 @@ function secpSelectForm(fid, cardEl){
   if(fieldsDiv){
     fieldsDiv.innerHTML="";
     form.fields.forEach(function(f){
+      if(f.type==="datechain"){
+        var wrap=document.createElement("div");
+        wrap.style.gridColumn="1 / -1";
+        wrap.innerHTML=
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">'
+          +'<div class="task-field" style="margin:0;">'
+          +'<label>Anchor Date Type</label>'
+          +'<select id="secp-dc-anchor-type" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:\'IBM Plex Sans\',sans-serif;font-size:13px;padding:9px 12px;border-radius:7px;outline:none;">'
+          +'<option value="agm">AGM Date (actual/planned)</option>'
+          +'<option value="notice">Notice to Members Date</option>'
+          +'<option value="board">Board Meeting Date</option>'
+          +'</select></div>'
+          +'<div class="task-field" style="margin:0;">'
+          +'<label id="secp-dc-anchor-label">AGM Date</label>'
+          +'<input type="date" id="secp-dc-anchor" style="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:\'IBM Plex Sans\',sans-serif;font-size:13px;padding:9px 12px;border-radius:7px;outline:none;box-sizing:border-box;">'
+          +'</div></div>'
+          +'<div id="secp-dc-derived" style="margin-top:12px;display:none;background:#f0f4ff;border-radius:8px;padding:12px 16px;">'
+          +'<div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.05em;margin-bottom:8px;">DERIVED DATE CHAIN</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;" id="secp-dc-chain"></div>'
+          +'</div>'
+          +'<input type="hidden" id="secp-field-agm_date">'
+          +'<input type="hidden" id="secp-field-board_date">'
+          +'<input type="hidden" id="secp-field-notice_date">';
+        fieldsDiv.appendChild(wrap);
+        function dcUpdate(){
+          var type=document.getElementById("secp-dc-anchor-type").value;
+          var lbl=document.getElementById("secp-dc-anchor-label");
+          if(lbl) lbl.textContent=type==="agm"?"AGM Date":type==="notice"?"Notice to Members Date":"Board Meeting Date";
+          var val=document.getElementById("secp-dc-anchor").value;
+          var agmD=null,boardD=null,noticeD=null,dueD=null;
+          if(val){
+            if(type==="agm"){      agmD=val; noticeD=secpAddDays(val,-21); boardD=secpAddDays(val,-14); }
+            else if(type==="notice"){ noticeD=val; agmD=secpAddDays(val,21); boardD=secpAddDays(val,7); }
+            else {                 boardD=val; agmD=secpAddDays(val,14);  noticeD=secpAddDays(agmD,-21); }
+            dueD=secpAddDays(agmD,30);
+          }
+          document.getElementById("secp-field-agm_date").value=agmD||"";
+          document.getElementById("secp-field-board_date").value=boardD||"";
+          document.getElementById("secp-field-notice_date").value=noticeD||"";
+          var derived=document.getElementById("secp-dc-derived");
+          var chain=document.getElementById("secp-dc-chain");
+          if(val && derived && chain){
+            var items=[
+              {lbl:"Board Meeting",date:boardD},
+              {lbl:"Notice to Members",date:noticeD},
+              {lbl:"AGM Date",date:agmD},
+              {lbl:"Form A Deadline",date:dueD}
+            ];
+            chain.innerHTML=items.map(function(it){
+              return '<div style="background:#fff;border-radius:6px;padding:8px 10px;border:1px solid #dde5f8;">'
+                +'<div style="font-size:10px;color:#6b7280;margin-bottom:3px;">'+it.lbl+'</div>'
+                +'<div style="font-size:13px;font-weight:700;color:#1a2744;">'+secpFmtDate(it.date)+'</div>'
+                +'</div>';
+            }).join("");
+            derived.style.display="block";
+          } else if(derived){ derived.style.display="none"; }
+        }
+        var anchorSel=document.getElementById("secp-dc-anchor-type");
+        var anchorInp=document.getElementById("secp-dc-anchor");
+        if(anchorSel) anchorSel.addEventListener("change",dcUpdate);
+        if(anchorInp) anchorInp.addEventListener("input",dcUpdate);
+        return;
+      }
       var wrap=document.createElement("div");
       wrap.className="task-field";
       if(f.type==="textarea") wrap.style.gridColumn="1 / -1";
@@ -6624,6 +6686,7 @@ function secpSelectForm(fid, cardEl){
         inp.placeholder=f.ph||"";
       }
       inp.id="secp-field-"+f.id;
+      inp.style.cssText="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 12px;border-radius:7px;outline:none;box-sizing:border-box;";
       wrap.appendChild(inp);
       fieldsDiv.appendChild(wrap);
     });
@@ -6635,6 +6698,8 @@ function secpSelectForm(fid, cardEl){
 window.secpClearForm = function(){
   var fieldsDiv=document.getElementById("secp-form-fields");
   if(fieldsDiv) fieldsDiv.querySelectorAll("input,select,textarea").forEach(function(el){ el.value=""; });
+  var derived=document.getElementById("secp-dc-derived");
+  if(derived) derived.style.display="none";
   document.getElementById("secp-output").style.display="none";
 };
 
