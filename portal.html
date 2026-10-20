@@ -6523,8 +6523,10 @@ var _secpSelectedForm = null;
 var _secpManualOpen   = false;
 
 function wireSecp(){
+  var pg = document.getElementById("pg-secp");
+  function qs(id){ return pg ? pg.querySelector("#"+id) : document.getElementById(id); }
   // Populate client dropdown
-  var sel = document.getElementById("secp-client-sel");
+  var sel = qs("secp-client-sel");
   if(sel && typeof ALL_CLIENTS !== "undefined"){
     ALL_CLIENTS.forEach(function(c,i){
       var o = document.createElement("option");
@@ -6533,9 +6535,9 @@ function wireSecp(){
       sel.appendChild(o);
     });
     sel.onchange = function(){
-      var strip = document.getElementById("secp-co-strip");
-      var nameEl= document.getElementById("secp-co-name");
-      var detEl = document.getElementById("secp-co-detail");
+      var strip = qs("secp-co-strip");
+      var nameEl= qs("secp-co-name");
+      var detEl = qs("secp-co-detail");
       if(sel.value===""){
         if(strip) strip.style.display="none";
         return;
@@ -6545,14 +6547,14 @@ function wireSecp(){
       if(detEl)  detEl.textContent  = (c.ntn?"NTN: "+c.ntn+" · ":"")+(c.address||"");
       if(strip)  strip.style.display="block";
       // Clear manual
-      var mf=document.getElementById("secp-manual-fields");
+      var mf=qs("secp-manual-fields");
       if(mf) mf.style.display="none";
       _secpManualOpen=false;
     };
   }
 
   // Build form grid
-  var grid = document.getElementById("secp-form-grid");
+  var grid = _sq("secp-form-grid");
   if(grid){
     grid.innerHTML="";
     SECP_FORMS.forEach(function(f){
@@ -6570,12 +6572,14 @@ function wireSecp(){
   }
 }
 
+function _sq(id){ var pg=document.getElementById("pg-secp"); return pg?pg.querySelector("#"+id):document.getElementById(id); }
+
 window.toggleSecpManual = function(){
   _secpManualOpen = !_secpManualOpen;
-  var mf=document.getElementById("secp-manual-fields");
-  var btn=document.getElementById("secp-manual-btn");
-  var sel=document.getElementById("secp-client-sel");
-  var strip=document.getElementById("secp-co-strip");
+  var mf=_sq("secp-manual-fields");
+  var btn=_sq("secp-manual-btn");
+  var sel=_sq("secp-client-sel");
+  var strip=_sq("secp-co-strip");
   if(mf) mf.style.display = _secpManualOpen ? "block" : "none";
   if(btn) btn.textContent = _secpManualOpen ? "✕ Cancel" : "+ Manual Entry";
   if(_secpManualOpen){
@@ -6594,9 +6598,9 @@ function secpSelectForm(fid, cardEl){
 
   var form = SECP_FORMS.find(function(f){ return f.id===fid; });
   if(!form) return;
-  var panel = document.getElementById("secp-fields-panel");
-  var title = document.getElementById("secp-form-title");
-  var fieldsDiv=document.getElementById("secp-form-fields");
+  var panel = _sq("secp-fields-panel");
+  var title = _sq("secp-form-title");
+  var fieldsDiv=_sq("secp-form-fields");
   if(title) title.textContent = form.icon+" "+form.label+" — "+form.sub;
   if(fieldsDiv){
     fieldsDiv.innerHTML="";
@@ -6626,10 +6630,10 @@ function secpSelectForm(fid, cardEl){
           +'<input type="hidden" id="secp-field-notice_date">';
         fieldsDiv.appendChild(wrap);
         function dcUpdate(){
-          var type=document.getElementById("secp-dc-anchor-type").value;
-          var lbl=document.getElementById("secp-dc-anchor-label");
+          var type=_sq("secp-dc-anchor-type").value;
+          var lbl=_sq("secp-dc-anchor-label");
           if(lbl) lbl.textContent=type==="agm"?"AGM Date":type==="notice"?"Notice to Members Date":"Board Meeting Date";
-          var val=document.getElementById("secp-dc-anchor").value;
+          var val=_sq("secp-dc-anchor").value;
           var agmD=null,boardD=null,noticeD=null,dueD=null;
           if(val){
             if(type==="agm"){      agmD=val; noticeD=secpAddDays(val,-21); boardD=secpAddDays(val,-14); }
@@ -6637,11 +6641,11 @@ function secpSelectForm(fid, cardEl){
             else {                 boardD=val; agmD=secpAddDays(val,14);  noticeD=secpAddDays(agmD,-21); }
             dueD=secpAddDays(agmD,30);
           }
-          document.getElementById("secp-field-agm_date").value=agmD||"";
-          document.getElementById("secp-field-board_date").value=boardD||"";
-          document.getElementById("secp-field-notice_date").value=noticeD||"";
-          var derived=document.getElementById("secp-dc-derived");
-          var chain=document.getElementById("secp-dc-chain");
+          _sq("secp-field-agm_date").value=agmD||"";
+          _sq("secp-field-board_date").value=boardD||"";
+          _sq("secp-field-notice_date").value=noticeD||"";
+          var derived=_sq("secp-dc-derived");
+          var chain=_sq("secp-dc-chain");
           if(val && derived && chain){
             var items=[
               {lbl:"Board Meeting",date:boardD},
@@ -6658,8 +6662,8 @@ function secpSelectForm(fid, cardEl){
             derived.style.display="block";
           } else if(derived){ derived.style.display="none"; }
         }
-        var anchorSel=document.getElementById("secp-dc-anchor-type");
-        var anchorInp=document.getElementById("secp-dc-anchor");
+        var anchorSel=_sq("secp-dc-anchor-type");
+        var anchorInp=_sq("secp-dc-anchor");
         if(anchorSel) anchorSel.addEventListener("change",dcUpdate);
         if(anchorInp) anchorInp.addEventListener("input",dcUpdate);
         return;
@@ -6692,37 +6696,37 @@ function secpSelectForm(fid, cardEl){
     });
   }
   if(panel) panel.style.display="block";
-  document.getElementById("secp-output").style.display="none";
+  _sq("secp-output").style.display="none";
 }
 
 window.secpClearForm = function(){
-  var fieldsDiv=document.getElementById("secp-form-fields");
+  var fieldsDiv=_sq("secp-form-fields");
   if(fieldsDiv) fieldsDiv.querySelectorAll("input,select,textarea").forEach(function(el){ el.value=""; });
-  var derived=document.getElementById("secp-dc-derived");
+  var derived=_sq("secp-dc-derived");
   if(derived) derived.style.display="none";
-  document.getElementById("secp-output").style.display="none";
+  _sq("secp-output").style.display="none";
 };
 
 function secpGetCompany(){
-  var sel=document.getElementById("secp-client-sel");
+  var sel=_sq("secp-client-sel");
   if(_secpManualOpen){
     return {
-      name: (document.getElementById("secp-m-name")||{}).value||"[Company]",
-      cuin: (document.getElementById("secp-m-cuin")||{}).value||"",
-      office:(document.getElementById("secp-m-office")||{}).value||"",
-      fye:  (document.getElementById("secp-m-fye")||{}).value||"",
-      paid: parseFloat((document.getElementById("secp-m-paid")||{}).value)||0,
-      auth: parseFloat((document.getElementById("secp-m-auth")||{}).value)||0
+      name: (_sq("secp-m-name")||{}).value||"[Company]",
+      cuin: (_sq("secp-m-cuin")||{}).value||"",
+      office:(_sq("secp-m-office")||{}).value||"",
+      fye:  (_sq("secp-m-fye")||{}).value||"",
+      paid: parseFloat((_sq("secp-m-paid")||{}).value)||0,
+      auth: parseFloat((_sq("secp-m-auth")||{}).value)||0
     };
   }
   if(sel && sel.value!==""){
     var c=ALL_CLIENTS[parseInt(sel.value)];
     return {
       name:  c.name||"[Company]",
-      cuin:  (document.getElementById("secp-cuin")||{}).value||"",
-      office:(document.getElementById("secp-m-office")||{}).value||c.address||"",
-      fye:   (document.getElementById("secp-fye")||{}).value||"",
-      paid:  parseFloat((document.getElementById("secp-paid")||{}).value)||0,
+      cuin:  (_sq("secp-cuin")||{}).value||"",
+      office:(_sq("secp-m-office")||{}).value||c.address||"",
+      fye:   (_sq("secp-fye")||{}).value||"",
+      paid:  parseFloat((_sq("secp-paid")||{}).value)||0,
       auth:  0
     };
   }
@@ -6740,12 +6744,12 @@ window.secpGenerate = function(){
     if(f.type==="datechain"){
       // read the hidden derived values injected by the date-chain UI
       ["agm_date","board_date","notice_date"].forEach(function(k){
-        var el=document.getElementById("secp-field-"+k);
+        var el=_sq("secp-field-"+k);
         inp[k] = el ? el.value : "";
       });
       return;
     }
-    var el=document.getElementById("secp-field-"+f.id);
+    var el=_sq("secp-field-"+f.id);
     inp[f.id] = el ? el.value : "";
   });
   var result = form.build(inp, co);
@@ -6753,7 +6757,7 @@ window.secpGenerate = function(){
 };
 
 function secpRenderOutput(form, co, r){
-  var out=document.getElementById("secp-output");
+  var out=_sq("secp-output");
   if(!out) return;
 
   // Deadline
@@ -6845,7 +6849,7 @@ window.secpCopyRes = function(elId){
 };
 
 window.secpPrint = function(){
-  var out=document.getElementById("secp-output");
+  var out=_sq("secp-output");
   if(!out||!out._data) return;
   var d=out._data; var r=d.r; var co=d.co;
   var body="<h2 style='font-family:serif;font-size:16pt;margin-bottom:4px;'>"+escHtml(r.what)+"</h2>"
