@@ -6698,7 +6698,7 @@ function secpSelectForm(fid, cardEl){
     });
   }
   if(panel) panel.style.display="block";
-  _sq("secp-output").style.display="none";
+  var _out=_sq("secp-output"); if(_out) _out.style.display="none";
 }
 
 window.secpClearForm = function(){
@@ -6706,7 +6706,7 @@ window.secpClearForm = function(){
   if(fieldsDiv) fieldsDiv.querySelectorAll("input,select,textarea").forEach(function(el){ el.value=""; });
   var derived=_sq("secp-dc-derived");
   if(derived) derived.style.display="none";
-  _sq("secp-output").style.display="none";
+  var _out=_sq("secp-output"); if(_out) _out.style.display="none";
 };
 
 function secpGetCompany(){
