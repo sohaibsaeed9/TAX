@@ -6529,6 +6529,8 @@ function wireSecp(){
   var sel = qs("secp-client-sel");
   if(sel && typeof ALL_CLIENTS !== "undefined"){
     ALL_CLIENTS.forEach(function(c,i){
+      var n=(c.name||"").toUpperCase();
+      if(n.indexOf("PVT")===-1 && n.indexOf("PRIVATE")===-1 && n.indexOf("LIMITED")===-1 && n.indexOf("SMC")===-1) return;
       var o = document.createElement("option");
       o.value = i;
       o.textContent = c.name + (c.ntn?" — NTN: "+c.ntn:"");
