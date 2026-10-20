@@ -2244,6 +2244,25 @@ window.setClientArchived = function(idx, flag){
 window.toggleArchivedView = function(){
   curArch = !curArch;
   renderClients();
+  updateBatchPrintBtn();
+};
+
+window.bulkArchiveSelected = function(){
+  var idxs = Array.prototype.map.call(document.querySelectorAll("#pg-clients .tag-select-cb:checked"), function(cb){ return parseInt(cb.getAttribute("data-idx"),10); });
+  if(!idxs.length) return;
+  var flag = !curArch;
+  var msg = flag
+    ? "Archive " + idxs.length + " selected client(s)?\n\nThey will be hidden from the Client Index and the 2026 pending list. You can restore them any time from 'Archived clients'."
+    : "Restore " + idxs.length + " selected client(s) to the Client Index?";
+  if(!confirm(msg)) return;
+  idxs.forEach(function(idx){
+    if(!CLIENT_OVERRIDES[idx]) CLIENT_OVERRIDES[idx] = {};
+    if(flag) CLIENT_OVERRIDES[idx].archived = true; else delete CLIENT_OVERRIDES[idx].archived;
+  });
+  saveClientOverrides((flag ? "Archived " : "Restored ") + idxs.length + " client(s)");
+  var sa = document.getElementById("select-all-tags"); if(sa) sa.checked = false;
+  renderClients();
+  updateBatchPrintBtn();
 };
 
 window.openAddClientPanel = function(){
@@ -2548,6 +2567,8 @@ window.updateBatchPrintBtn = function(){
   var checked = document.querySelectorAll(".tag-select-cb:checked").length;
   var btn = document.getElementById("batch-print-btn");
   if(btn) btn.style.display = checked > 0 ? "inline-block" : "none";
+  var ab = document.getElementById("batch-archive-btn");
+  if(ab){ ab.style.display = checked > 0 ? "inline-flex" : "none"; ab.textContent = (curArch ? "Restore selected (" : "Archive selected (") + checked + ")"; }
   var selectAll = document.getElementById("select-all-tags");
   if(selectAll){
     var all = document.querySelectorAll(".tag-select-cb").length;
@@ -5431,8 +5452,9 @@ window.advInsertTable = function(){
     <button class="task-add-btn" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="openIrisBatch()"><svg class=ic aria-hidden=true><use href=#i-folder /></svg>Batch Upload IRIS Data</button>
     <button id="arch-toggle-btn" class="btn-sec" style="font-size:12px;" onclick="toggleArchivedView()">Archived clients (0)</button>
     <button id="add-client-btn" class="task-add-btn" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openAddClientPanel()">+ Add Client</button>
-    <span style="font-size:12px;color:var(--ink-3);">Click a client name to view profile</span>
+    <button id="batch-archive-btn" class="task-del-btn" style="display:none;height:34px;" onclick="bulkArchiveSelected()">Archive selected</button>
     <button id="batch-print-btn" class="task-add-btn" style="background:var(--navy-700);color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openBatchTagModal()"><svg class=ic aria-hidden=true><use href=#i-tag /></svg>Print Selected Tags</button>
+    <span style="font-size:12px;color:var(--ink-3);">Click a client name to view profile</span>
   </div>
   <div class="client-table-wrap">
     <div class="client-table-header" style="grid-template-columns:32px 60px 1fr 140px 100px 100px 80px 80px 65px;">
