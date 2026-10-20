@@ -1,0 +1,5 @@
+.claude/
+
+# decrypted portal data - never commit
+clients.json
+*.plain.json
