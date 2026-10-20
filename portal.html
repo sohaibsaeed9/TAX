@@ -2192,6 +2192,8 @@ var EXTRA_CLIENTS = [];
 try{ EXTRA_CLIENTS = JSON.parse(localStorage.getItem("sc_extra_clients")||"[]"); }catch(e){}
 // Merge extra clients into ALL_CLIENTS at load time (they get indices >= ALL_CLIENTS base length)
 (function(){ for(var i=0;i<EXTRA_CLIENTS.length;i++){ if(EXTRA_CLIENTS[i]) ALL_CLIENTS.push(EXTRA_CLIENTS[i]); } })();
+window.ALL_CLIENTS = ALL_CLIENTS;
+window.escHtml = escHtml;
 
 function saveClientOverrides(desc){ guardedSave("sc_client_overrides", JSON.stringify(CLIENT_OVERRIDES), desc||"Updated client record", function(){ try{ localStorage.setItem("sc_client_overrides", JSON.stringify(CLIENT_OVERRIDES)); }catch(e){} }); }
 
