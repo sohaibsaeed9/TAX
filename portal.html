@@ -6737,6 +6737,14 @@ window.secpGenerate = function(){
   // Collect field inputs
   var inp={};
   form.fields.forEach(function(f){
+    if(f.type==="datechain"){
+      // read the hidden derived values injected by the date-chain UI
+      ["agm_date","board_date","notice_date"].forEach(function(k){
+        var el=document.getElementById("secp-field-"+k);
+        inp[k] = el ? el.value : "";
+      });
+      return;
+    }
     var el=document.getElementById("secp-field-"+f.id);
     inp[f.id] = el ? el.value : "";
   });
