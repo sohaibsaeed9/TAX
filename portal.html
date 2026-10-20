@@ -903,7 +903,7 @@ function savePending(){ try{ localStorage.setItem("sc_pending", JSON.stringify(P
 // Call instead of localStorage.setItem when user needsApproval
 function queueChange(lsKey, newData, description){
   var id = "chg_" + Date.now() + "_" + Math.random().toString(36).slice(2,6);
-  PENDING.push({ id:id, user:userName, name:USERS[userName].name, lsKey:lsKey, data:newData, desc:description, ts:new Date().toISOString() });
+  PENDING.push({ id:id, user:userKey, name:USERS[userKey].name, lsKey:lsKey, data:newData, desc:description, ts:new Date().toISOString() });
   savePending();
   showToast("⏳ Change queued for admin approval: " + description);
   updatePendingBadge();
@@ -911,7 +911,7 @@ function queueChange(lsKey, newData, description){
 
 // Wrapper used by every save function — routes through queue if user needs approval
 function guardedSave(lsKey, data, description, directFn){
-  if(userName && USERS[userName] && USERS[userName].needsApproval){
+  if(userKey && USERS[userKey] && USERS[userKey].needsApproval){
     queueChange(lsKey, data, description);
   } else {
     directFn();
@@ -924,6 +924,8 @@ function updatePendingBadge(){
   if(badge){ badge.textContent = count; badge.style.display = count > 0 ? "inline-flex" : "none"; }
 }
 
+window.approvePending = approvePending;
+window.rejectPending = rejectPending;
 function approvePending(id){
   var chg = PENDING.find(function(c){ return c.id===id; });
   if(!chg) return;
@@ -1002,7 +1004,7 @@ function showToast(msg){
    STATE
 ════════════════════════════════ */
 var MAX_ATT=5, LOCK_MS=300000, IDLE_MS=600000, IDLE_S=30;
-var att=0, lockUntil=0, role=null, userName=null, sessStart=null;
+var att=0, lockUntil=0, role=null, userName=null, userKey=null, sessStart=null;
 var idleT=null, idleC=null, idleSecs=IDLE_S;
 var notes=[];
 var selTaxType=null, selSubType=null;
@@ -1063,7 +1065,7 @@ function doLogin(){
 }
 
 function loginOK(u,usr){
-  role=usr.role; userName=usr.name; sessStart=Date.now();
+  role=usr.role; userName=usr.name; userKey=u; sessStart=Date.now();
   var p=PERMS[role];
   ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","invoices","comms","tools","library","exttools","advisories","secp"].forEach(function(k){
     var el=$("tab-"+k); if(el) el.classList.toggle("hide",!p[k]);
@@ -1074,14 +1076,14 @@ function loginOK(u,usr){
   $("login-screen").style.display="none";
   $("app").classList.add("on");
   $("buser").textContent=userName;
-  var rb=$("brole"); rb.textContent=role==="admin"?"Administrator":"Staff"; rb.className="rbadge "+role;
+  var rb=$("brole"); rb.textContent=role==="admin"?"Administrator":role==="reviewer"?"Reviewer":"Staff"; rb.className="rbadge "+role;
   $("sbar").classList.add("on");
   updatePendingBadge();
   startIdle(); setInterval(tick,1000); tick();
 }
 
 function doLogout(){
-  role=null; userName=null; sessStart=null;
+  role=null; userName=null; userKey=null; sessStart=null;
   clearTimeout(idleT); clearInterval(idleC);
   $("imodal").classList.remove("on");
   $("pmodal").classList.remove("on");
