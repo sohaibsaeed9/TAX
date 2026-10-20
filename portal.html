@@ -6590,7 +6590,7 @@ window.toggleSecpManual = function(){
   }
 };
 
-function secpSelectForm(fid, cardEl){
+function secpSelectForm(fid, cardEl){ try {
   _secpSelectedForm = fid;
   // Highlight selected card
   document.querySelectorAll("#secp-form-grid div[data-fid]").forEach(function(c){
@@ -6699,7 +6699,7 @@ function secpSelectForm(fid, cardEl){
   }
   if(panel) panel.style.display="block";
   var _out=_sq("secp-output"); if(_out) _out.style.display="none";
-}
+  } catch(e){ alert("Error selecting form: "+e.message); console.error(e); } }
 
 window.secpClearForm = function(){
   var fieldsDiv=_sq("secp-form-fields");
@@ -6736,15 +6736,15 @@ function secpGetCompany(){
 }
 
 window.secpGenerate = function(){
+  try {
   var form = SECP_FORMS.find(function(f){ return f.id===_secpSelectedForm; });
   if(!form){ alert("Please select a filing type first."); return; }
   var co = secpGetCompany();
-  if(co.name==="[Company]"){ alert("Please select a client or enter company details."); return; }
+  if(!co || co.name==="[Company]"){ alert("Please select a client or enter company details."); return; }
   // Collect field inputs
   var inp={};
   form.fields.forEach(function(f){
     if(f.type==="datechain"){
-      // read the hidden derived values injected by the date-chain UI
       ["agm_date","board_date","notice_date"].forEach(function(k){
         var el=_sq("secp-field-"+k);
         inp[k] = el ? el.value : "";
@@ -6756,6 +6756,7 @@ window.secpGenerate = function(){
   });
   var result = form.build(inp, co);
   secpRenderOutput(form, co, result);
+  } catch(e){ alert("Error generating package: "+e.message); console.error(e); }
 };
 
 function secpRenderOutput(form, co, r){
