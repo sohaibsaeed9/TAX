@@ -6312,6 +6312,493 @@ window.generateAdvisoryAI = function(){
   });
 };
 
+/* ════════════════════════════════
+   SECP COMPLIANCE SUITE
+════════════════════════════════ */
+
+var SECP_ROUTINE_ONLINE  = 1331;
+var SECP_ROUTINE_PHYSICAL= 1997;
+var SECP_NAME_RES        = 1000;
+
+function secpLateMultiplier(daysLate){
+  if(daysLate<=0)   return 1;
+  if(daysLate<=90)  return 1;
+  if(daysLate<=180) return 2;
+  if(daysLate<=365) return 3;
+  if(daysLate<=730) return 4;
+  return 4;
+}
+
+function secpFmtPKR(n){ return "Rs. "+Number(n).toLocaleString("en-PK"); }
+function secpFmtDate(d){ if(!d) return "—"; var o=new Date(d+"T00:00:00"); return o.toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}); }
+function secpAddDays(dateStr,days){ var d=new Date(dateStr+"T00:00:00"); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function secpDaysFrom(dateStr){ var d=new Date(dateStr+"T00:00:00"); var now=new Date(); now.setHours(0,0,0,0); return Math.round((d-now)/86400000); }
+
+var SECP_FORMS = [
+  {
+    id:"f29", label:"Form 29", sub:"Officer Changes",
+    icon:"👤",
+    fields:[
+      {id:"change_type",  label:"Change Type",        type:"select", opts:["New Appointment","Resignation","Change in Particulars"]},
+      {id:"officer_name", label:"Officer Name",        type:"text",   ph:"Full legal name"},
+      {id:"officer_cnic", label:"Officer CNIC",        type:"text",   ph:"XXXXX-XXXXXXX-X"},
+      {id:"officer_desig",label:"Designation",         type:"text",   ph:"Director / CEO / CFO"},
+      {id:"effective_date",label:"Effective Date",     type:"date"},
+      {id:"event_date",   label:"Event / Board Date",  type:"date"}
+    ],
+    build: function(inp, co){
+      var dueDays=15;
+      var dueDate= inp.event_date ? secpAddDays(inp.event_date, dueDays) : null;
+      var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
+      var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
+      var feeOnline= SECP_ROUTINE_ONLINE * mult;
+      var feePhys  = SECP_ROUTINE_PHYSICAL * mult;
+      var action = inp.change_type==="New Appointment" ? "appointed as" : inp.change_type==="Resignation" ? "resigned as" : "had their particulars changed as";
+      var res = "BOARD RESOLUTION\n\n"+co.name+"\n"+(co.office||"")+"\n\nRESOLUTION PASSED AT THE MEETING OF THE BOARD OF DIRECTORS\nHELD ON "+(secpFmtDate(inp.event_date)||"[DATE]")+" AT THE REGISTERED OFFICE\n\nRESOLVED THAT "+(inp.officer_name||"[Officer Name]")+" (CNIC: "+(inp.officer_cnic||"[CNIC]")+") be and is hereby "+action+" "+(inp.officer_desig||"[Designation]")+" of the Company with effect from "+(secpFmtDate(inp.effective_date)||"[Effective Date]")+".\n\nRESOLVED FURTHER THAT the Chief Executive Officer / Company Secretary be and is hereby authorised to take all necessary steps to file Form 29 with the Securities and Exchange Commission of Pakistan within the prescribed time.\n\nFor and on behalf of "+co.name+"\n\n_______________________          _______________________\nDirector                          Director/CEO";
+      return { what:"Form 29 — "+inp.change_type, due:dueDate, daysLeft:daysLeft, feeOnline:feeOnline, feePhys:feePhys, mult:mult,
+        docs:["CNIC copy of officer","Consent letter (for appointment)","Form 29 (signed)","Board resolution"],
+        notes:["Must be filed within 15 days of the event","On eZfile/LEAP this may appear as 'Form 9'","Confirm fee on live SECP challan"],
+        resolutions:[{title:"Board Resolution — "+inp.change_type, text:res}] };
+    }
+  },
+  {
+    id:"fA", label:"Form A", sub:"Annual Return / AGM",
+    icon:"📅",
+    fields:[
+      {id:"agm_date",    label:"AGM Date",             type:"date"},
+      {id:"board_date",  label:"Board Meeting Date",    type:"date"},
+      {id:"fye_date",    label:"Financial Year End",    type:"date"}
+    ],
+    build: function(inp, co){
+      var agm = inp.agm_date;
+      var dueDate = agm ? secpAddDays(agm,30) : null;
+      var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
+      var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
+      var feeOnline= SECP_ROUTINE_ONLINE*mult, feePhys=SECP_ROUTINE_PHYSICAL*mult;
+      var noticeDate = agm ? secpAddDays(agm,-21) : null;
+      var boardDate  = agm ? secpAddDays(agm,-14) : null;
+      var schedule=[];
+      if(boardDate)  schedule.push({label:"Board Meeting (latest)",     date:boardDate});
+      if(noticeDate) schedule.push({label:"Notice to Members (AGM−21)", date:noticeDate});
+      if(agm)        schedule.push({label:"AGM Date",                   date:agm});
+      if(dueDate)    schedule.push({label:"Form A Filing Deadline",     date:dueDate});
+      var warn120="";
+      if(inp.fye_date && agm){
+        var fyeD=new Date(inp.fye_date+"T00:00:00");
+        var agmD=new Date(agm+"T00:00:00");
+        var diff=Math.round((agmD-fyeD)/86400000);
+        if(diff>120) warn120="⚠ AGM is "+diff+" days after FY end — exceeds 120-day limit (Companies Act 2017 s.132).";
+      }
+      var res = "BOARD RESOLUTION\n\n"+co.name+"\n"+(co.office||"")+"\n\nRESOLUTION PASSED AT THE MEETING OF THE BOARD OF DIRECTORS\nHELD ON "+(secpFmtDate(boardDate)||"[BOARD DATE]")+" AT THE REGISTERED OFFICE\n\nRESOLVED THAT the Annual General Meeting of the Company be held on "+(secpFmtDate(agm)||"[AGM DATE]")+" to transact the ordinary business as required under the Companies Act 2017.\n\nRESOLVED FURTHER THAT notice of the AGM be sent to all members not less than 21 days before the meeting.\n\nRESOLVED FURTHER THAT the CEO/Company Secretary be authorised to file Form A with the SECP within 30 days of the AGM.\n\nFor and on behalf of "+co.name+"\n\n_______________________          _______________________\nDirector                          Director/CEO";
+      return { what:"Form A — Annual Return", due:dueDate, daysLeft:daysLeft, feeOnline:feeOnline, feePhys:feePhys, mult:mult, schedule:schedule,
+        docs:["Audited financial statements","Form A (signed)","Attendance register","Minutes of AGM","Proxy forms (if any)"],
+        notes:["AGM must be held within 120 days of FY end"+(warn120?" — "+warn120:""),"Form A due 30 days after AGM","Confirm fee on live SECP challan"],
+        resolutions:[{title:"Board Resolution — Call AGM", text:res}] };
+    }
+  },
+  {
+    id:"f3", label:"Form 3", sub:"Share Allotment",
+    icon:"📊",
+    fields:[
+      {id:"allottee_name", label:"Allottee Name",       type:"text",  ph:"Full legal name"},
+      {id:"allottee_cnic", label:"Allottee CNIC",       type:"text",  ph:"XXXXX-XXXXXXX-X"},
+      {id:"shares_allotted",label:"Shares Allotted",    type:"number",ph:"e.g. 100"},
+      {id:"share_value",   label:"Share Value (PKR)",   type:"number",ph:"e.g. 10"},
+      {id:"allotment_date",label:"Allotment Date",      type:"date"}
+    ],
+    build: function(inp, co){
+      var dueDays=45;
+      var dueDate= inp.allotment_date ? secpAddDays(inp.allotment_date,dueDays) : null;
+      var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
+      var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
+      var feeOnline=SECP_ROUTINE_ONLINE*mult, feePhys=SECP_ROUTINE_PHYSICAL*mult;
+      var totalVal = (parseFloat(inp.shares_allotted)||0)*(parseFloat(inp.share_value)||0);
+      var res = "BOARD RESOLUTION\n\n"+co.name+"\n"+(co.office||"")+"\n\nRESOLUTION PASSED AT THE MEETING OF THE BOARD OF DIRECTORS\nHELD ON "+(secpFmtDate(inp.allotment_date)||"[DATE]")+" AT THE REGISTERED OFFICE\n\nRESOLVED THAT "+(inp.shares_allotted||"[N]")+" ordinary shares of Rs. "+(inp.share_value||"[X]")+" each be and are hereby allotted to "+(inp.allottee_name||"[Allottee]")+" (CNIC: "+(inp.allottee_cnic||"[CNIC]")+") against receipt of the subscription money.\n\nRESOLVED FURTHER THAT the Company Secretary be authorised to issue share certificates and file Form 3 with the SECP within the prescribed time.\n\nFor and on behalf of "+co.name+"\n\n_______________________          _______________________\nDirector                          Director/CEO";
+      return { what:"Form 3 — Share Allotment", due:dueDate, daysLeft:daysLeft, feeOnline:feeOnline, feePhys:feePhys, mult:mult,
+        docs:["Form 3 (signed)","Bank deposit slip / receipt","Allotment letter","Board resolution","CNICs of allottees"],
+        notes:["Must be filed within 45 days of allotment","Total allotment value: "+secpFmtPKR(totalVal),"Confirm fee on live SECP challan"],
+        resolutions:[{title:"Board Resolution — Share Allotment", text:res}] };
+    }
+  },
+  {
+    id:"f726", label:"Form 7+26", sub:"Capital Increase",
+    icon:"💰",
+    fields:[
+      {id:"current_auth",  label:"Current Auth. Capital (PKR)", type:"number", ph:"e.g. 1000000"},
+      {id:"proposed_auth", label:"Proposed Auth. Capital (PKR)",type:"number", ph:"e.g. 5000000"},
+      {id:"increase_date", label:"Resolution Date",             type:"date"}
+    ],
+    build: function(inp, co){
+      var dueDate= inp.increase_date ? secpAddDays(inp.increase_date,15) : null;
+      var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
+      var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
+      var feeOnline=(SECP_ROUTINE_ONLINE*2)*mult, feePhys=(SECP_ROUTINE_PHYSICAL*2)*mult;
+      var res = "SPECIAL RESOLUTION\n\n"+co.name+"\n"+(co.office||"")+"\n\nRESOLUTION PASSED AT THE EXTRAORDINARY GENERAL MEETING\nHELD ON "+(secpFmtDate(inp.increase_date)||"[DATE]")+" AT THE REGISTERED OFFICE\n\nRESOLVED THAT the Authorised Share Capital of the Company be increased from Rs. "+(inp.current_auth ? Number(inp.current_auth).toLocaleString("en-PK") : "[CURRENT]")+" to Rs. "+(inp.proposed_auth ? Number(inp.proposed_auth).toLocaleString("en-PK") : "[PROPOSED]")+" by the creation of additional shares.\n\nRESOLVED FURTHER THAT the Memorandum of Association of the Company be amended accordingly to reflect the increase in Authorised Share Capital.\n\nRESOLVED FURTHER THAT the CEO / Company Secretary be authorised to file Form 7 and Form 26 with the SECP and take all necessary steps to give effect to this resolution.\n\nFor and on behalf of "+co.name+"\n\n_______________________          _______________________\nDirector                          Director/CEO";
+      return { what:"Form 7+26 — Capital Increase", due:dueDate, daysLeft:daysLeft, feeOnline:feeOnline, feePhys:feePhys, mult:mult,
+        docs:["Form 7 (signed)","Form 26 (signed)","Special resolution (certified copy)","Amended Memorandum of Association","EGM notice + attendance register"],
+        notes:["Requires special resolution at EGM","Both Form 7 and Form 26 must be filed within 15 days","Confirm fee on live SECP challan"],
+        resolutions:[{title:"Special Resolution — Capital Increase", text:res}] };
+    }
+  },
+  {
+    id:"f21", label:"Form 21", sub:"Registered Office",
+    icon:"🏢",
+    fields:[
+      {id:"old_address",  label:"Current Address",  type:"text", ph:"Old registered office address"},
+      {id:"new_address",  label:"New Address",       type:"text", ph:"New registered office address"},
+      {id:"change_date",  label:"Change Date",       type:"date"}
+    ],
+    build: function(inp, co){
+      var dueDate= inp.change_date ? secpAddDays(inp.change_date,15) : null;
+      var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
+      var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
+      var feeOnline=SECP_ROUTINE_ONLINE*mult, feePhys=SECP_ROUTINE_PHYSICAL*mult;
+      var res = "BOARD RESOLUTION\n\n"+co.name+"\n"+(co.office||"")+"\n\nRESOLUTION PASSED AT THE MEETING OF THE BOARD OF DIRECTORS\nHELD ON "+(secpFmtDate(inp.change_date)||"[DATE]")+" AT THE REGISTERED OFFICE\n\nRESOLVED THAT the Registered Office of the Company be shifted from:\n\n"+(inp.old_address||"[OLD ADDRESS]")+"\n\nto:\n\n"+(inp.new_address||"[NEW ADDRESS]")+"\n\nwith effect from "+(secpFmtDate(inp.change_date)||"[DATE]")+".\n\nRESOLVED FURTHER THAT the Company Secretary be authorised to file Form 21 with the SECP within the prescribed time and to update all relevant records.\n\nFor and on behalf of "+co.name+"\n\n_______________________          _______________________\nDirector                          Director/CEO";
+      return { what:"Form 21 — Registered Office Change", due:dueDate, daysLeft:daysLeft, feeOnline:feeOnline, feePhys:feePhys, mult:mult,
+        docs:["Form 21 (signed)","Board resolution","Proof of new address (utility bill / tenancy agreement)","NOC from landlord (if rented)"],
+        notes:["Must be filed within 15 days of change","Update letterhead and all official correspondence","Confirm fee on live SECP challan"],
+        resolutions:[{title:"Board Resolution — Registered Office Change", text:res}] };
+    }
+  },
+  {
+    id:"f26", label:"Form 26", sub:"Special Resolution",
+    icon:"📜",
+    fields:[
+      {id:"resolution_subject", label:"Subject of Resolution", type:"text", ph:"e.g. Change of company name"},
+      {id:"resolution_date",    label:"Date Passed",           type:"date"}
+    ],
+    build: function(inp, co){
+      var dueDate= inp.resolution_date ? secpAddDays(inp.resolution_date,15) : null;
+      var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
+      var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
+      var feeOnline=SECP_ROUTINE_ONLINE*mult, feePhys=SECP_ROUTINE_PHYSICAL*mult;
+      var res = "SPECIAL RESOLUTION\n\n"+co.name+"\n"+(co.office||"")+"\n\nRESOLUTION PASSED AT THE EXTRAORDINARY GENERAL MEETING\nHELD ON "+(secpFmtDate(inp.resolution_date)||"[DATE]")+" AT THE REGISTERED OFFICE\n\nRESOLVED THAT [insert full text of special resolution here regarding: "+(inp.resolution_subject||"[SUBJECT]")+"].\n\nFor and on behalf of "+co.name+"\n\n_______________________          _______________________\nDirector                          Director/CEO";
+      return { what:"Form 26 — Special Resolution: "+(inp.resolution_subject||""), due:dueDate, daysLeft:daysLeft, feeOnline:feeOnline, feePhys:feePhys, mult:mult,
+        docs:["Form 26 (signed)","Certified copy of special resolution","EGM notice + attendance register"],
+        notes:["Must be filed within 15 days of passing","Confirm fee on live SECP challan"],
+        resolutions:[{title:"Special Resolution — "+(inp.resolution_subject||"General"), text:res}] };
+    }
+  },
+  {
+    id:"bo", label:"Beneficial Ownership", sub:"BO Declaration",
+    icon:"🔍",
+    fields:[
+      {id:"bo_name",       label:"BO Full Name",          type:"text",  ph:"Full legal name"},
+      {id:"bo_cnic",       label:"BO CNIC",               type:"text",  ph:"XXXXX-XXXXXXX-X"},
+      {id:"bo_percentage", label:"Ownership %",           type:"number",ph:"e.g. 25"},
+      {id:"bo_date",       label:"Declaration Date",      type:"date"}
+    ],
+    build: function(inp, co){
+      var dueDate= inp.bo_date ? secpAddDays(inp.bo_date,15) : null;
+      var daysLeft= dueDate ? secpDaysFrom(dueDate) : null;
+      var mult= daysLeft!==null && daysLeft<0 ? secpLateMultiplier(-daysLeft) : 1;
+      var feeOnline=SECP_ROUTINE_ONLINE*mult, feePhys=SECP_ROUTINE_PHYSICAL*mult;
+      var res = "BOARD RESOLUTION\n\n"+co.name+"\n"+(co.office||"")+"\n\nRESOLUTION PASSED AT THE MEETING OF THE BOARD OF DIRECTORS\nHELD ON "+(secpFmtDate(inp.bo_date)||"[DATE]")+" AT THE REGISTERED OFFICE\n\nRESOLVED THAT in compliance with the Companies Act 2017 and the SECP Beneficial Ownership Regulations, the following person is hereby recorded as a Significant Beneficial Owner (SBO) of the Company:\n\nName: "+(inp.bo_name||"[BO NAME]")+"\nCNIC: "+(inp.bo_cnic||"[CNIC]")+"\nOwnership Interest: "+(inp.bo_percentage||"[X]")+"%\n\nRESOLVED FURTHER THAT the Company Secretary be authorised to update the Beneficial Ownership Register and file the requisite form (BO-1) with the SECP.\n\nFor and on behalf of "+co.name+"\n\n_______________________          _______________________\nDirector                          Director/CEO";
+      return { what:"Beneficial Ownership Declaration", due:dueDate, daysLeft:daysLeft, feeOnline:feeOnline, feePhys:feePhys, mult:mult,
+        docs:["BO-1 Form","Board resolution","CNIC copy of beneficial owner","Updated BO Register"],
+        notes:["Any person holding ≥25% voting rights / shares is an SBO","Must be filed within 15 days","Confirm fee on live SECP challan"],
+        resolutions:[{title:"Board Resolution — Beneficial Ownership", text:res}] };
+    }
+  },
+  {
+    id:"incorp", label:"Incorporation", sub:"New Company",
+    icon:"🏗️",
+    fields:[
+      {id:"proposed_name",   label:"Proposed Company Name",  type:"text",     ph:"XYZ PRIVATE LIMITED"},
+      {id:"company_type",    label:"Company Type",           type:"select",   opts:["Private Limited","Single Member Company","Public Limited"]},
+      {id:"directors",       label:"Directors (one per line)",type:"textarea", ph:"Full Name — CNIC\nFull Name — CNIC"},
+      {id:"subscriber_shares",label:"Subscriber Shares",     type:"number",   ph:"e.g. 100"}
+    ],
+    build: function(inp, co){
+      var feeOnline=SECP_NAME_RES+SECP_ROUTINE_ONLINE, feePhys=SECP_NAME_RES+SECP_ROUTINE_PHYSICAL;
+      var res = "MEMORANDUM OF ASSOCIATION\n\n1. The name of the company is: "+(inp.proposed_name||"[NAME]")+"\n2. The registered office of the company will be situated in Pakistan.\n3. The object for which the company is established: [Insert main objects]\n4. The liability of the members is limited.\n5. The share capital is Rs. [AMOUNT] divided into [N] shares of Rs. [X] each.\n\n— To be prepared by legal counsel and filed with SECP —\n\n\nARTICLES OF ASSOCIATION\n\nTo be drafted as per Table A of the Companies Act 2017 (or customised articles).\n\n\nSUBSCRIBER DECLARATION\n\nWe, the subscribers to the Memorandum of Association, agree to take "+(inp.subscriber_shares||"[N]")+" shares each and to form the company:\n\n_______________________\n[Subscriber 1 — CNIC]\n\n_______________________\n[Subscriber 2 — CNIC]";
+      return { what:"Incorporation — "+(inp.proposed_name||"New Company"), due:null, daysLeft:null, feeOnline:feeOnline, feePhys:feePhys, mult:1,
+        docs:["Memorandum of Association","Articles of Association","Form 1 (Declaration of Compliance)","Form 21 (Registered Office)","Form 29 (Directors/Officers)","CNICs of all directors & subscribers","Utility bill for registered office","Bank draft for SECP fee","Name reservation approval"],
+        notes:["Name reservation: Rs. "+SECP_NAME_RES+" (online) — submit 3 name choices","Registration fee: Rs. "+SECP_ROUTINE_ONLINE+" (online) — confirm on live challan","Private company must have min. 2 directors; SMC = 1"],
+        resolutions:[{title:"Incorporation Documents Checklist", text:res}] };
+    }
+  }
+];
+
+var _secpSelectedForm = null;
+var _secpManualOpen   = false;
+
+function wireSecp(){
+  // Populate client dropdown
+  var sel = document.getElementById("secp-client-sel");
+  if(sel && typeof ALL_CLIENTS !== "undefined"){
+    ALL_CLIENTS.forEach(function(c,i){
+      var o = document.createElement("option");
+      o.value = i;
+      o.textContent = c.name + (c.ntn?" — NTN: "+c.ntn:"");
+      sel.appendChild(o);
+    });
+    sel.onchange = function(){
+      var strip = document.getElementById("secp-co-strip");
+      var nameEl= document.getElementById("secp-co-name");
+      var detEl = document.getElementById("secp-co-detail");
+      if(sel.value===""){
+        if(strip) strip.style.display="none";
+        return;
+      }
+      var c = ALL_CLIENTS[parseInt(sel.value)];
+      if(nameEl) nameEl.textContent = c.name;
+      if(detEl)  detEl.textContent  = (c.ntn?"NTN: "+c.ntn+" · ":"")+(c.address||"");
+      if(strip)  strip.style.display="block";
+      // Clear manual
+      var mf=document.getElementById("secp-manual-fields");
+      if(mf) mf.style.display="none";
+      _secpManualOpen=false;
+    };
+  }
+
+  // Build form grid
+  var grid = document.getElementById("secp-form-grid");
+  if(grid){
+    grid.innerHTML="";
+    SECP_FORMS.forEach(function(f){
+      var card=document.createElement("div");
+      card.style.cssText="background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;";
+      card.innerHTML='<div style="font-size:22px;margin-bottom:6px;">'+f.icon+'</div>'
+        +'<div style="font-size:13px;font-weight:700;color:#1a2744;">'+f.label+'</div>'
+        +'<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+f.sub+'</div>';
+      card.onmouseover=function(){ card.style.borderColor="#b8923a"; card.style.background="#fffbf0"; };
+      card.onmouseout =function(){ if(_secpSelectedForm!==f.id){ card.style.borderColor="#e5e7eb"; card.style.background="#fff"; } };
+      card.onclick=function(){ secpSelectForm(f.id, card); };
+      card.dataset.fid=f.id;
+      grid.appendChild(card);
+    });
+  }
+}
+
+window.toggleSecpManual = function(){
+  _secpManualOpen = !_secpManualOpen;
+  var mf=document.getElementById("secp-manual-fields");
+  var btn=document.getElementById("secp-manual-btn");
+  var sel=document.getElementById("secp-client-sel");
+  var strip=document.getElementById("secp-co-strip");
+  if(mf) mf.style.display = _secpManualOpen ? "block" : "none";
+  if(btn) btn.textContent = _secpManualOpen ? "✕ Cancel" : "+ Manual Entry";
+  if(_secpManualOpen){
+    if(sel) sel.value="";
+    if(strip) strip.style.display="none";
+  }
+};
+
+function secpSelectForm(fid, cardEl){
+  _secpSelectedForm = fid;
+  // Highlight selected card
+  document.querySelectorAll("#secp-form-grid div[data-fid]").forEach(function(c){
+    c.style.borderColor="#e5e7eb"; c.style.background="#fff";
+  });
+  if(cardEl){ cardEl.style.borderColor="#b8923a"; cardEl.style.background="#fffbf0"; }
+
+  var form = SECP_FORMS.find(function(f){ return f.id===fid; });
+  if(!form) return;
+  var panel = document.getElementById("secp-fields-panel");
+  var title = document.getElementById("secp-form-title");
+  var fieldsDiv=document.getElementById("secp-form-fields");
+  if(title) title.textContent = form.icon+" "+form.label+" — "+form.sub;
+  if(fieldsDiv){
+    fieldsDiv.innerHTML="";
+    form.fields.forEach(function(f){
+      var wrap=document.createElement("div");
+      wrap.className="task-field";
+      if(f.type==="textarea") wrap.style.gridColumn="1 / -1";
+      var label=document.createElement("label");
+      label.textContent=f.label;
+      wrap.appendChild(label);
+      var inp;
+      if(f.type==="select"){
+        inp=document.createElement("select");
+        inp.style.cssText="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 12px;border-radius:7px;outline:none;";
+        (f.opts||[]).forEach(function(o){ var opt=document.createElement("option"); opt.value=o; opt.textContent=o; inp.appendChild(opt); });
+      } else if(f.type==="textarea"){
+        inp=document.createElement("textarea");
+        inp.rows=3;
+        inp.style.cssText="width:100%;background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a2744;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 12px;border-radius:7px;outline:none;resize:vertical;box-sizing:border-box;";
+        inp.placeholder=f.ph||"";
+      } else {
+        inp=document.createElement("input");
+        inp.type=f.type||"text";
+        inp.placeholder=f.ph||"";
+      }
+      inp.id="secp-field-"+f.id;
+      wrap.appendChild(inp);
+      fieldsDiv.appendChild(wrap);
+    });
+  }
+  if(panel) panel.style.display="block";
+  document.getElementById("secp-output").style.display="none";
+}
+
+window.secpClearForm = function(){
+  var fieldsDiv=document.getElementById("secp-form-fields");
+  if(fieldsDiv) fieldsDiv.querySelectorAll("input,select,textarea").forEach(function(el){ el.value=""; });
+  document.getElementById("secp-output").style.display="none";
+};
+
+function secpGetCompany(){
+  var sel=document.getElementById("secp-client-sel");
+  if(_secpManualOpen){
+    return {
+      name: (document.getElementById("secp-m-name")||{}).value||"[Company]",
+      cuin: (document.getElementById("secp-m-cuin")||{}).value||"",
+      office:(document.getElementById("secp-m-office")||{}).value||"",
+      fye:  (document.getElementById("secp-m-fye")||{}).value||"",
+      paid: parseFloat((document.getElementById("secp-m-paid")||{}).value)||0,
+      auth: parseFloat((document.getElementById("secp-m-auth")||{}).value)||0
+    };
+  }
+  if(sel && sel.value!==""){
+    var c=ALL_CLIENTS[parseInt(sel.value)];
+    return {
+      name:  c.name||"[Company]",
+      cuin:  (document.getElementById("secp-cuin")||{}).value||"",
+      office:(document.getElementById("secp-m-office")||{}).value||c.address||"",
+      fye:   (document.getElementById("secp-fye")||{}).value||"",
+      paid:  parseFloat((document.getElementById("secp-paid")||{}).value)||0,
+      auth:  0
+    };
+  }
+  return {name:"[Company]",cuin:"",office:"",fye:"",paid:0,auth:0};
+}
+
+window.secpGenerate = function(){
+  var form = SECP_FORMS.find(function(f){ return f.id===_secpSelectedForm; });
+  if(!form){ alert("Please select a filing type first."); return; }
+  var co = secpGetCompany();
+  if(co.name==="[Company]"){ alert("Please select a client or enter company details."); return; }
+  // Collect field inputs
+  var inp={};
+  form.fields.forEach(function(f){
+    var el=document.getElementById("secp-field-"+f.id);
+    inp[f.id] = el ? el.value : "";
+  });
+  var result = form.build(inp, co);
+  secpRenderOutput(form, co, result);
+};
+
+function secpRenderOutput(form, co, r){
+  var out=document.getElementById("secp-output");
+  if(!out) return;
+
+  // Deadline
+  var deadlineHtml="";
+  if(r.due){
+    var dl=r.daysLeft;
+    var dlColor = dl===null?"#374151":dl<0?"#dc2626":dl<=7?"#d97706":"#059669";
+    var dlMsg   = dl===null?"":dl<0?"⚠ Overdue by "+Math.abs(dl)+" days":dl===0?"Due TODAY":""+dl+" days remaining";
+    deadlineHtml='<div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:14px;">'
+      +'<div style="font-size:11px;font-weight:700;color:#b8923a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Filing Deadline</div>'
+      +'<div style="font-size:18px;font-weight:700;color:#1a2744;">'+secpFmtDate(r.due)+'</div>'
+      +'<div style="font-size:13px;color:'+dlColor+';font-weight:600;margin-top:4px;">'+dlMsg+'</div>'
+      +(r.mult>1?'<div style="font-size:11px;color:#dc2626;margin-top:4px;">Late fee multiplier: '+r.mult+'× (s.468 Companies Act 2017)</div>':'')
+      +'</div>';
+  } else if(form.id==="incorp"){
+    deadlineHtml='<div style="background:#f0f4ff;border:1.5px solid #c7d2fe;border-radius:10px;padding:16px 20px;margin-bottom:14px;">'
+      +'<div style="font-size:13px;color:#1a2744;font-weight:600;">Incorporation — no post-event deadline. File as soon as documents are ready.</div></div>';
+  }
+
+  // Fee
+  var feeHtml='<div style="background:#fffbf0;border:1.5px solid #fde68a;border-radius:10px;padding:16px 20px;margin-bottom:14px;">'
+    +'<div style="font-size:11px;font-weight:700;color:#b8923a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Fee</div>'
+    +'<div style="display:flex;gap:24px;flex-wrap:wrap;">'
+    +'<div><div style="font-size:11px;color:#6b7280;">Online (eZfile/LEAP)</div><div style="font-size:17px;font-weight:700;color:#1a2744;">'+secpFmtPKR(r.feeOnline)+'</div></div>'
+    +'<div><div style="font-size:11px;color:#6b7280;">Physical (counter)</div><div style="font-size:17px;font-weight:700;color:#374151;">'+secpFmtPKR(r.feePhys)+'</div></div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#9ca3af;margin-top:8px;">⚠ Fees as per SECP revised schedule (Apr 2025). Always confirm on the live challan.</div>'
+    +'</div>';
+
+  // Schedule
+  var schedHtml="";
+  if(r.schedule && r.schedule.length){
+    schedHtml='<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:16px 20px;margin-bottom:14px;">'
+      +'<div style="font-size:11px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Date Chain</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px;">';
+    r.schedule.forEach(function(s){
+      schedHtml+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #e0f2fe;">'
+        +'<span style="color:#374151;">'+s.label+'</span>'
+        +'<span style="font-weight:600;color:#0369a1;">'+secpFmtDate(s.date)+'</span>'
+        +'</div>';
+    });
+    schedHtml+='</div></div>';
+  }
+
+  // Docs
+  var docsHtml='<div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:14px;">'
+    +'<div style="font-size:11px;font-weight:700;color:#1a2744;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Documents Required</div>'
+    +'<ul style="margin:0;padding-left:18px;">';
+  (r.docs||[]).forEach(function(d){ docsHtml+='<li style="font-size:13px;color:#374151;margin-bottom:4px;">'+escHtml(d)+'</li>'; });
+  docsHtml+='</ul></div>';
+
+  // Notes
+  var notesHtml="";
+  if(r.notes && r.notes.length){
+    notesHtml='<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:14px 18px;margin-bottom:14px;">'
+      +'<div style="font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Notes</div>';
+    r.notes.forEach(function(n){ notesHtml+='<div style="font-size:12px;color:#374151;margin-bottom:4px;">• '+escHtml(n)+'</div>'; });
+    notesHtml+='</div>';
+  }
+
+  // Resolutions
+  var resHtml="";
+  (r.resolutions||[]).forEach(function(res,ri){
+    var resId="secp-res-"+ri;
+    resHtml+='<div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:14px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+      +'<div style="font-size:13px;font-weight:700;color:#1a2744;">'+escHtml(res.title)+'</div>'
+      +'<button onclick="secpCopyRes(\''+resId+'\')" style="background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;font-size:11px;padding:5px 12px;border-radius:5px;cursor:pointer;">📋 Copy</button>'
+      +'</div>'
+      +'<pre id="'+resId+'" style="white-space:pre-wrap;font-family:\'Times New Roman\',serif;font-size:12px;color:#111;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;margin:0;line-height:1.6;">'+escHtml(res.text)+'</pre>'
+      +'</div>';
+  });
+
+  out.innerHTML='<div style="background:#1a2744;color:#fff;border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">'
+    +'<div><div style="font-size:15px;font-weight:700;">'+escHtml(r.what)+'</div><div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px;">'+escHtml(co.name)+'</div></div>'
+    +'<button onclick="secpPrint()" style="background:#b8923a;border:none;color:#fff;font-size:12px;font-weight:700;padding:8px 18px;border-radius:6px;cursor:pointer;">🖨 Print Package</button>'
+    +'</div>'
+    +deadlineHtml+feeHtml+schedHtml+docsHtml+notesHtml+resHtml;
+  out.style.display="block";
+  out._data={form:form,co:co,r:r};
+  out.scrollIntoView({behavior:"smooth",block:"start"});
+};
+
+window.secpCopyRes = function(elId){
+  var el=document.getElementById(elId);
+  if(!el) return;
+  if(navigator.clipboard){ navigator.clipboard.writeText(el.textContent).then(function(){ alert("Resolution copied to clipboard."); }); }
+  else{ var r=document.createRange(); r.selectNode(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); document.execCommand("copy"); alert("Resolution copied."); }
+};
+
+window.secpPrint = function(){
+  var out=document.getElementById("secp-output");
+  if(!out||!out._data) return;
+  var d=out._data; var r=d.r; var co=d.co;
+  var body="<h2 style='font-family:serif;font-size:16pt;margin-bottom:4px;'>"+escHtml(r.what)+"</h2>"
+    +"<p style='font-size:10pt;color:#555;margin:0 0 16px;'>"+escHtml(co.name)+(co.cuin?" &nbsp;·&nbsp; CUIN: "+escHtml(co.cuin):"")+"</p>";
+  if(r.due) body+='<p style="font-size:11pt;"><strong>Filing Deadline:</strong> '+secpFmtDate(r.due)+(r.daysLeft!==null?' ('+Math.abs(r.daysLeft)+' days '+(r.daysLeft<0?'overdue':'remaining')+')'  :'')+'</p>';
+  body+="<p style='font-size:11pt;'><strong>Fee (Online):</strong> "+secpFmtPKR(r.feeOnline)+" &nbsp;|&nbsp; <strong>Physical:</strong> "+secpFmtPKR(r.feePhys)+"</p>";
+  if(r.schedule&&r.schedule.length){ body+="<h3 style='font-size:12pt;margin:16px 0 6px;'>Date Chain</h3><table style='border-collapse:collapse;width:100%;font-size:10pt;'>"; r.schedule.forEach(function(s){ body+="<tr><td style='padding:4px 8px;border:1px solid #ccc;'>"+escHtml(s.label)+"</td><td style='padding:4px 8px;border:1px solid #ccc;font-weight:bold;'>"+secpFmtDate(s.date)+"</td></tr>"; }); body+="</table>"; }
+  body+="<h3 style='font-size:12pt;margin:16px 0 6px;'>Documents Required</h3><ul style='font-size:10pt;'>"; (r.docs||[]).forEach(function(d){ body+="<li>"+escHtml(d)+"</li>"; }); body+="</ul>";
+  if(r.notes&&r.notes.length){ body+="<h3 style='font-size:12pt;margin:16px 0 6px;'>Notes</h3><ul style='font-size:10pt;'>"; r.notes.forEach(function(n){ body+="<li>"+escHtml(n)+"</li>"; }); body+="</ul>"; }
+  (r.resolutions||[]).forEach(function(res){ body+="<h3 style='font-size:12pt;margin:20px 0 6px;page-break-before:always;'>"+escHtml(res.title)+"</h3><pre style='font-family:\"Times New Roman\",serif;font-size:11pt;white-space:pre-wrap;border:1px solid #ccc;padding:14px;line-height:1.7;'>"+escHtml(res.text)+"</pre>"; });
+  var w=window.open("","_blank","width=900,height=900");
+  if(!w){ alert("Please allow pop-ups."); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SECP Filing Package</title>'
+    +'<style>@page{margin:20mm;} body{font-family:Arial,sans-serif;font-size:10pt;color:#000;} @media print{.no-print{display:none;}}</style></head><body>'
+    +'<div style="text-align:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:18px;">'
+    +'<div style="font-size:14pt;font-weight:bold;">S. SAEED &amp; CO. TAX CONSULTANTS</div>'
+    +'<div style="font-size:9pt;">Office No. 05, 3rd Floor, Bizzon Plaza, F-11 Markaz, Islamabad</div>'
+    +'<div style="font-size:9pt;">Tel: 051-2152700 / +92-315-510-8858 &nbsp;|&nbsp; sohaib@saeedandcotax.com</div>'
+    +'</div>'
+    +body
+    +'<p class="no-print" style="margin-top:24px;text-align:center;"><button onclick="window.print()" style="padding:10px 30px;font-size:13px;cursor:pointer;background:#000;color:#fff;border:none;border-radius:6px;">Print / Save PDF</button></p>'
+    +'</body></html>');
+  w.document.close(); w.focus();
+  setTimeout(function(){ w.print(); },600);
+};
+
 
 </script>
 
