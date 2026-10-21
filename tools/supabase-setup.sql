@@ -72,7 +72,7 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 -- 6. Staff list - edit the emails, then run again
+-- To add someone later, add a line like:  ('their@email.com', 'ubaid', 'Ubaid', 'reviewer'),
 insert into public.staff (email, username, name, role) values
-  ('sohaib@saeedandcotax.com', 'sohaib', 'Sohaib',  'admin'),
-  ('UBAID-EMAIL-HERE',         'ubaid',  'Ubaid',   'reviewer')
+  ('sohaib@saeedandcotax.com', 'sohaib', 'Sohaib', 'admin')
 on conflict (email) do update set username = excluded.username, name = excluded.name, role = excluded.role;
