@@ -3,3 +3,4 @@
 # decrypted portal data - never commit
 clients.json
 *.plain.json
+__pycache__/
