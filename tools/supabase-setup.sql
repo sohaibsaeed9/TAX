@@ -76,3 +76,15 @@ exception when duplicate_object then null; end $$;
 insert into public.staff (email, username, name, role) values
   ('sohaib@saeedandcotax.com', 'sohaib', 'Sohaib', 'admin')
 on conflict (email) do update set username = excluded.username, name = excluded.name, role = excluded.role;
+
+-- 7. Private storage for uploaded notice files (PDFs / photos)
+insert into storage.buckets (id, name, public) values ('notices', 'notices', false)
+on conflict (id) do nothing;
+drop policy if exists notices_read   on storage.objects;
+drop policy if exists notices_insert on storage.objects;
+drop policy if exists notices_update on storage.objects;
+drop policy if exists notices_delete on storage.objects;
+create policy notices_read   on storage.objects for select to authenticated using (bucket_id = 'notices' and public.is_staff());
+create policy notices_insert on storage.objects for insert to authenticated with check (bucket_id = 'notices' and public.is_staff());
+create policy notices_update on storage.objects for update to authenticated using (bucket_id = 'notices' and public.is_staff());
+create policy notices_delete on storage.objects for delete to authenticated using (bucket_id = 'notices' and public.is_admin());
