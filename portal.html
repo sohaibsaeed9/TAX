@@ -389,6 +389,47 @@ button .ic,.btn .ic{width:16px;height:16px;}
 .tag-name{font-weight:700;white-space:nowrap;display:block;max-width:100%;overflow:hidden;}
 .tag-year{font-weight:700;white-space:nowrap;margin-top:1mm;}
 
+/* ── TAX COMPUTATION ── */
+.cx-wrap{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:18px;align-items:start}
+.cx-main{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.cx-tabs{display:flex;flex-wrap:wrap;gap:2px;padding:8px 8px 0;border-bottom:1px solid var(--line);background:#fbfaf7}
+.cx-tab{border:1px solid transparent;border-bottom:none;background:none;padding:9px 14px;font-size:13px;font-weight:500;color:var(--ink-2);border-radius:8px 8px 0 0;cursor:pointer}
+.cx-tab.on{background:var(--card);border-color:var(--line);color:var(--ink);font-weight:600;margin-bottom:-1px}
+.cx-tools{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line-2);font-size:12.5px;color:var(--ink-3)}
+.cx-chk{display:inline-flex;gap:6px;align-items:center;color:var(--ink-2);cursor:pointer}
+.cx-grid{overflow:auto;max-height:calc(100vh - 230px)}
+.cx-t{border-collapse:collapse;table-layout:fixed;font-size:12.5px;min-width:100%}
+.cx-t td{border:1px solid var(--line-2);padding:0 6px;height:28px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-t td.cx-l{color:var(--ink);white-space:normal;line-height:1.3;padding:4px 6px}
+.cx-t td.b{font-weight:600}
+.cx-t td.cx-f{background:#f6f4ee;color:var(--ink-2);text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.cx-t td.cx-f.cx-txt{text-align:left;font-family:var(--sans);white-space:normal}
+.cx-t td.cx-i{padding:0;background:#fff;box-shadow:inset 0 0 0 1px rgba(32,55,98,.10)}
+.cx-t td.cx-i.cx-it input{text-align:left;font-family:var(--sans)}
+.cx-t td.cx-i input{width:100%;height:28px;border:none!important;border-radius:0!important;background:transparent!important;padding:0 6px!important;font-family:var(--mono);font-size:12.5px;text-align:right;min-height:0!important;box-shadow:none!important}
+.cx-t td.cx-i input:focus{outline:2px solid var(--navy-700);outline-offset:-2px;background:#fff!important}
+.cx-rn{position:sticky;left:0;background:#fbfaf7;border:1px solid var(--line-2);width:30px;padding:0;z-index:1}
+.cx-add{width:100%;height:28px;border:none;background:none;color:var(--ink-3);font-size:15px;cursor:pointer;opacity:.35}
+tr:hover .cx-add{opacity:1;color:var(--navy-700)}
+.cx-hrow td{background-image:linear-gradient(90deg,rgba(184,149,90,.07),rgba(184,149,90,.07))}
+.cx-more{padding:12px 14px;font-size:12.5px;color:var(--ink-3)}
+.cx-side{position:sticky;top:80px}
+.cx-sum{background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px}
+.cx-sum-t{font-family:var(--serif);font-size:22px;font-weight:600;margin-bottom:6px}
+.cx-sum-g{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin:14px 0 4px}
+.cx-sum-r{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line-2)}
+.cx-sum-r b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.cx-sum-r.strong{font-weight:600}.cx-sum-r.strong b{font-weight:600;color:var(--navy-900)}
+@media(max-width:1000px){.cx-wrap{grid-template-columns:1fr}.cx-side{position:static}}
+
+#comp-overlay{display:none;position:fixed;inset:0;z-index:970;background:var(--paper);flex-direction:column}
+#comp-overlay.on{display:flex}
+.cxo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px max(24px,env(safe-area-inset-right,0px)) 12px max(24px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--card)}
+.cxo-title{font-family:var(--serif);font-size:24px;font-weight:600;line-height:1.1}
+.cxo-right{display:flex;gap:12px;align-items:center}.cxo-status{font-size:12.5px;color:var(--ink-3)}
+.cxo-body{flex:1;overflow:auto;padding:18px 24px}
+.cxo-body .cx-grid{max-height:calc(100vh - 190px)}
+.cxo-body .cx-side{top:0}
 /* ── RESPONSIVE ── */
 @media(max-width:1100px){
   .fbr-links{grid-template-columns:1fr 1fr;}
@@ -887,6 +928,546 @@ button .ic,.btn .ic{width:16px;height:16px;}
 </div>
 </div>
 
+<script>
+/* Spreadsheet engine for the S. Saeed & Co. computation workbook.
+   Evaluates the workbook's own formulas so results match Excel.
+   Supports: + - * / ^ & = <> < > <= >= unary -, %, ranges, cross-sheet refs,
+   IF AND OR NOT DATE ROUND ROUNDUP ROUNDDOWN SUM MAX MIN ABS IFERROR UPPER DATEDIF. */
+(function(root){
+  "use strict";
+  var ERR=function(c){ return {err:c}; };
+  function isErr(v){ return v&&typeof v==="object"&&"err" in v; }
+  function colNum(s){ var n=0; for(var i=0;i<s.length;i++) n=n*26+(s.charCodeAt(i)-64); return n; }
+  function colStr(n){ var s=""; while(n>0){ var m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; }
+
+  /* ---------- tokenizer ---------- */
+  function tokenize(f){
+    var t=[], i=0, n=f.length;
+    while(i<n){
+      var ch=f[i];
+      if(ch===" "||ch==="\n"||ch==="\r"||ch==="\t"){ i++; continue; }
+      if(ch==='"'){ var j=i+1, s=""; while(j<n){ if(f[j]==='"'){ if(f[j+1]==='"'){ s+='"'; j+=2; continue; } break; } s+=f[j++]; } t.push({k:"str",v:s}); i=j+1; continue; }
+      if(ch==="#"){ var m=/^#(REF!|N\/A|DIV\/0!|VALUE!|NAME\?|NUM!|NULL!)/.exec(f.slice(i)); if(m){ t.push({k:"err",v:m[0]}); i+=m[0].length; continue; } }
+      if("+-*/^&(),%".indexOf(ch)>=0){ t.push({k:"op",v:ch}); i++; continue; }
+      if(ch==="<"||ch===">"||ch==="="){ var two=f.substr(i,2); if(two==="<="||two===">="||two==="<>"){ t.push({k:"op",v:two}); i+=2; } else { t.push({k:"op",v:ch}); i++; } continue; }
+      if(ch===":"){ t.push({k:"op",v:":"}); i++; continue; }
+      var rest=f.slice(i);
+      var mq=/^'((?:[^']|'')+)'!/.exec(rest);
+      var sheet=null, len=0;
+      if(mq){ sheet=mq[1].replace(/''/g,"'"); len=mq[0].length; }
+      else { var ms=/^([A-Za-z_][A-Za-z0-9_\.\-]*)!/.exec(rest); if(ms){ sheet=ms[1]; len=ms[0].length; } }
+      var r2=rest.slice(len);
+      var mr=/^\$?([A-Za-z]{1,3})\$?(\d+)(?:\s*:\s*\$?([A-Za-z]{1,3})\$?(\d+))?(?![A-Za-z0-9_\(])/.exec(r2);
+      if(mr){ t.push({k:"ref",sheet:sheet,c1:colNum(mr[1].toUpperCase()),r1:+mr[2],c2:mr[3]?colNum(mr[3].toUpperCase()):null,r2:mr[4]?+mr[4]:null}); i+=len+mr[0].length; continue; }
+      if(sheet!==null){ /* sheet!#REF! */ var me=/^#REF!/.exec(r2); if(me){ t.push({k:"err",v:"#REF!"}); i+=len+5; continue; } }
+      var mn=/^(\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)/.exec(rest);
+      if(mn){ t.push({k:"num",v:parseFloat(mn[1])}); i+=mn[0].length; continue; }
+      var mi=/^([A-Za-z_][A-Za-z0-9_\.]*)/.exec(rest);
+      if(mi){ var w=mi[1], up=w.toUpperCase(); i+=w.length;
+        if(f[i]==="("){ t.push({k:"fn",v:up.replace(/^_XLFN\./,"")}); }
+        else if(up==="TRUE"||up==="FALSE") t.push({k:"bool",v:up==="TRUE"});
+        else t.push({k:"name",v:up});
+        continue; }
+      throw new Error("Cannot read formula near: "+rest.slice(0,20));
+    }
+    return t;
+  }
+
+  /* ---------- parser (precedence climbing) ---------- */
+  var PREC={"=":1,"<>":1,"<":1,">":1,"<=":1,">=":1,"&":2,"+":3,"-":3,"*":4,"/":4,"^":5};
+  function parse(f){
+    var t=tokenize(f), p=0;
+    function peek(){ return t[p]; }
+    function expr(minP){
+      var left=unary();
+      for(;;){
+        var tk=peek(); if(!tk||tk.k!=="op"||!(tk.v in PREC)) break;
+        var pr=PREC[tk.v]; if(pr<minP) break;
+        p++;
+        var right=expr(tk.v==="^"?pr:pr+1);
+        left={t:"bin",op:tk.v,a:left,b:right};
+      }
+      return left;
+    }
+    function unary(){
+      var tk=peek();
+      if(tk&&tk.k==="op"&&(tk.v==="-"||tk.v==="+")){ p++; var u=unary(); return tk.v==="-"?{t:"neg",a:u}:u; }
+      var e=postfix(primary());
+      return e;
+    }
+    function postfix(e){ while(peek()&&peek().k==="op"&&peek().v==="%"){ p++; e={t:"bin",op:"/",a:e,b:{t:"num",v:100}}; } return e; }
+    function primary(){
+      var tk=t[p++];
+      if(!tk) throw new Error("Unexpected end of formula");
+      if(tk.k==="num") return {t:"num",v:tk.v};
+      if(tk.k==="str") return {t:"str",v:tk.v};
+      if(tk.k==="bool") return {t:"bool",v:tk.v};
+      if(tk.k==="err") return {t:"err",v:tk.v};
+      if(tk.k==="ref") return {t:"ref",sheet:tk.sheet,c1:tk.c1,r1:tk.r1,c2:tk.c2,r2:tk.r2};
+      if(tk.k==="name") return {t:"name",v:tk.v};
+      if(tk.k==="op"&&tk.v==="("){ var e=expr(1); if(!t[p]||t[p].v!==")") throw new Error("Missing )"); p++; return e; }
+      if(tk.k==="fn"){
+        p++; /* ( */ var args=[];
+        if(t[p]&&t[p].k==="op"&&t[p].v===")"){ p++; return {t:"fn",name:tk.v,args:args}; }
+        for(;;){
+          if(t[p]&&t[p].k==="op"&&(t[p].v===","||t[p].v===")")) args.push({t:"blank"});
+          else args.push(expr(1));
+          var s=t[p++]; if(!s) throw new Error("Missing )");
+          if(s.v===")") break; if(s.v!==",") throw new Error("Expected , in "+tk.v);
+        }
+        return {t:"fn",name:tk.v,args:args};
+      }
+      throw new Error("Unexpected token "+JSON.stringify(tk));
+    }
+    var ast=expr(1);
+    if(p<t.length) throw new Error("Unexpected text after formula");
+    return ast;
+  }
+
+  /* ---------- values ---------- */
+  function toNum(v){
+    if(isErr(v)) return v;
+    if(v===null||v===undefined||v==="") return 0;
+    if(typeof v==="number") return v;
+    if(typeof v==="boolean") return v?1:0;
+    if(typeof v==="string"){ var s=v.trim(); if(s==="") return 0; var n=Number(s.replace(/,/g,"")); return isNaN(n)?ERR("#VALUE!"):n; }
+    return ERR("#VALUE!");
+  }
+  function toStr(v){ if(v===null||v===undefined) return ""; if(typeof v==="boolean") return v?"TRUE":"FALSE"; if(typeof v==="number"){ return String(+v.toPrecision(15)); } return String(v); }
+  function toBool(v){ if(isErr(v)) return v; if(v===null||v===undefined||v==="") return false; if(typeof v==="boolean") return v; if(typeof v==="number") return v!==0; var u=String(v).toUpperCase(); if(u==="TRUE") return true; if(u==="FALSE") return false; return ERR("#VALUE!"); }
+  function typeRank(v){ return typeof v==="number"?0:typeof v==="string"?1:2; }
+  function compare(a,b){
+    if(a===null||a===undefined) a=(typeof b==="string")?"":(typeof b==="boolean"?false:0);
+    if(b===null||b===undefined) b=(typeof a==="string")?"":(typeof a==="boolean"?false:0);
+    var ra=typeRank(a), rb=typeRank(b);
+    if(ra!==rb) return ra<rb?-1:1;
+    if(ra===1){ a=a.toUpperCase(); b=b.toUpperCase(); }
+    return a<b?-1:a>b?1:0;
+  }
+  function round(x,d){ var m=Math.pow(10,d); var y=Math.abs(x)*m; y=Math.round(+y.toPrecision(15)); return Math.sign(x)*y/m; }
+  /* Excel serial <-> y/m/d (1900 system, serial 60 = fake 29-Feb-1900) */
+  function ymdToSerial(y,m,d){
+    if(y<1900) y+=1900;
+    var dt=Date.UTC(y,m-1,d); var s=Math.round((dt-Date.UTC(1899,11,30))/86400000);
+    if(s<=60) s-=1; return s;
+  }
+  function serialToYMD(s){ s=Math.floor(s); if(s===60) return {y:1900,m:2,d:29}; if(s<60) s+=1; var dt=new Date(Date.UTC(1899,11,30)+s*86400000); return {y:dt.getUTCFullYear(),m:dt.getUTCMonth()+1,d:dt.getUTCDate()}; }
+  function datedif(a,b,unit){
+    if(a>b) return ERR("#NUM!");
+    var s=serialToYMD(a), e=serialToYMD(b); unit=String(unit).toUpperCase();
+    var months=(e.y-s.y)*12+(e.m-s.m)-(e.d<s.d?1:0);
+    if(unit==="D") return Math.floor(b)-Math.floor(a);
+    if(unit==="M") return months;
+    if(unit==="Y") return Math.floor(months/12);
+    if(unit==="YM") return months%12;
+    if(unit==="MD"){ var pm=e.m-1, py=e.y; if(e.d>=s.d) return e.d-s.d; if(pm<1){pm=12;py--;} var dim=new Date(Date.UTC(py,pm,0)).getUTCDate(); return dim-s.d+e.d; }
+    if(unit==="YD"){ var yy=e.y; var st=ymdToSerial(yy,s.m,s.d); if(st>Math.floor(b)) st=ymdToSerial(yy-1,s.m,s.d); return Math.floor(b)-st; }
+    return ERR("#NUM!");
+  }
+
+  function critFn(c){
+    if(isErr(c)) return function(){ return false; };
+    if(typeof c==="number"||typeof c==="boolean") return function(x){ return compare(x,c)===0&&typeof x===typeof c; };
+    var s=String(c===null?"":c), m=/^(<=|>=|<>|<|>|=)?(.*)$/.exec(s), op=m[1]||"=", rhs=m[2];
+    var num=rhs!==""&&!isNaN(Number(rhs))?Number(rhs):null;
+    if(num!==null) return function(x){ if(typeof x!=="number") return op==="<>"; var k=x<num?-1:x>num?1:0; return op==="="?k===0:op==="<>"?k!==0:op==="<"?k<0:op===">"?k>0:op==="<="?k<=0:k>=0; };
+    var re=new RegExp("^"+rhs.replace(/[.+^${}()|[\]\\]/g,"\\$&").replace(/~\*/g,"\u0001").replace(/~\?/g,"\u0002").replace(/\*/g,".*").replace(/\?/g,".").replace(/\u0001/g,"\\*").replace(/\u0002/g,"\\?")+"$","i");
+    if(op==="="){ if(rhs==="") return function(x){ return x===null||x===""; }; return function(x){ return typeof x==="string"&&re.test(x); }; }
+    if(op==="<>") return function(x){ return !(typeof x==="string"&&re.test(x)); };
+    return function(x){ if(typeof x!=="string") return false; var k=compare(x,rhs); return op==="<"?k<0:op===">"?k>0:op==="<="?k<=0:k>=0; };
+  }
+
+  /* ---------- workbook ---------- */
+  function Workbook(model){
+    this.model=model; this.inputs={}; this.cache={}; this.ast={}; this.busy={};
+    var ix={}; model.order.forEach(function(s){ ix[s.toUpperCase()]=s; }); this.sheetIx=ix;
+  }
+  Workbook.prototype.key=function(sheet,c,r){ return sheet+"!"+colStr(c)+r; };
+  Workbook.prototype.setInput=function(sheet,addr,value){ this.inputs[sheet+"!"+addr]=value; this.cache={}; };
+  Workbook.prototype.setInputs=function(map){ var self=this; Object.keys(map).forEach(function(k){ self.inputs[k]=map[k]; }); this.cache={}; };
+  Workbook.prototype.get=function(sheet,addr){ var m=/^([A-Z]+)(\d+)$/.exec(addr); return this.cell(sheet,colNum(m[1]),+m[2]); };
+  Workbook.prototype.cell=function(sheet,c,r){
+    var addr=colStr(c)+r, k=sheet+"!"+addr;
+    if(k in this.inputs) return this.inputs[k];
+    var raw=(this.model.sheets[sheet]||{})[addr];
+    if(!raw) return null;
+    if(!("f" in raw)) return raw.v;
+    if(k in this.cache) return this.cache[k];
+    if(this.busy[k]) return ERR("#CIRC!");
+    this.busy[k]=1;
+    var ast=this.ast[k];
+    if(!ast){ try{ ast=this.ast[k]=parse(raw.f); }catch(e){ ast=this.ast[k]={t:"err",v:"#PARSE!",msg:e.message}; } }
+    var prev=this.at; this.at={c:c,r:r};
+    var v=this.scalar(this.ev(ast,sheet));
+    this.at=prev;
+    if(v===null||v===undefined) v=0;
+    delete this.busy[k]; this.cache[k]=v; return v;
+  };
+  Workbook.prototype.sheetName=function(s,cur){ if(!s) return cur; var real=this.sheetIx[s.toUpperCase()]; return real||null; };
+  Workbook.prototype.ev=function(n,cur){
+    var self=this;
+    switch(n.t){
+      case "num": case "str": case "bool": return n.v;
+      case "blank": return null;
+      case "err": return ERR(n.v);
+      case "name": return ERR("#NAME?");
+      case "neg": var x=toNum(this.ev(n.a,cur)); return isErr(x)?x:-x;
+      case "ref":
+        var sh=this.sheetName(n.sheet,cur); if(!sh) return ERR("#REF!");
+        if(n.c2===null) return this.cell(sh,n.c1,n.r1);
+        return {range:true,sheet:sh,c1:Math.min(n.c1,n.c2),c2:Math.max(n.c1,n.c2),r1:Math.min(n.r1,n.r2),r2:Math.max(n.r1,n.r2)};
+      case "bin": return this.bin(n.op,this.scalar(this.ev(n.a,cur)),this.scalar(this.ev(n.b,cur)));
+      case "fn": return this.fn(n.name,n.args,cur);
+    }
+    return ERR("#VALUE!");
+  };
+  /* implicit intersection: a range used where one value is expected takes the cell in the formula's own row/column */
+  Workbook.prototype.scalar=function(v){
+    if(!(v&&v.range)) return v;
+    if(v.r1===v.r2&&v.c1===v.c2) return this.cell(v.sheet,v.c1,v.r1);
+    var at=this.at||{c:0,r:0};
+    if(v.r1===v.r2){ return (at.c>=v.c1&&at.c<=v.c2)?this.cell(v.sheet,at.c,v.r1):ERR("#VALUE!"); }
+    if(v.c1===v.c2){ return (at.r>=v.r1&&at.r<=v.r2)?this.cell(v.sheet,v.c1,at.r):ERR("#VALUE!"); }
+    return ERR("#VALUE!");
+  };
+  Workbook.prototype.bin=function(op,a,b){
+    if(isErr(a)) return a; if(isErr(b)) return b;
+    if(op==="&") return toStr(a)+toStr(b);
+    if(op==="="||op==="<>"||op==="<"||op===">"||op==="<="||op===">="){
+      var c=compare(a,b);
+      return op==="="?c===0:op==="<>"?c!==0:op==="<"?c<0:op===">"?c>0:op==="<="?c<=0:c>=0;
+    }
+    var x=toNum(a), y=toNum(b); if(isErr(x)) return x; if(isErr(y)) return y;
+    if(op==="+") return x+y; if(op==="-") return x-y; if(op==="*") return x*y;
+    if(op==="/") return y===0?ERR("#DIV/0!"):x/y;
+    if(op==="^") return Math.pow(x,y);
+    return ERR("#VALUE!");
+  };
+  Workbook.prototype.each=function(v,fnc){ /* iterate values of a range or scalar arg */
+    if(v&&v.range){ for(var r=v.r1;r<=v.r2;r++) for(var c=v.c1;c<=v.c2;c++) fnc(this.cell(v.sheet,c,r),true); }
+    else fnc(v,false);
+  };
+  Workbook.prototype.fn=function(name,args,cur){
+    var self=this, A=function(i){ return i<args.length?self.ev(args[i],cur):null; }, S=function(i){ return self.scalar(A(i)); };
+    switch(name){
+      case "IF": var c=toBool(S(0)); if(isErr(c)) return c; return c?(args.length>1?(args[1].t==="blank"?0:S(1)):true):(args.length>2?(args[2].t==="blank"?0:S(2)):false);
+      case "IFERROR": var v=S(0); return isErr(v)?S(1):v;
+      case "AND": case "OR":
+        var res=name==="AND", seen=false, er=null;
+        for(var i=0;i<args.length;i++){ this.each(A(i),function(x,inRange){
+            if(er) return; if(isErr(x)){ er=x; return; }
+            if(inRange&&(typeof x==="string"||x===null)) return;
+            var bv=toBool(x); if(isErr(bv)){ er=bv; return; } seen=true;
+            if(name==="AND") res=res&&bv; else res=res||bv; }); }
+        if(er) return er; if(!seen) return ERR("#VALUE!"); return res;
+      case "NOT": var nb=toBool(S(0)); return isErr(nb)?nb:!nb;
+      case "SUM": case "MAX": case "MIN":
+        var acc=name==="SUM"?0:null, e2=null;
+        for(var j=0;j<args.length;j++){ this.each(A(j),function(x,inRange){
+            if(e2) return; if(isErr(x)){ e2=x; return; }
+            var nv; if(inRange){ if(typeof x!=="number") return; nv=x; } else { nv=toNum(x); if(isErr(nv)){ e2=nv; return; } }
+            if(name==="SUM") acc+=nv; else if(acc===null) acc=nv; else acc=name==="MAX"?Math.max(acc,nv):Math.min(acc,nv); }); }
+        return e2||(acc===null?0:acc);
+      case "ABS": var a1=toNum(S(0)); return isErr(a1)?a1:Math.abs(a1);
+      case "ROUND": case "ROUNDUP": case "ROUNDDOWN":
+        var x=toNum(S(0)), d=toNum(args.length>1?S(1):0); if(isErr(x)) return x; if(isErr(d)) return d; d=Math.trunc(d);
+        if(name==="ROUND") return round(x,d);
+        var m=Math.pow(10,d), y=+(Math.abs(x)*m).toPrecision(15); y=name==="ROUNDUP"?Math.ceil(y):Math.floor(y); return Math.sign(x)*y/m;
+      case "DATE": var yy=toNum(S(0)),mm=toNum(S(1)),dd=toNum(S(2)); if(isErr(yy)) return yy; if(isErr(mm)) return mm; if(isErr(dd)) return dd; return ymdToSerial(Math.trunc(yy),Math.trunc(mm),Math.trunc(dd));
+      case "DATEDIF": var s0=toNum(S(0)), s1=toNum(S(1)); if(isErr(s0)) return s0; if(isErr(s1)) return s1; return datedif(s0,s1,toStr(S(2)));
+      case "SUMIF": case "COUNTIF":
+        var rng=A(0), crit=S(1), sumR=args.length>2?A(2):rng;
+        if(!(rng&&rng.range)) return ERR("#VALUE!");
+        var test=critFn(crit), tot=0, cnt=0;
+        for(var rr=0;rr<=rng.r2-rng.r1;rr++) for(var cc=0;cc<=rng.c2-rng.c1;cc++){
+          if(!test(this.cell(rng.sheet,rng.c1+cc,rng.r1+rr))) continue;
+          cnt++;
+          if(name==="SUMIF"){ var sv=sumR&&sumR.range?this.cell(sumR.sheet,sumR.c1+cc,sumR.r1+rr):null; if(typeof sv==="number") tot+=sv; }
+        }
+        return name==="SUMIF"?tot:cnt;
+      case "UPPER": var us=S(0); return isErr(us)?us:toStr(us).toUpperCase();
+    }
+    return ERR("#NAME?");
+  };
+  Workbook.prototype.formulaCells=function(){ var out=[]; var m=this.model; m.order.forEach(function(s){ Object.keys(m.sheets[s]).forEach(function(a){ if("f" in m.sheets[s][a]) out.push([s,a]); }); }); return out; };
+  /* ---------- structure: references used, row insertion ---------- */
+  Workbook.prototype.referenced=function(){
+    if(this._refd) return this._refd;
+    var self=this, out={};
+    function walk(n,cur){
+      if(!n) return;
+      if(n.t==="ref"){ var sh=self.sheetName(n.sheet,cur); if(!sh) return; var o=out[sh]||(out[sh]={});
+        var r2=n.r2===null?n.r1:n.r2, c2=n.c2===null?n.c1:n.c2;
+        if((Math.abs(r2-n.r1)+1)*(Math.abs(c2-n.c1)+1)>4000) return;
+        for(var r=Math.min(n.r1,r2);r<=Math.max(n.r1,r2);r++) for(var c=Math.min(n.c1,c2);c<=Math.max(n.c1,c2);c++) o[colStr(c)+r]=1; return; }
+      if(n.a) walk(n.a,cur); if(n.b) walk(n.b,cur); if(n.args) n.args.forEach(function(x){ walk(x,cur); });
+    }
+    this.model.order.forEach(function(sh){ var cells=self.model.sheets[sh]; Object.keys(cells).forEach(function(a){ var raw=cells[a]; if(!("f" in raw)) return; var k=sh+"!"+a;
+      var ast=self.ast[k]; if(!ast){ try{ ast=self.ast[k]=parse(raw.f); }catch(e){ return; } } walk(ast,sh); }); });
+    this._refd=out; return out;
+  };
+  /* rewrite every cell reference in a formula string (keeps $ markers, strings untouched) */
+  function rewrite(f,cur,fn){
+    var out="", i=0, n=f.length;
+    var re=/^((?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_\.\-]*)!)?(\$?)([A-Za-z]{1,3})(\$?)(\d+)(?:(\s*:\s*)(\$?)([A-Za-z]{1,3})(\$?)(\d+))?(?![A-Za-z0-9_\(])/;
+    while(i<n){
+      var ch=f[i];
+      if(ch==='"'){ var j=i+1; while(j<n){ if(f[j]==='"'){ if(f[j+1]==='"'){ j+=2; continue; } break; } j++; } out+=f.slice(i,j+1); i=j+1; continue; }
+      var prev=i>0?f[i-1]:"";
+      if(/[A-Za-z0-9_\.\$']/.test(prev)){ out+=ch; i++; continue; }
+      var m=re.exec(f.slice(i));
+      if(m){
+        var pre=m[1]||"", sheet=pre?pre.slice(0,-1).replace(/^'|'$/g,"").replace(/''/g,"'"):cur;
+        var r1=+m[5], r2=m[10]?+m[10]:null;
+        var nr=fn(sheet,r1,m[4]==="$",r2,m[9]==="$");
+        if(nr){
+          var t=pre+m[2]+m[3]+m[4]+nr.r1; if(m[10]) t+=m[6]+m[7]+m[8]+m[9]+nr.r2;
+          out+=t;
+        } else out+=m[0];
+        i+=m[0].length; continue;
+      }
+      out+=ch; i++;
+    }
+    return out;
+  }
+  function shiftKey(addr,at,d){ var m=/^([A-Z]+)(\d+)$/.exec(addr); var r=+m[2]; return r>=at?m[1]+(r+d):addr; }
+  /* Insert a blank row ABOVE row `at` in `sheet` (like Excel "Insert row"), then copy formulas from row at-1 into it. */
+  Workbook.prototype.insertRow=function(sheet,at){
+    var model=this.model;
+    model.order.forEach(function(sh){
+      var cells=model.sheets[sh];
+      Object.keys(cells).forEach(function(a){ var c=cells[a]; if("f" in c) c.f=rewrite(c.f,sh,function(target,r1,a1,r2,a2){
+        if(target!==sheet) return null;
+        var n1=r1>=at?r1+1:r1, n2=r2===null?null:(r2>=at?r2+1:r2);
+        return (n1!==r1||n2!==r2)?{r1:n1,r2:n2}:null; }); });
+    });
+    var cells=model.sheets[sheet], moved={};
+    Object.keys(cells).forEach(function(a){ moved[shiftKey(a,at,1)]=cells[a]; });
+    var src=at-1, made=[];
+    Object.keys(moved).forEach(function(a){ var m=/^([A-Z]+)(\d+)$/.exec(a); if(+m[2]!==src) return; var c=moved[a];
+      if("f" in c){ var nf=rewrite(c.f,sheet,function(t,r1,a1,r2,a2){ return {r1:a1?r1:r1+1,r2:r2===null?null:(a2?r2:r2+1)}; });
+        moved[m[1]+at]={f:nf}; made.push(m[1]+at); } });
+    model.sheets[sheet]=moved;
+    var lay=model.layout&&model.layout[sheet];
+    if(lay){
+      lay.merges=lay.merges.map(function(rg){ return rg.replace(/([A-Z]+)(\d+)/g,function(z,c,r){ return c+(+r>=at?+r+1:+r); }); });
+      lay.merges.slice().forEach(function(rg){ var mm=/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(rg); if(mm&&+mm[2]===src&&+mm[4]===src) lay.merges.push(mm[1]+at+":"+mm[3]+at); });
+      lay.hidden=lay.hidden.map(function(r){ return r>=at?r+1:r; });
+      lay.bold=lay.bold.map(function(a){ return shiftKey(a,at,1); });
+      var nf={}; Object.keys(lay.fmt).forEach(function(a){ nf[shiftKey(a,at,1)]=lay.fmt[a]; });
+      Object.keys(lay.fmt).forEach(function(a){ var m=/^([A-Z]+)(\d+)$/.exec(a); if(+m[2]===src) nf[m[1]+at]=lay.fmt[a]; });
+      lay.fmt=nf; lay.maxRow++;
+    }
+    var inp={}, self=this; Object.keys(this.inputs).forEach(function(k){ var p=k.split("!"); inp[p[0]===sheet?p[0]+"!"+shiftKey(p[1],at,1):k]=self.inputs[k]; });
+    this.inputs=inp; this.cache={}; this.ast={}; this._refd=null;
+    return made;
+  };
+
+  var api={Workbook:Workbook,parse:parse,colNum:colNum,colStr:colStr,isErr:isErr,rewrite:rewrite};
+  if(typeof module!=="undefined") module.exports=api; else root.CompEngine=api;
+})(typeof window!=="undefined"?window:this);
+
+</script>
+<script>
+/* Tax Computation screen: renders the computation workbook as portal forms on top of CompEngine. */
+(function(root){
+  "use strict";
+  var E=root.CompEngine;
+  var SHEET_LABEL={"DATA ENTRY-2026":"Data Entry","COMPUATION -2026":"Computation","BUSINESS INCOME ONLY-2026":"Business Income","WEALTH AND RECONCILIATION -2026":"Wealth & Reconciliation","CAPITAL GAIN ONLY -2026":"Capital Gain","FORMUL SHEET-2026":"Formula Sheet"};
+  var C="COMPUATION -2026", W="WEALTH AND RECONCILIATION -2026", D="DATA ENTRY-2026";
+  var RESULTS=[
+    {g:"Income",items:[["Total income",C,"A","TOTAL INCOME","F"],["Income under normal tax",C,"A","TOTAL INCOME","H"],["Taxable income",C,"A","TAXABLE INCOME","H"]]},
+    {g:"Tax",items:[["Normal income tax",C,"A","NORMAL INCOME TAX","H"],["Final / minimum tax",C,"A","FINAL /FINALED","H"],["Tax paid / deducted",C,"A","WITHHOLDING INCOME TAX PAID","F"],["Admitted tax u/s 137(1)",C,"A","ADMITTED INCOME TAX","H",1],["CVT payable",C,"A","CVT PAYABLE","H"],["Workers Welfare Fund",C,"A","WORKERS WELFARE FUND U/S 60A","H"],["Refundable",C,"A","REFUNDABLE INCOME TAX","H",1]]},
+    {g:"Wealth",items:[["Net assets this year",W,"A","NET ASSETS CURRENT YEAR","G"],["Net assets last year",W,"A","NET ASSETS CURRENT YEAR","H"],["Increase in net assets",W,"A","NET ASSETS CURRENT YEAR","I"],["Personal expenses",D,"ABS","K3",""]]}];
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function serialToDate(s){ var d=new Date(Date.UTC(1899,11,30)+Math.round(s)*86400000); return d; }
+  function fmt(v,f){
+    if(v===null||v===undefined||v==="") return "";
+    if(E.isErr(v)) return v.err;
+    if(typeof v==="boolean") return v?"TRUE":"FALSE";
+    if(typeof v!=="number") return String(v);
+    f=f||"";
+    if(/[dmy]{2,}/i.test(f)&&!/#/.test(f)&&v>0&&v<200000){ var d=serialToDate(v); var dd=d.getUTCDate(), mm=MON[d.getUTCMonth()], yy=String(d.getUTCFullYear()).slice(2);
+      return /^d/i.test(f)?dd+"-"+mm+"-"+yy:mm+"-"+yy; }
+    if(/%/.test(f)){ var dp=(f.split(".")[1]||"").replace(/[^0]/g,"").length; return (v*100).toFixed(dp)+"%"; }
+    var dec=0, m=/#,##0\.(0+)/.exec(f)||/0\.(0+)/.exec(f); if(m) dec=m[1].length; else if(!/#,##0|^0$/.test(f)&&f===""){ dec=Math.abs(v)%1?2:0; }
+    if(f==="#,##0.##"&&Number.isInteger(v)&&Math.abs(v)<10000) return String(v);
+    var r=Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:dec,maximumFractionDigits:dec});
+    if(/#,##0/.test(f)||f===""){ if(Math.abs(v)<Math.pow(10,-dec)/2) return f?"-":"0"; return v<0?"("+r+")":r; }
+    return (v<0?"-":"")+r;
+  }
+  function parseInput(txt,f){
+    var s=String(txt).trim(); if(s==="") return null;
+    if(/[dmy]{2,}/i.test(f||"")&&!/#/.test(f)){ var d=new Date(s); if(!isNaN(d)) return Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(1899,11,30))/86400000); }
+    var neg=/^\(.*\)$/.test(s); var n=Number(s.replace(/[(),\s]/g,"").replace(/%$/,""));
+    if(!isNaN(n)&&/\d/.test(s)){ if(/%$/.test(s)) n=n/100; return neg?-n:n; }
+    return s;
+  }
+
+  function Screen(el,model,opts){
+    this.el=el; this.opts=opts||{}; this.wb=new E.Workbook(model);
+    this.labels=this.opts.labels||null; this.sheet=model.order[0]; this.showHidden=false;
+    this.wb.setInputs(this.opts.inputs||{}); this.ops=(this.opts.ops||[]).slice();
+    this.ins={}; var self0=this; this.ops.forEach(function(op){ self0.trackIns(op.sheet,op.at); });
+    this.render();
+  }
+  Screen.prototype.find=function(sheet,col,label){
+    var cells=this.wb.model.sheets[sheet], best=null;
+    Object.keys(cells).forEach(function(a){ var m=/^([A-Z]+)(\d+)$/.exec(a); if(m[1]!==col) return; var v=cells[a].v;
+      if(typeof v==="string"&&v.trim().toUpperCase().indexOf(label)===0&&(!best||+m[2]<best)) best=+m[2]; });
+    return best;
+  };
+  Screen.prototype.results=function(){
+    var self=this;
+    return RESULTS.map(function(g){ return {g:g.g,items:g.items.map(function(it){
+      var v=null;
+      if(it[2]==="ABS") v=self.wb.get(it[1],it[3]);
+      else { var r=self.find(it[1],it[2],it[3]); if(r) v=self.wb.get(it[1],it[4]+r); }
+      return {label:it[0],v:typeof v==="number"?v:0,strong:!!it[5]}; })}; });
+  };
+  Screen.prototype.render=function(){
+    var self=this, m=this.wb.model;
+    this.el.innerHTML='<div class="cx-wrap"><div class="cx-main"><div class="cx-tabs" role="tablist"></div><div class="cx-tools"><label class="cx-chk"><input type="checkbox" class="cx-hid"> Show hidden lines</label><span class="cx-note">Type in the white boxes. Grey figures are calculated. Use <b>+</b> at the start of a line to add a line below it.</span></div><div class="cx-grid"></div></div><aside class="cx-side"></aside></div>';
+    var tabs=this.el.querySelector(".cx-tabs");
+    m.order.forEach(function(s){ var b=document.createElement("button"); b.type="button"; b.className="cx-tab"+(s===self.sheet?" on":""); b.textContent=SHEET_LABEL[s]||s.trim(); b.onclick=function(){ self.sheet=s; self.render(); }; tabs.appendChild(b); });
+    var hid=this.el.querySelector(".cx-hid"); hid.checked=this.showHidden; hid.onchange=function(){ self.showHidden=hid.checked; self.drawGrid(); };
+    this.drawGrid(); this.drawSide();
+  };
+  Screen.prototype.drawSide=function(){
+    var side=this.el.querySelector(".cx-side"); if(!side) return;
+    var h='<div class="cx-sum"><div class="cx-sum-t">Results</div>';
+    this.results().forEach(function(g){ h+='<div class="cx-sum-g">'+esc(g.g)+'</div>'; g.items.forEach(function(it){
+      h+='<div class="cx-sum-r'+(it.strong?' strong':'')+'"><span>'+esc(it.label)+'</span><b>'+fmt(it.v,"#,##0")+'</b></div>'; }); });
+    side.innerHTML=h+'</div>';
+  };
+  Screen.prototype.drawGrid=function(){
+    var self=this, sh=this.sheet, wb=this.wb, cells=wb.model.sheets[sh], lay=(wb.model.layout||{})[sh]||{merges:[],hidden:[],widths:{},bold:[],fmt:{},maxRow:0,maxCol:0};
+    var refd=wb.referenced()[sh]||{};
+    var hidden={}; lay.hidden.forEach(function(r){ hidden[r]=1; });
+    var bold={}; lay.bold.forEach(function(a){ bold[a]=1; });
+    var span={}, covered={};
+    lay.merges.forEach(function(rg){ var mm=/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(rg); if(!mm) return;
+      var c1=E.colNum(mm[1]),r1=+mm[2],c2=E.colNum(mm[3]),r2=+mm[4]; span[mm[1]+r1]=c2-c1+1;
+      for(var r=r1;r<=r2;r++) for(var c=c1;c<=c2;c++) if(!(r===r1&&c===c1)) covered[E.colStr(c)+r]=1; });
+    var maxC=0, maxR=0; Object.keys(cells).forEach(function(a){ var m=/^([A-Z]+)(\d+)$/.exec(a); maxC=Math.max(maxC,E.colNum(m[1])); maxR=Math.max(maxR,+m[2]); });
+    Object.keys(wb.inputs).forEach(function(k){ var p=k.split("!"); if(p[0]!==sh) return; var m=/^([A-Z]+)(\d+)$/.exec(p[1]); maxC=Math.max(maxC,E.colNum(m[1])); maxR=Math.max(maxR,+m[2]); });
+    var h='<table class="cx-t"><colgroup><col style="width:30px">';
+    for(var c=1;c<=maxC;c++){ var w=lay.widths[E.colStr(c)]||9; h+='<col style="width:'+Math.round(w*7.2)+'px">'; }
+    h+='</colgroup><tbody>';
+    var hiddenCount=0, insRows=this.ins[sh]||{};
+    for(var r=1;r<=maxR;r++){
+      if(hidden[r]&&!this.showHidden){ hiddenCount++; continue; }
+      var rowHas=false, row='';
+      for(var c2=1;c2<=maxC;c2++){
+        var a=E.colStr(c2)+r; if(covered[a]) continue;
+        var raw=cells[a], k=sh+"!"+a, sp=span[a]?' colspan="'+span[a]+'"':'', f=lay.fmt[a]||"";
+        var constF=raw&&"f" in raw&&self.isConstFormula(sh,a,raw.f);
+        var userText=raw&&!("f" in raw)&&typeof raw.v==="string"&&self.labels&&!self.labels[raw.v.trim()]&&!bold[a];
+        var isInput=(k in wb.inputs)||constF||userText||(raw&&!("f" in raw)&&typeof raw.v!=="string")||(!raw&&(refd[a]||insRows[r]));
+        if(raw&&"f" in raw&&!constF&&!(k in wb.inputs)){
+          var v=wb.get(sh,a); rowHas=rowHas||(v!==0&&v!==""&&v!==null);
+          var txt=typeof v==="string"?esc(v):esc(fmt(v,f));
+          row+='<td'+sp+' class="cx-f'+(typeof v==="string"?' cx-txt':'')+(bold[a]?' b':'')+'" data-a="'+a+'" title="'+esc("="+raw.f)+'">'+txt+'</td>';
+        } else if(raw&&typeof raw.v==="string"&&!userText&&!(k in wb.inputs)){
+          rowHas=true; row+='<td'+sp+' class="cx-l'+(bold[a]?' b':'')+'">'+esc(raw.v)+'</td>';
+        } else if(isInput){
+          var iv=(k in wb.inputs)?wb.inputs[k]:(constF?wb.get(sh,a):(raw?raw.v:null));
+          if(iv!==null&&iv!==""&&iv!==0) rowHas=true;
+          var shown=typeof iv==="number"?fmt(iv,f||"#,##0.##"):(iv==null?"":iv);
+          row+='<td'+sp+' class="cx-i'+(typeof iv==="string"?' cx-it':'')+'"><input data-a="'+a+'" data-f="'+esc(f)+'" value="'+esc(shown)+'" aria-label="'+a+'"'+(constF?' title="='+esc(raw.f)+'"':'')+'></td>';
+        } else row+='<td'+sp+'></td>';
+      }
+      h+='<tr class="'+(hidden[r]?'cx-hrow':'')+'" data-r="'+r+'"><th class="cx-rn"><button type="button" class="cx-add" data-r="'+r+'" title="Add a line below row '+r+'">+</button></th>'+row+'</tr>';
+    }
+    h+='</tbody></table>';
+    if(hiddenCount) h+='<div class="cx-more">'+hiddenCount+' hidden lines on this sheet. Tick "Show hidden lines" to see them.</div>';
+    var grid=this.el.querySelector(".cx-grid"); grid.innerHTML=h;
+    grid.querySelectorAll("input[data-a]").forEach(function(inp){
+      inp.addEventListener("focus",function(){ var k=sh+"!"+inp.dataset.a; var raw=cells[inp.dataset.a]; if(raw&&"f" in raw&&!(k in wb.inputs)){ inp.value="="+raw.f; inp.select(); return; } var v=(k in wb.inputs)?wb.inputs[k]:(raw?raw.v:null); inp.value=v==null?"":(typeof v==="number"&&/[dmy]{2,}/i.test(inp.dataset.f)&&!/#/.test(inp.dataset.f)?fmt(v,inp.dataset.f):String(v)); inp.select(); });
+      inp.addEventListener("change",function(){ var pv=parseInput(inp.value,inp.dataset.f); inp.parentNode.classList.toggle("cx-it",typeof pv==="string"&&pv.charAt(0)!=="="); self.setValue(sh,inp.dataset.a,pv); });
+      inp.addEventListener("blur",function(){ var k=sh+"!"+inp.dataset.a, raw=cells[inp.dataset.a]; var v=(k in wb.inputs)?wb.inputs[k]:(raw&&"f" in raw?wb.get(sh,inp.dataset.a):(raw?raw.v:null)); inp.value=typeof v==="number"?fmt(v,inp.dataset.f||"#,##0.##"):(v==null?"":v); });
+      inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); inp.blur(); } });
+    });
+    grid.querySelectorAll(".cx-add").forEach(function(b){ b.onclick=function(){ self.addLine(+b.dataset.r); }; });
+  };
+  Screen.prototype.isConstFormula=function(sh,a,f){
+    var k=sh+"!"+a; this._cf=this._cf||{}; if(k in this._cf&&this._cf[k][0]===f) return this._cf[k][1];
+    var r=/^[\d\s.+\-*\/()%,]+$/.test(f); this._cf[k]=[f,r]; return r;
+  };
+  Screen.prototype.setValue=function(sh,a,v){
+    if(typeof v==="string"&&/^=[\d\s.+\-*\/()%,]+$/.test(v)){
+      try{ E.parse(v.slice(1)); }catch(e){ alert("That calculation isn't valid: "+v); this.drawGrid(); return; }
+      this.wb.model.sheets[sh][a]={f:v.slice(1)}; delete this.wb.inputs[sh+"!"+a]; this.wb.inputs[sh+"!"+a]=undefined; delete this.wb.inputs[sh+"!"+a];
+      this.wb.cache={}; this.wb.ast={}; this.formulaEdits=this.formulaEdits||{}; this.formulaEdits[sh+"!"+a]=v.slice(1);
+      this.refresh(); if(this.opts.onChange) this.opts.onChange(this.state()); return;
+    }
+    if(this.formulaEdits) delete this.formulaEdits[sh+"!"+a];
+    var raw=this.wb.model.sheets[sh][a]; if(raw&&"f" in raw&&this.isConstFormula(sh,a,raw.f)) delete this.wb.model.sheets[sh][a];
+    this.wb.setInput(sh,a,v);
+    this.refresh(); if(this.opts.onChange) this.opts.onChange(this.state());
+  };
+  Screen.prototype.refresh=function(){
+    var self=this, sh=this.sheet, lay=(this.wb.model.layout||{})[sh]||{fmt:{}};
+    this.el.querySelectorAll(".cx-grid td.cx-f").forEach(function(td){ var a=td.dataset.a, v=self.wb.get(sh,a); td.textContent=typeof v==="string"?v:fmt(v,lay.fmt[a]||""); });
+    this.drawSide();
+  };
+  Screen.prototype.addLine=function(r){
+    this.wb.insertRow(this.sheet,r+1); this.ops.push({op:"ins",sheet:this.sheet,at:r+1}); this.trackIns(this.sheet,r+1);
+    this.drawGrid(); this.drawSide(); if(this.opts.onChange) this.opts.onChange(this.state());
+    var el=this.el.querySelector('tr[data-r="'+(r+1)+'"] input'); if(el) el.focus();
+  };
+  Screen.prototype.trackIns=function(sheet,at){
+    var cur=this.ins[sheet]||{}, nx={}; Object.keys(cur).forEach(function(r){ r=+r; nx[r>=at?r+1:r]=1; }); nx[at]=1; this.ins[sheet]=nx;
+  };
+  Screen.prototype.state=function(){ return {ops:this.ops.slice(),inputs:Object.assign({},this.wb.inputs),formulas:Object.assign({},this.formulaEdits||{})}; };
+
+  root.CompScreen={Screen:Screen,fmt:fmt,results:RESULTS};
+})(typeof window!=="undefined"?window:this);
+
+</script>
+<script>
+/* Convert an .xlsx (read by SheetJS) into the CompEngine model + Excel's cached values. Works in browser and node. */
+(function(root){
+  function convert(XLSX,buf){
+    var wb=XLSX.read(buf,{type:"array",cellFormula:true,cellNF:true,cellStyles:true,cellDates:false,sheetStubs:false});
+    var model={sheets:{},order:wb.SheetNames.slice(),names:{},layout:{}}, cached={};
+    wb.SheetNames.forEach(function(sn){
+      var ws=wb.Sheets[sn], cells={}, cv={}, lay={merges:[],hidden:[],hcols:[],widths:{},bold:[],fmt:{},maxRow:0,maxCol:0};
+      Object.keys(ws).forEach(function(a){
+        if(a[0]==="!") return; var c=ws[a];
+        if(c.f!=null){ cells[a]={f:String(c.f).replace(/^=/,"")}; cv[a]=c.t==="e"?String(c.w||"#ERR"):(c.v===undefined?null:c.v); }
+        else if(c.v!==undefined&&c.v!==null&&c.v!==""){ cells[a]={v:c.t==="n"?Number(c.v):c.t==="b"?!!c.v:String(c.v)}; }
+        else return;
+        if(c.z&&c.z!=="General") lay.fmt[a]=c.z;
+        if(c.s&&c.s.font&&c.s.font.bold) lay.bold.push(a);
+      });
+      (ws["!merges"]||[]).forEach(function(m){ lay.merges.push(XLSX.utils.encode_range(m)); });
+      (ws["!rows"]||[]).forEach(function(r,i){ if(r&&r.hidden) lay.hidden.push(i+1); });
+      (ws["!cols"]||[]).forEach(function(c,i){ if(!c) return; var w=c.wch||(c.width?c.width:null)||(c.wpx?c.wpx/7:null); if(w) lay.widths[XLSX.utils.encode_col(i)]=Math.round(w*10)/10; if(c.hidden) lay.hcols.push(XLSX.utils.encode_col(i)); });
+      if(ws["!ref"]){ var rg=XLSX.utils.decode_range(ws["!ref"]); lay.maxRow=rg.e.r+1; lay.maxCol=rg.e.c+1; }
+      model.sheets[sn]=cells; model.layout[sn]=lay; cached[sn]=cv;
+    });
+    return {model:model,cached:cached};
+  }
+  /* compare engine results with Excel's saved values */
+  function verify(E,model,cached){
+    var w=new E.Workbook(model), ok=0, bad=[];
+    w.formulaCells().forEach(function(sa){ var s=sa[0],a=sa[1], exp=cached[s][a], got=w.get(s,a), same;
+      if(E.isErr(got)) same=(typeof exp==="string"&&exp.charAt(0)==="#")||exp==null;
+      else if(typeof exp==="number"){ var g=typeof got==="boolean"?+got:got; same=typeof g==="number"&&Math.abs(g-exp)<=1e-6*Math.max(1,Math.abs(exp)); }
+      else if(exp==null) same=(got===0||got===""||got===null);
+      else if(typeof exp==="boolean") same=got===exp;
+      else same=String(got)===String(exp);
+      if(same) ok++; else if(bad.length<20) bad.push(s+"!"+a); });
+    return {ok:ok,total:ok+bad.length+Math.max(0,0),bad:bad};
+  }
+  var api={convert:convert,verify:verify};
+  if(typeof module!=="undefined") module.exports=api; else root.CompImport=api;
+})(typeof window!=="undefined"?window:this);
+
+</script>
 <script>
 (function(){
 
@@ -4046,6 +4627,8 @@ function renderProfileTab(){
         html += '</div>';
       });
     } else { html += '<div class="cp-empty">No communications logged.</div>'; }
+  } else if(profileTab === "computation"){
+    html += compProfileHtml(idx);
   } else if(profileTab === "advisories"){
     var clientAdvs = ADVISORIES.filter(function(a){ return a.clientIdx === idx; });
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
@@ -5525,6 +6108,131 @@ window.ntWord=function(){
   }).catch(function(e){ alert(e.message||String(e)); });
 };
 
+/* ── TAX COMPUTATION (client profile tab + full-screen editor) ── */
+var COMP_TY="2026", _compTplText=null, _compBase={}, _compScreen=null, _compSaveT=null, _compIdx=null, _compState=null;
+function compKey(idx,ty){ return "sc_comp_"+idx+"_"+ty; }
+function compGet(idx,ty){ try{ return JSON.parse(localStorage.getItem(compKey(idx,ty))||"null"); }catch(e){ return null; } }
+function compPut(idx,ty,st){ st.updated=new Date().toISOString(); st.by=userName; try{ localStorage.setItem(compKey(idx,ty),JSON.stringify(st)); }catch(e){ alert("Could not save the computation on this computer: "+e.message); } }
+function compTemplate(){
+  if(_compTplText) return Promise.resolve(JSON.parse(_compTplText));
+  if(!_dataKey) return Promise.reject(new Error("Please sign in again."));
+  return fetch("comp/ty"+COMP_TY+".enc.json",{cache:"no-cache"}).then(function(r){ if(!r.ok) throw new Error("The computation template could not be loaded."); return r.json(); })
+    .then(function(e){ return crypto.subtle.decrypt({name:"AES-GCM",iv:_b64(e.iv)},_dataKey,_b64(e.ct)).then(function(buf){
+      return e.gz ? new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text() : new TextDecoder().decode(buf); }); })
+    .then(function(t){ _compTplText=t; return JSON.parse(_compTplText); });
+}
+var _compLabels=null, _compBoldText=null;
+function compLabels(tpl){
+  if(_compLabels) return; _compLabels={}; _compBoldText={};
+  Object.keys(tpl.sheets).forEach(function(s){ var bold={}; ((tpl.layout[s]||{}).bold||[]).forEach(function(a){ bold[a]=1; });
+    Object.keys(tpl.sheets[s]).forEach(function(a){ var v=tpl.sheets[s][a].v; if(typeof v==="string"){ _compLabels[v.trim()]=1; if(bold[a]) _compBoldText[v.trim()]=1; } }); });
+}
+function compBaseModel(st){
+  if(st.src==="template") return compTemplate();
+  if(_compBase[st.base]) return Promise.resolve(JSON.parse(_compBase[st.base]));
+  if(!_sb||!_cloud) return Promise.reject(new Error("This computation was imported from Excel and is stored online. Connect online (top bar shows Synced) to open it."));
+  return Promise.resolve(_sb.storage.from("notices").download(st.base)).then(function(r){
+    if(!r||r.error||!r.data) throw new Error("The imported workbook could not be downloaded.");
+    return r.data.text(); }).then(function(t){ _compBase[st.base]=t; return JSON.parse(t); });
+}
+function compSummary(screen){
+  var out={}; screen.results().forEach(function(g){ g.items.forEach(function(it){ out[it.label]=Math.round(it.v); }); }); return out;
+}
+function compOverlay(){
+  var o=document.getElementById("comp-overlay"); if(o) return o;
+  o=document.createElement("div"); o.id="comp-overlay";
+  o.innerHTML='<div class="cxo-bar"><div><div class="eyebrow" id="cxo-eyebrow">Tax Computation</div><div class="cxo-title" id="cxo-title"></div></div><div class="cxo-right"><span id="cxo-status" class="cxo-status"></span><button class="btn-sec" onclick="compClose()">'+ico("close")+'Close</button></div></div><div class="cxo-body" id="cxo-body"></div>';
+  document.body.appendChild(o); return o;
+}
+window.compClose=function(){
+  if(_compSaveT){ clearTimeout(_compSaveT); compSaveNow(); }
+  var o=document.getElementById("comp-overlay"); if(o) o.classList.remove("on");
+  document.body.style.overflow="";
+  _compScreen=null;
+  if(profileIdx!==null&&profileTab==="computation") renderProfileTab();
+};
+function compSaveNow(){
+  _compSaveT=null; if(!_compScreen||_compIdx===null) return;
+  var s=_compScreen.state(); _compState.ops=s.ops; _compState.inputs=s.inputs; _compState.formulas=s.formulas; _compState.summary=compSummary(_compScreen);
+  compPut(_compIdx,COMP_TY,_compState);
+  var st=document.getElementById("cxo-status"); if(st) st.textContent="Saved "+new Date().toLocaleTimeString("en-PK",{hour:"2-digit",minute:"2-digit"});
+}
+window.compOpen=function(idx){
+  var st=compGet(idx,COMP_TY); if(!st) return;
+  var o=compOverlay(), c=getClient(idx);
+  document.getElementById("cxo-title").textContent=c.name;
+  document.getElementById("cxo-eyebrow").textContent="Tax Computation · Tax Year "+COMP_TY+(st.src==="import"?" · imported from "+(st.fileName||"Excel"):"");
+  document.getElementById("cxo-status").textContent="Loading…";
+  var body=document.getElementById("cxo-body"); body.innerHTML="";
+  o.classList.add("on"); document.body.style.overflow="hidden";
+  Promise.all([compTemplate(),compBaseModel(st)]).then(function(r){
+    compLabels(r[0]);
+    var model=r[1], w=new CompEngine.Workbook(model);
+    (st.ops||[]).forEach(function(op){ if(op.op==="ins") w.insertRow(op.sheet,op.at); });
+    Object.keys(st.formulas||{}).forEach(function(k){ var p=k.split("!"); model.sheets[p[0]][p[1]]={f:st.formulas[k]}; });
+    if(st.src==="import"){ Object.keys(model.sheets).forEach(function(s){ var L=model.layout[s]; if(!L) return; var b={}; L.bold.forEach(function(a){ b[a]=1; });
+      Object.keys(model.sheets[s]).forEach(function(a){ var v=model.sheets[s][a].v; if(typeof v==="string"&&_compBoldText[v.trim()]&&!b[a]) L.bold.push(a); }); }); }
+    _compIdx=idx; _compState=st;
+    _compScreen=new CompScreen.Screen(body,model,{inputs:st.inputs||{},ops:st.ops||[],labels:_compLabels,onChange:function(){
+      var s2=document.getElementById("cxo-status"); if(s2) s2.textContent="Saving…";
+      clearTimeout(_compSaveT); _compSaveT=setTimeout(compSaveNow,700); }});
+    _compScreen.formulaEdits=Object.assign({},st.formulas||{});
+    document.getElementById("cxo-status").textContent=st.updated?"Last saved "+new Date(st.updated).toLocaleString("en-PK",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+    if(!st.summary){ compSaveNow(); }
+  }).catch(function(e){ body.innerHTML='<div class="cp-empty">'+escHtml(e.message||String(e))+'</div>'; document.getElementById("cxo-status").textContent=""; });
+};
+window.compStartBlank=function(idx){
+  if(compGet(idx,COMP_TY)&&!confirm("Replace this client's existing Tax Year "+COMP_TY+" computation with a blank one?")) return;
+  compPut(idx,COMP_TY,{src:"template",ty:COMP_TY,ops:[],inputs:{},formulas:{}});
+  compOpen(idx);
+};
+window.compImport=function(idx,file){
+  if(!file) return;
+  if(!/\.xlsx$/i.test(file.name)){ alert("Please choose the client's computation workbook (.xlsx)."); return; }
+  if(!_sb||!_cloud){ alert("Importing needs the online connection. Check that the top bar says Synced, then try again."); return; }
+  if(compGet(idx,COMP_TY)&&!confirm("Replace this client's existing Tax Year "+COMP_TY+" computation with this Excel file?")) return;
+  if(typeof XLSX==="undefined"){ alert("The Excel reader didn't load. Check your internet connection and reload."); return; }
+  var info=document.getElementById("cp-comp-msg"); if(info) info.textContent="Reading "+file.name+"…";
+  file.arrayBuffer().then(function(buf){
+    var r=CompImport.convert(XLSX,new Uint8Array(buf));
+    var v=CompImport.verify(CompEngine,r.model,r.cached), total=0;
+    Object.keys(r.model.sheets).forEach(function(s){ Object.keys(r.model.sheets[s]).forEach(function(a){ if("f" in r.model.sheets[s][a]) total++; }); });
+    if(v.ok<total&&!confirm((total-v.ok)+" of "+total+" figures did not match the Excel file exactly. Import anyway?")) throw new Error("Import cancelled.");
+    var text=JSON.stringify(r.model), path="computations/"+idx+"/"+COMP_TY+"-"+Date.now()+".json";
+    if(info) info.textContent="Saving…";
+    return Promise.resolve(_sb.storage.from("notices").upload(path,new Blob([text],{type:"application/json"}),{contentType:"application/json",upsert:true})).then(function(up){
+      if(up&&up.error) throw new Error("Could not store the workbook online: "+up.error.message);
+      _compBase[path]=text;
+      compPut(idx,COMP_TY,{src:"import",ty:COMP_TY,base:path,fileName:file.name,verified:{ok:v.ok,total:total},ops:[],inputs:{},formulas:{}});
+      if(info) info.textContent="";
+      showToast("Imported "+file.name+": "+v.ok.toLocaleString()+" of "+total.toLocaleString()+" figures match Excel.");
+      compOpen(idx);
+    });
+  }).catch(function(e){ if(info) info.textContent=""; if(e.message!=="Import cancelled.") alert(e.message||String(e)); });
+};
+window.compDelete=function(idx){
+  if(!confirm("Delete this client's Tax Year "+COMP_TY+" computation? This cannot be undone.")) return;
+  try{ localStorage.setItem(compKey(idx,COMP_TY),"null"); }catch(e){}
+  renderProfileTab();
+};
+function compProfileHtml(idx){
+  var st=compGet(idx,COMP_TY), h='';
+  h+='<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px;"><div><div class="cp-section-title" style="margin:0;">Tax Year '+COMP_TY+'</div>';
+  if(st) h+='<div style="font-size:12.5px;color:var(--ink-3);">'+(st.src==="import"?"Imported from "+escHtml(st.fileName||"Excel")+(st.verified?" · "+st.verified.ok.toLocaleString()+"/"+st.verified.total.toLocaleString()+" figures matched Excel":""):"Started from the blank template")+(st.updated?" · saved "+new Date(st.updated).toLocaleString("en-PK",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+(st.by?" by "+escHtml(st.by):""):"")+'</div>';
+  h+='</div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  if(st) h+='<button class="btn" onclick="compOpen('+idx+')">'+ico("calc")+'Open computation</button>';
+  h+='<label class="btn-sec" style="cursor:pointer;">'+ico("upload")+'Import Excel<input type="file" accept=".xlsx" style="display:none" onchange="compImport('+idx+',this.files[0]); this.value=\'\';"></label>';
+  h+='<button class="btn-sec" onclick="compStartBlank('+idx+')">'+ico("plus")+'Start blank</button>';
+  if(st) h+='<button class="task-del-btn" onclick="compDelete('+idx+')">'+ico("trash")+'Delete</button>';
+  h+='</div></div><div id="cp-comp-msg" style="font-size:13px;color:var(--blue);margin-bottom:8px;"></div>';
+  if(!st){ h+='<div class="cp-empty">No computation for Tax Year '+COMP_TY+' yet. Import the client\'s Excel workbook, or start from the blank template.</div>'; return h; }
+  var s=st.summary||{};
+  var groups=[["Income",["Total income","Income under normal tax","Taxable income"]],["Tax",["Normal income tax","Final / minimum tax","Tax paid / deducted","Admitted tax u/s 137(1)","CVT payable","Workers Welfare Fund","Refundable"]],["Wealth",["Net assets this year","Net assets last year","Increase in net assets","Personal expenses"]]];
+  h+='<div class="cp-info-grid">';
+  groups.forEach(function(g){ g[1].forEach(function(k){ var v=s[k]; h+='<div class="cp-info-item"><div class="cp-info-label">'+escHtml(k)+'</div><div class="cp-info-val mono">'+(v==null?"—":CompScreen.fmt(v,"#,##0"))+'</div></div>'; }); });
+  h+='</div>';
+  return h;
+}
 /* ── CLOUD SYNC (Supabase): browser data <-> shared online database ── */
 var SUPA_URL="https://rscvtbhzygqnyjzgxmyh.supabase.co", SUPA_KEY="sb_publishable_EpqMmgUo5pObHDvcC24EMw_2FpX8Ttc";
 var CLOUD_SKIP={sc_anthropic_key:1};
@@ -6431,6 +7139,7 @@ Separate professional charges shall apply in the event of any tax proceeding / l
     </div>
     <div class="cp-tabs" id="cp-tabs">
       <div class="cp-tab on" data-cptab="info">Info</div>
+      <div class="cp-tab" data-cptab="computation">Tax Computation</div>
       <div class="cp-tab" data-cptab="iris">IRIS Payments</div>
       <div class="cp-tab" data-cptab="tasks">Tasks</div>
       <div class="cp-tab" data-cptab="notices">Notices</div>
