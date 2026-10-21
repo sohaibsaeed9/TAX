@@ -748,6 +748,17 @@ button .ic,.btn .ic{width:16px;height:16px;}
   </div>
 
   <div class="card">
+    <div class="card-title">Backup &amp; Restore</div>
+    <div style="font-size:13.5px;color:var(--ink-2);margin-bottom:14px;max-width:720px;">Invoices, fees, tasks, notices, notes and other entries are saved only in this browser. Download a backup to keep a safe copy or to move your data to another computer, then use <b>Restore</b> there. Backups are encrypted and can only be opened after logging in to this portal.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" onclick="backupPortalData()"><svg class=ic aria-hidden=true><use href=#i-download /></svg>Download backup</button>
+      <button class="btn-sec restore-only" onclick="this.parentNode.querySelector('input[type=file]').click()"><svg class=ic aria-hidden=true><use href=#i-upload /></svg>Restore from backup</button>
+      <input type="file" accept=".json" style="display:none" onchange="restorePortalData(this.files[0]); this.value='';">
+      <span class="backup-last" style="font-size:12px;color:var(--ink-3);"></span>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-title">Notes &amp; Reminders</div>
     <div class="note-input-row">
       <input class="note-input" id="nin" type="text" placeholder="Add a note or client reminder...">
@@ -1058,7 +1069,7 @@ function doLogin(){
 }
 
 /* ── VAULT: client data is AES-256-GCM encrypted; each login unwraps the data key ── */
-var _vaultOpen=false;
+var _vaultOpen=false, _dataKey=null;
 function _b64(s){ var b=atob(s), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
 function unlockVault(u,p){
   var e=VAULT.users[u];
@@ -1067,8 +1078,8 @@ function unlockVault(u,p){
   return sub.importKey("raw",new TextEncoder().encode(p),"PBKDF2",false,["deriveKey"])
     .then(function(base){ return sub.deriveKey({name:"PBKDF2",salt:_b64(e.salt),iterations:VAULT.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]); })
     .then(function(kek){ return sub.decrypt({name:"AES-GCM",iv:_b64(e.iv)},kek,_b64(e.wk)); })
-    .then(function(raw){ return sub.importKey("raw",raw,"AES-GCM",false,["decrypt"]); })
-    .then(function(dk){ return _vaultOpen ? null : sub.decrypt({name:"AES-GCM",iv:_b64(VAULT.data.iv)},dk,_b64(VAULT.data.ct)); })
+    .then(function(raw){ return sub.importKey("raw",raw,"AES-GCM",false,["encrypt","decrypt"]); })
+    .then(function(dk){ _dataKey=dk; return _vaultOpen ? null : sub.decrypt({name:"AES-GCM",iv:_b64(VAULT.data.iv)},dk,_b64(VAULT.data.ct)); })
     .then(function(buf){
       if(buf){
         var d=JSON.parse(new TextDecoder().decode(buf));
@@ -5193,12 +5204,59 @@ function uiRefreshShell(id){
     sec.classList.toggle("hide-sec",!any);
   });
   if(id==="dashboard"){
+    document.querySelectorAll("#pg-dashboard .restore-only").forEach(function(b){ b.style.display=(role==="admin")?"":"none"; });
     var h=new Date().getHours(), g=document.getElementById("dash-greet");
     if(g) g.textContent=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
   }
   document.body.classList.remove("nav-open");
 }
 (function(){ var _sp2=window.showPage; window.showPage=function(id){ _sp2(id); try{ uiRefreshShell(id); }catch(e){} }; })();
+
+/* ── BACKUP / RESTORE of browser-saved portal data (encrypted with the vault data key) ── */
+var BACKUP_EXCLUDE={sc_anthropic_key:1};
+function _backupKeys(){ var k=[]; for(var i=0;i<localStorage.length;i++){ var n=localStorage.key(i); if(n&&n.indexOf("sc_")===0&&!BACKUP_EXCLUDE[n]) k.push(n); } return k.sort(); }
+function _b64e(buf){ var u=new Uint8Array(buf),s=""; for(var i=0;i<u.length;i++) s+=String.fromCharCode(u[i]); return btoa(s); }
+function _downloadBackup(label){
+  if(!_dataKey) return Promise.reject(new Error("Please log in again."));
+  var data={}; _backupKeys().forEach(function(k){ data[k]=localStorage.getItem(k); });
+  var iv=crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({name:"AES-GCM",iv:iv},_dataKey,new TextEncoder().encode(JSON.stringify(data))).then(function(ct){
+    var file={app:"saeedandco-portal-backup",v:1,created:new Date().toISOString(),by:userName,keys:Object.keys(data).length,iv:_b64e(iv),ct:_b64e(ct)};
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(file)],{type:"application/json"}));
+    a.download="SaeedCo-portal-"+label+"-"+new Date().toISOString().slice(0,10)+".json";
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000);
+    return Object.keys(data).length;
+  });
+}
+window.backupPortalData=function(){
+  var inv=0; try{ inv=JSON.parse(localStorage.getItem("sc_invoices")||"[]").length; }catch(e){}
+  _downloadBackup("backup").then(function(n){
+    document.querySelectorAll(".backup-last").forEach(function(el){ el.textContent="Backup downloaded ("+n+" data sets, "+inv+" invoices)."; });
+  }).catch(function(e){ alert("Backup failed: "+e.message); });
+};
+window.restorePortalData=function(f){
+  if(!f) return;
+  if(role!=="admin"){ alert("Only an administrator can restore a backup."); return; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    var file; try{ file=JSON.parse(rd.result); }catch(e){ alert("This is not a portal backup file."); return; }
+    if(!file||file.app!=="saeedandco-portal-backup"){ alert("This is not a portal backup file."); return; }
+    crypto.subtle.decrypt({name:"AES-GCM",iv:_b64(file.iv)},_dataKey,_b64(file.ct)).then(function(buf){
+      var data=JSON.parse(new TextDecoder().decode(buf));
+      var inv=0; try{ inv=JSON.parse(data.sc_invoices||"[]").length; }catch(e){}
+      var when=new Date(file.created).toLocaleString("en-PK");
+      if(!confirm("Restore backup from "+when+(file.by?" (made by "+file.by+")":"")+"?\n\nIt contains "+Object.keys(data).length+" data sets, including "+inv+" invoices.\n\nThis REPLACES the data saved in this browser. A backup of the current data will be downloaded first.")) return;
+      return _downloadBackup("before-restore").then(function(){
+        _backupKeys().forEach(function(k){ localStorage.removeItem(k); });
+        Object.keys(data).forEach(function(k){ if(k.indexOf("sc_")===0&&!BACKUP_EXCLUDE[k]) localStorage.setItem(k,data[k]); });
+        alert("Backup restored. The portal will now reload - please log in again.");
+        location.reload();
+      });
+    }).catch(function(){ alert("This backup could not be opened. It may be damaged or from a different portal."); });
+  };
+  rd.readAsText(f);
+};
 (function(){
   var m=document.getElementById("sbar-menu"), sc=document.getElementById("side-scrim");
   if(m) m.addEventListener("click",function(){ document.body.classList.toggle("nav-open"); });
