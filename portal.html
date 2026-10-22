@@ -3547,21 +3547,30 @@ window.addInvoiceLine=function addInvoiceLine(prefill){
     '<td style="padding:4px 6px;width:90px;"><input type="text" placeholder="e.g. 2026" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
     '<td style="padding:4px 6px;width:180px;"><input type="text" placeholder="Person name (optional)" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;font-family:inherit;box-sizing:border-box;"></td>'+
     '<td style="padding:4px 6px;width:150px;"><input type="number" placeholder="Enter PKR amount" min="0" style="width:100%;border:2px solid #b8923a;border-radius:5px;padding:7px 9px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;box-sizing:border-box;background:#fffbf0;" oninput="calcInvoiceTotal()"></td>'+
+    '<td style="padding:4px 6px;width:120px;"><input type="number" placeholder="0" min="0" title="Optional discount on this line" style="width:100%;border:1px solid #e5e7eb;border-radius:5px;padding:7px 9px;font-size:12px;text-align:right;font-family:\'IBM Plex Mono\',monospace;box-sizing:border-box;" oninput="calcInvoiceTotal()"></td>'+
+    '<td class="inv-net" style="padding:4px 10px;width:120px;text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:#6b7280;">0</td>'+
     '<td style="width:36px;text-align:center;padding:4px 2px;"><button onclick="this.closest(\'tr\').remove();calcInvoiceTotal();" style="background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;line-height:1;padding:4px;">×</button></td>';
   tbody.appendChild(tr);
 };
 
 window.calcInvoiceTotal=function(){
   var rows=document.querySelectorAll("#inv-lines tr");
-  var subtotal=0;
+  var gross=0, disc=0;
   rows.forEach(function(tr){
     var inputs=tr.querySelectorAll("input");
     var amt=parseFloat(inputs[3]&&inputs[3].value)||0;
-    subtotal+=amt;
+    var d=parseFloat(inputs[4]&&inputs[4].value)||0;
+    var over=d>amt;
+    if(inputs[4]){ inputs[4].style.setProperty("border-color",over?"#9c3a32":"#e5e7eb","important"); inputs[4].title=over?"Discount is more than the amount; it will be limited to the amount":"Optional discount on this line"; }
+    if(over) d=amt;
+    gross+=amt; disc+=d;
+    var net=tr.querySelector(".inv-net"); if(net) net.textContent=fmt(amt-d);
   });
   var received=parseFloat(($("inv-received")||{}).value)||0;
-  var payable=subtotal-received;
-  var stEl=$("inv-subtotal"); if(stEl) stEl.textContent=fmt(subtotal);
+  var net=gross-disc, payable=net-received;
+  var stEl=$("inv-subtotal"); if(stEl) stEl.textContent=fmt(gross);
+  var dr=$("inv-discount-row"); if(dr) dr.style.display=disc>0?"flex":"none";
+  var dv=$("inv-discount"); if(dv) dv.textContent="- "+fmt(disc);
   var totalEl=$("inv-total"); if(totalEl) totalEl.textContent=fmt(payable>0?payable:0);
 };
 
@@ -3581,10 +3590,11 @@ function saveInvoice(){
     var taxYear=(inputs[1]&&inputs[1].value.trim())||"";
     var name=(inputs[2]&&inputs[2].value.trim())||"";
     var amount=parseFloat(inputs[3]&&inputs[3].value)||0;
-    if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount});
+    var discount=parseFloat(inputs[4]&&inputs[4].value)||0; if(discount>amount) discount=amount; if(discount<0) discount=0;
+    if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount,discount:discount});
   });
   if(!items.length){ alert("Please add at least one line item."); return; }
-  var total=items.reduce(function(s,it){ return s+it.amount; },0);
+  var total=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
   var received=parseFloat(($("inv-received")||{}).value)||0;
   var inv={
     id:String(Date.now()),
@@ -3595,7 +3605,7 @@ function saveInvoice(){
     dueDate:dueDate,
     items:items,
     notes:notes,
-    total:total,
+    total:total,discount:discountTotal,
     received:received,
     paid:received>=total&&total>0,
     createdAt:new Date().toISOString()
@@ -3687,7 +3697,7 @@ window.editInvoice=function(id){
     var inputs=tr.querySelectorAll("input");
     if(inputs[1]) inputs[1].value=it.taxYear||"";
     if(inputs[2]) inputs[2].value=it.name||"";
-    if(inputs[3]){ inputs[3].value=it.amount||0; calcInvoiceTotal(); }
+    if(inputs[3]) inputs[3].value=it.amount||0; if(inputs[4]) inputs[4].value=it.discount||""; calcInvoiceTotal();
   });
   // Mark form as editing this invoice
   var saveBtn=$("inv-save-btn");
@@ -3721,15 +3731,16 @@ window.editInvoice=function(id){
       var taxYear=(inputs[1]&&inputs[1].value.trim())||"";
       var name=(inputs[2]&&inputs[2].value.trim())||"";
       var amount=parseFloat(inputs[3]&&inputs[3].value)||0;
-      if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount});
+      var discount=parseFloat(inputs[4]&&inputs[4].value)||0; if(discount>amount) discount=amount; if(discount<0) discount=0;
+      if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount,discount:discount});
     });
     if(!items.length){ alert("Please add at least one line item."); return; }
-    var total=items.reduce(function(s,it){ return s+it.amount; },0);
+    var total=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
     var received=parseFloat(($("inv-received")||{}).value)||0;
     // Update existing invoice in place
     var idx=INVOICES.findIndex(function(i){ return i.id===editId; });
     if(idx>-1){
-      INVOICES[idx]=Object.assign(INVOICES[idx],{invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,received:received,paid:received>=total&&total>0});
+      INVOICES[idx]=Object.assign(INVOICES[idx],{invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,discount:discountTotal,received:received,paid:received>=total&&total>0});
       saveInvoices(); renderInvoiceList();
     }
     // Reset form back to new-invoice mode
@@ -3757,6 +3768,7 @@ function buildInvoiceHTML(inv){
   var c=getClient(inv.clientIdx)||{name:inv.clientName,address:"",ntn:"",sr:""};
   var hasName=inv.items.some(function(it){ return (it.name||"").trim(); });
   var hasTaxYear=inv.items.some(function(it){ return (it.taxYear||"").trim(); });
+  var hasDiscount=inv.items.some(function(it){ return (it.discount||0)>0; });
   var sn=0;
   var rows=inv.items.map(function(it){
     sn++;
@@ -3768,12 +3780,15 @@ function buildInvoiceHTML(inv){
       (hasTaxYear?'<td style="padding:10px 14px;font-size:12px;text-align:center;border-bottom:1px solid #e5e7eb;font-weight:600;">'+escHtml(it.taxYear||"")+'</td>':'')+
       (hasName?'<td style="padding:10px 14px;font-size:12px;border-bottom:1px solid #e5e7eb;">'+escHtml(it.name||"")+'</td>':'')+
       '<td style="padding:10px 14px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;border-bottom:1px solid #e5e7eb;">'+fmt(it.amount||0)+'</td>'+
+      (hasDiscount?'<td style="padding:10px 14px;font-size:12px;text-align:right;font-family:monospace;border-bottom:1px solid #e5e7eb;">'+((it.discount||0)>0?fmt(it.discount):'-')+'</td>'+
+        '<td style="padding:10px 14px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;border-bottom:1px solid #e5e7eb;">'+fmt((it.amount||0)-(it.discount||0))+'</td>':'')+
       '</tr>';
   }).join("");
   var dateLabel=inv.date?new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}):"—";
   var received=inv.received||0;
-  var subtotal=inv.total;
-  var payable=subtotal-received;
+  var discountSum=inv.items.reduce(function(s,it){ return s+(it.discount||0); },0);
+  var subtotal=inv.total+discountSum;
+  var payable=inv.total-received;
   var noteLines=(inv.notes||"").split("\n").filter(Boolean);
   var notesHTML=noteLines.map(function(n,i){ return '<p style="font-size:11px;color:#374151;margin:0 0 5px 0;">'+(i+1)+'.&nbsp;&nbsp;'+escHtml(n)+'</p>'; }).join("");
 
@@ -3884,7 +3899,7 @@ function buildInvoiceHTML(inv){
   '<col>'+ /* description fills remaining */
   (hasTaxYear?'<col style="width:80px;">':'')+
   (hasName?'<col style="width:130px;">':'')+
-  '<col style="width:200px;">'+
+  (hasDiscount?'<col style="width:120px;"><col style="width:110px;"><col style="width:120px;">':'<col style="width:200px;">')+
   '</colgroup>'+
   '<thead><tr>'+
   '<th style="text-align:center;">S.N</th>'+
@@ -3892,6 +3907,7 @@ function buildInvoiceHTML(inv){
   (hasTaxYear?'<th style="text-align:center;">Tax Year</th>':'')+
   (hasName?'<th>Name / Person</th>':'')+
   '<th style="text-align:right;">Amount (PKR)</th>'+
+  (hasDiscount?'<th style="text-align:right;">Discount (PKR)</th><th style="text-align:right;">Net (PKR)</th>':'')+
   '</tr></thead>'+
   '<tbody>'+rows+
   '</tbody>'+
@@ -3900,6 +3916,7 @@ function buildInvoiceHTML(inv){
   '<div style="display:flex;justify-content:flex-end;padding:0 0 0 0;margin-top:2px;">'+
   '<div style="min-width:260px;">'+
   '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:2px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Subtotal</span><span style="font-family:monospace;font-weight:700;">'+fmt(subtotal)+'</span></div>'+
+  (discountSum>0?'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Less: Discount</span><span style="font-family:monospace;font-weight:700;">- '+fmt(discountSum)+'</span></div>':'')+
   '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Received</span><span style="font-family:monospace;font-weight:700;color:#059669;">'+fmt(received)+'</span></div>'+
   '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:2px solid #111;font-size:13px;font-weight:800;"><span style="color:#111;font-size:11px;">TOTAL PAYABLE</span><span style="font-family:monospace;color:#111;font-size:14px;">'+fmt(payable>0?payable:0)+'</span></div>'+
   '</div>'+
@@ -3959,11 +3976,12 @@ window.previewCurrentInvoice=function(){
     var taxYear=(inputs[1]&&inputs[1].value.trim())||"";
     var name=(inputs[2]&&inputs[2].value.trim())||"";
     var amount=parseFloat(inputs[3]&&inputs[3].value)||0;
-    if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount});
+    var discount=parseFloat(inputs[4]&&inputs[4].value)||0; if(discount>amount) discount=amount; if(discount<0) discount=0;
+    if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount,discount:discount});
   });
-  var total=items.reduce(function(s,it){ return s+it.amount; },0);
+  var total=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
   var received=parseFloat(($("inv-received")||{}).value)||0;
-  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
+  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,discount:discountTotal,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
   var w=window.open("","_blank","width=900,height=950");
   w.document.write(buildInvoiceHTML(preview));
   w.document.close();
@@ -5727,7 +5745,7 @@ var EXPORTERS={
   returns:function(){ var q=_q("ret-search"), T={income:"Income Tax",sales:"Sales Tax",wealth:"Wealth Statement",wht:"WHT Statement"};
     return {title:"Return Filing Register",cols:["Client","Tax Year","Return Type","Filed Date","Status"],rows:RETURNS.filter(function(r){ return _has(r,q,["client"]); }).map(function(r){ return [r.client,r.year,T[r.type]||r.type,_fd(r.date),r.status==="filed"?"Filed":r.status==="pending"?"Pending":"N/A"]; })}; },
   fees:function(){ return {title:"Fee Register",cols:["Client","Description","Date","Fee (PKR)","Received (PKR)","Outstanding (PKR)"],rows:FEES.map(function(f){ return [f.client,f.desc||"",_fd(f.date),f.amount||0,f.received||0,(f.amount||0)-(f.received||0)]; })}; },
-  invoices:function(){ return {title:"Invoices",cols:["Invoice No.","Client","Date","Due Date","Total (PKR)","Received (PKR)","Balance (PKR)","Status"],rows:INVOICES.map(function(v){ return [v.invoiceNo,v.clientName,_fd(v.date),_fd(v.dueDate),v.total||0,v.received||0,(v.total||0)-(v.received||0),v.paid?"Paid":"Unpaid"]; })}; },
+  invoices:function(){ return {title:"Invoices",cols:["Invoice No.","Client","Date","Due Date","Discount (PKR)","Total after discount (PKR)","Received (PKR)","Balance (PKR)","Status"],rows:INVOICES.map(function(v){ return [v.invoiceNo,v.clientName,_fd(v.date),_fd(v.dueDate),v.discount||0,v.total||0,v.received||0,(v.total||0)-(v.received||0),v.paid?"Paid":"Unpaid"]; })}; },
   comms:function(){ return {title:"Communication Log",cols:["Client","Type","Date","Follow-up","Notes"],rows:COMMS.map(function(c){ return [c.client,c.type||"",_fd(c.date),_fd(c.followup),c.notes||""]; })}; },
   iris:function(){ var q=_q("iris-global-search"), rows=[];
     Object.keys(IRIS_DATA).forEach(function(k){ var recs=IRIS_DATA[k]; if(!recs||!recs.length) return; var i=parseInt(k,10), c=(i>=0&&i<ALL_CLIENTS.length)?getClient(i):{name:"Unknown Client"};
@@ -6834,6 +6852,8 @@ window.advInsertTable = function(){
           <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid var(--navy-800);width:90px;">Tax Year</th>
           <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid var(--navy-800);width:180px;">Name (optional)</th>
           <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:var(--gold);border-bottom:1px solid var(--navy-800);width:150px;">Amount (PKR)</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid var(--navy-800);width:120px;">Discount (PKR)</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#fff;border-bottom:1px solid var(--navy-800);width:120px;">Net (PKR)</th>
           <th style="width:36px;border-bottom:1px solid var(--navy-800);"></th>
         </tr></thead>
         <tbody id="inv-lines"></tbody>
@@ -6844,6 +6864,7 @@ window.advInsertTable = function(){
 Separate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.</textarea></div>
       <div style="background:#f8f9fb;border-radius:8px;padding:16px;min-width:220px;">
         <div style="display:flex;justify-content:space-between;font-size:13px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px;"><span style="color:var(--ink-2);">Subtotal</span><span id="inv-subtotal" style="font-family:'IBM Plex Mono',monospace;font-weight:600;">Rs. 0</span></div>
+        <div id="inv-discount-row" style="display:none;justify-content:space-between;font-size:13px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px;"><span style="color:var(--ink-2);">Less: Discount</span><span id="inv-discount" style="font-family:'IBM Plex Mono',monospace;font-weight:600;">- Rs. 0</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px;">
           <span style="color:var(--ink-2);">Received</span>
           <input type="number" id="inv-received" placeholder="0" min="0" oninput="calcInvoiceTotal()" style="width:100px;border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:12px;text-align:right;font-family:'IBM Plex Mono',monospace;">
