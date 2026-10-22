@@ -758,6 +758,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     <div class="sitem hide" id="tab-deadlines" data-page="deadlines"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg><span>FBR Deadlines</span></div>
     <div class="sitem hide" id="tab-tasks" data-page="tasks"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span>Task Manager</span></div>
     <div class="sitem hide" id="tab-notices" data-page="notices"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg><span>Notice Tracker</span></div>
+    <div class="sitem hide" id="tab-filing" data-page="filing"><svg class="ic" aria-hidden="true"><use href="#i-edit"/></svg><span>Return Filing</span></div>
     <div class="sitem hide" id="tab-returns" data-page="returns"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg><span>Return Register</span></div>
     <div class="sitem hide" id="tab-iris" data-page="iris"><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg><span>IRIS Payments</span></div>
     <div class="sitem hide" id="tab-secp" data-page="secp"><svg class="ic" aria-hidden="true"><use href="#i-building"/></svg><span>SECP Filing</span></div>
@@ -782,6 +783,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     <div id="pg-tasks" class="pg"></div>
     <div id="pg-iris" class="pg"></div>
     <div id="pg-notices" class="pg"></div>
+    <div id="pg-filing" class="pg"></div>
     <div id="pg-returns" class="pg"></div>
     <div id="pg-fees" class="pg"></div>
     <div id="pg-invoices" class="pg"></div>
@@ -2296,9 +2298,9 @@ var VAULT = {"v":1,"iter":600000,"data":{"iv":"wwh1g1echm0+y9Jo","ct":"NIPAQRs6I
 var USERS = {};
 Object.keys(VAULT.users).forEach(function(k){ var v=VAULT.users[k]; USERS[k]={ role:v.role, name:v.name, needsApproval:!!v.needsApproval, email:v.email||"" }; });
 var PERMS = {
-  admin:    { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1 },
-  reviewer: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, fees:0, invoices:0, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1 },
-  staff:    { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0, secp:0 }
+  admin:    { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1 },
+  reviewer: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:0, invoices:0, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1 },
+  staff:    { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, filing:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0, secp:0 }
 };
 
 /* ════════════════════════════════
@@ -2497,7 +2499,7 @@ function unlockVault(u,p){
 function loginOK(u,usr){
   role=usr.role; userName=usr.name; userKey=u; sessStart=Date.now();
   var p=PERMS[role];
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","invoices","comms","tools","library","exttools","advisories","secp"].forEach(function(k){
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","filing","fees","invoices","comms","tools","library","exttools","advisories","secp"].forEach(function(k){
     var el=$("tab-"+k); if(el) el.classList.toggle("hide",!p[k]);
   });
   buildPages(p);
@@ -2554,6 +2556,7 @@ window.showPage = function showPage(id){
   document.querySelectorAll(".sitem").forEach(function(t){ t.classList.remove("on"); });
   $("pg-"+id).classList.add("on");
   $("tab-"+id).classList.add("on");
+  if(id==="filing"&&window.renderFiling) renderFiling();
   resetIdle();
 }
 
@@ -6613,7 +6616,7 @@ function addExportBar(id){
 /* ── DISPLAY-ONLY UI HELPERS (no data / permission logic) ── */
 function ico(n){ return '<svg class="ic" aria-hidden="true"><use href="#i-'+n+'"/></svg>'; }
 window.ico=ico;
-var PAGE_GROUP={dashboard:"Main",clients:"Main",calculator:"Main",deadlines:"Compliance",tasks:"Compliance",notices:"Compliance",returns:"Compliance",iris:"Compliance",secp:"Compliance",fees:"Billing",invoices:"Billing",comms:"Resources",advisories:"Resources",library:"Resources",tools:"Resources"};
+var PAGE_GROUP={dashboard:"Main",clients:"Main",calculator:"Main",deadlines:"Compliance",tasks:"Compliance",notices:"Compliance",returns:"Compliance",filing:"Compliance",iris:"Compliance",secp:"Compliance",fees:"Billing",invoices:"Billing",comms:"Resources",advisories:"Resources",library:"Resources",tools:"Resources"};
 function uiRefreshShell(id){
   var tab=document.getElementById("tab-"+id), crumb=document.getElementById("sbar-page");
   if(tab&&crumb) crumb.textContent=tab.textContent.trim();
@@ -6986,6 +6989,7 @@ window.compClose=function(){
   document.body.style.overflow="";
   _compScreen=null; _compIris=null; _compGuided=null;
   if(profileIdx!==null&&profileTab==="computation") renderProfileTab();
+  var pf=document.getElementById("pg-filing"); if(pf&&pf.classList.contains("on")&&window.renderFiling) renderFiling();
 };
 function compSaveNow(){
   _compSaveT=null; if(!_compScreen||_compIdx===null) return;
@@ -6993,7 +6997,7 @@ function compSaveNow(){
   compPut(_compIdx,COMP_TY,_compState);
   var st=document.getElementById("cxo-status"); if(st) st.textContent="Saved "+new Date().toLocaleTimeString("en-PK",{hour:"2-digit",minute:"2-digit"});
 }
-window.compOpen=function(idx){
+window.compOpen=function(idx,mode){
   var st=compGet(idx,COMP_TY); if(!st) return;
   var o=compOverlay(), c=getClient(idx);
   document.getElementById("cxo-title").textContent=c.name;
@@ -7016,7 +7020,7 @@ window.compOpen=function(idx){
     var workEl=body.querySelector("#cxo-work"), irisEl=body.querySelector("#cxo-iris"), guidedEl=body.querySelector("#cxo-guided"), openEl=body.querySelector("#cxo-open"), modes=body.querySelectorAll(".cxo-mode");
     function setMode(m){ modes.forEach(function(b){ b.classList.toggle("on",b.dataset.m===m); }); if(openEl) openEl.hidden=m!=="open"; if(guidedEl) guidedEl.hidden=m!=="guided"; if(irisEl) irisEl.hidden=m!=="iris"; workEl.hidden=m!=="work"; if(m==="iris"&&_compIris) _compIris.render(); if(m==="guided"&&_compGuided) _compGuided.draw(); }
     modes.forEach(function(b){ b.onclick=function(){ setMode(b.dataset.m); }; });
-    if(!hasIris) workEl.hidden=false; else setMode(first);
+    if(!hasIris) workEl.hidden=false; else setMode(mode==="check"?"iris":(mode||first));
     _compScreen=new CompScreen.Screen(workEl,model,{inputs:st.inputs||{},ops:st.ops||[],labels:_compLabels,onChange:function(){
       var s2=document.getElementById("cxo-status"); if(s2) s2.textContent="Saving…";
       clearTimeout(_compSaveT); _compSaveT=setTimeout(compSaveNow,700); }});
@@ -7024,6 +7028,7 @@ window.compOpen=function(idx){
     _compIris=null; _compGuided=null;
     if(hasIris){ _compIris=new CompIris.IrisView(irisEl,_compScreen,tpl.irisView,tpl,{check:st.check||{},onCheck:function(c){ _compState.check=c; _compScreen.opts.onChange(); },onGoto:function(sh,a){ setMode("work"); _compScreen.goto(sh,a); }});
       _compGuided=new CompGuided.Guided(guidedEl,_compScreen,tpl,{iris:_compIris,onIris:function(pg){ setMode("iris"); _compIris.page=pg; _compIris.q=""; _compIris.render(); },onWork:function(sh){ setMode("work"); _compScreen.sheet=sh; _compScreen.render(); }});
+      if(mode==="check"){ setMode("iris"); _compIris.page="check"; _compIris.render(); }
       new CompOpening.Panel(openEl,_compScreen,{onApplied:function(res,ok){ _compState.opening={at:new Date().toISOString(),ok:ok}; _compScreen.opts.onChange(); if(_compGuided) _compGuided.draw(); }}); }
     document.getElementById("cxo-status").textContent=st.updated?"Last saved "+new Date(st.updated).toLocaleString("en-PK",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
     if(!st.summary){ compSaveNow(); }
@@ -7066,6 +7071,26 @@ window.compDelete=function(idx){
   if(!confirm("Delete this client's Tax Year "+COMP_TY+" computation? This cannot be undone.")) return;
   try{ localStorage.setItem(compKey(idx,COMP_TY),"null"); }catch(e){}
   renderProfileTab();
+};
+var _filingQ="", _filingF="all";
+window.renderFiling=function(){
+  var pg=document.getElementById("pg-filing"); if(!pg) return;
+  var q=_filingQ.toLowerCase(), rows=[], i, shown=0, total=0, started=0;
+  for(i=0;i<ALL_CLIENTS.length;i++){
+    var c=getClient(i), st=compGet(i,COMP_TY); total++; if(st) started++;
+    if(_filingF==="none"&&st) continue; if(_filingF==="progress"&&!st) continue;
+    if(q&&(c.name||"").toLowerCase().indexOf(q)<0&&(c.ntn||"").indexOf(q)<0) continue;
+    shown++; if(shown>150) continue;
+    var s=st&&st.summary||{}, chk=st&&st.check?Object.keys(st.check).length:0;
+    function chip(on,t){ return '<span style="display:inline-block;font-size:11.5px;padding:3px 9px;border-radius:999px;margin-right:4px;background:'+(on?"var(--green-soft)":"var(--line-2)")+';color:'+(on?"var(--green)":"var(--ink-3)")+';">'+t+'</span>'; }
+    rows.push('<tr style="border-bottom:1px solid var(--line-2);"><td style="padding:10px 8px;"><div style="font-weight:500;">'+escHtml(c.name)+'</div>'+(c.ntn?'<div class="mono" style="font-size:11.5px;color:var(--ink-3);">NTN '+escHtml(c.ntn)+'</div>':'')+'</td><td style="padding:10px 8px;">'+(st?chip(!!st.opening,"Opening figures")+chip(!!s["Total income"],"Prepared")+chip(chk>0,"Checked"):'<span style="font-size:12.5px;color:var(--ink-3);">Not started</span>')+'</td><td style="padding:10px 8px;text-align:right;">'+(s["Taxable income"]!=null?'<span class="mono" style="font-size:12.5px;color:var(--ink-2);">'+CompScreen.fmt(s["Taxable income"],"#,##0")+'</span>':'')+'</td><td style="padding:10px 8px;text-align:right;white-space:nowrap;">'+(st?'<button class="btn" onclick="compOpen('+i+',\''+(st.opening?"guided":"open")+'\')">Open</button>':'<button class="btn-sec" onclick="compStartBlank('+i+')">'+ico("plus")+'Start return</button>')+'</td></tr>');
+  }
+  var h='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Tax Year '+COMP_TY+'. For each client: bring in last year\'s figures, prepare the return, check it against IRIS, then enter it in IRIS. '+started+' of '+total+' clients started.</div></div><div class="page">';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"><input class="search-input" id="filing-q" type="text" placeholder="Search by client name or NTN..." value="'+escHtml(_filingQ)+'" style="max-width:340px;"><select id="filing-f" style="padding:9px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;"><option value="all"'+(_filingF==="all"?" selected":"")+'>All clients</option><option value="progress"'+(_filingF==="progress"?" selected":"")+'>Started</option><option value="none"'+(_filingF==="none"?" selected":"")+'>Not started</option></select></div>';
+  h+='<div class="cp-info-item" style="padding:4px 12px;overflow:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr style="text-align:left;font-size:11.5px;color:var(--ink-3);"><th style="padding:8px;">Client</th><th style="padding:8px;">Progress</th><th style="padding:8px;text-align:right;">Taxable income</th><th></th></tr></thead><tbody>'+(rows.join("")||'<tr><td colspan="4" class="cp-empty">No clients match.</td></tr>')+'</tbody></table></div>'+(shown>150?'<div style="font-size:12.5px;color:var(--ink-3);margin-top:8px;">Showing the first 150 of '+shown+'. Search to narrow the list.</div>':'')+'</div>';
+  pg.innerHTML=h;
+  var qi=document.getElementById("filing-q"); qi.oninput=function(){ _filingQ=qi.value; var pos=qi.selectionStart; renderFiling(); var n=document.getElementById("filing-q"); n.focus(); n.setSelectionRange(pos,pos); };
+  document.getElementById("filing-f").onchange=function(){ _filingF=this.value; renderFiling(); };
 };
 function compProfileHtml(idx){
   var st=compGet(idx,COMP_TY), h='';
