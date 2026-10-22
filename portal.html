@@ -2352,15 +2352,32 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 
   /* ---- matching ---- */
   function normName(s){ return clean(s).toLowerCase().replace(/[^a-z ]/g,"").replace(/\b(m\/s|mr|mrs|ms|muhammad|mohammad|mohd|md)\b/g,"").replace(/\s+/g," ").trim(); }
-  function nameScore(a,b){ var A=normName(a).split(" ").filter(function(w){ return w.length>1; }), B=normName(b).split(" ").filter(function(w){ return w.length>1; }); if(!A.length||!B.length) return 0;
-    if(A.join(" ")===B.join(" ")) return 90; var common=A.filter(function(w){ return B.indexOf(w)>=0; }).length; return Math.round(70*common/Math.max(A.length,B.length)); }
-  /* clients: [{name,id,ntn}] indexed like the portal's list. Returns [{idx,score}] best first */
+  /* two words are the same name if they differ by at most one letter (substitution, missing/extra letter, or swapped neighbours): kazim / kazmi */
+  function near(a,b){
+    if(a===b) return true; if(a.length<4||b.length<4||Math.abs(a.length-b.length)>1) return false;
+    var i=0; while(i<a.length&&i<b.length&&a[i]===b[i]) i++;
+    if(a.length===b.length){ if(a.slice(i+1)===b.slice(i+1)) return true; return a[i]===b[i+1]&&a[i+1]===b[i]&&a.slice(i+2)===b.slice(i+2); }
+    var l=a.length>b.length?a:b, sh=a.length>b.length?b:a; return l.slice(0,i)+l.slice(i+1)===sh;
+  }
+  function tok(s){ return normName(s).split(" ").filter(function(w){ return w.length>1; }); }
+  function nameScore(a,b){ var A=tok(a), B=tok(b); if(!A.length||!B.length) return 0;
+    if(A.join(" ")===B.join(" ")) return 90;
+    var common=A.filter(function(w){ return B.some(function(x){ return near(w,x); }); }).length; return Math.round(70*common/Math.max(A.length,B.length)); }
+  /* clients: [{name,id,ntn}] indexed like the portal's list. Returns [{idx,score,why,ns}] best first.
+     why: "CNIC" or "NTN" (the number in the file equals the client's), otherwise "name". */
   function matchClient(tp,clients){
     var cnic=digits(tp.E34), ntn=digits(tp.C35), out=[];
-    clients.forEach(function(c,i){ if(!c) return; var score=0, cid=digits(c.id), cn=digits(c.ntn);
-      if(cnic.length===13&&(cid===cnic||cn===cnic)) score=100; else if(ntn&&(cn===ntn||cid===ntn)) score=100; else if(tp.E32) score=nameScore(tp.E32,c.name);
-      if(score>=40) out.push({idx:i,score:score}); });
-    return out.sort(function(a,b){ return b.score-a.score; }).slice(0,4);
+    clients.forEach(function(c,i){ if(!c) return; var cid=digits(c.id), cn=digits(c.ntn), why="name", ns=tp.E32?nameScore(tp.E32,c.name):0;
+      if(cnic.length===13&&(cid===cnic||cn===cnic)) why="CNIC"; else if(ntn&&ntn.length>=6&&(cn===ntn||cid===ntn)) why="NTN";
+      var score=why==="name"?ns:100; if(score>=40) out.push({idx:i,score:score,why:why,ns:ns}); });
+    return out.sort(function(a,b){ return (b.score-a.score)||(b.ns-a.ns); }).slice(0,5);
+  }
+  /* the client to pre-select, or null when you must choose */
+  function autoChoice(opts){
+    var hits=opts.filter(function(o){ return o.why!=="name"; });
+    if(hits.length===1) return hits[0];
+    if(hits.length>1){ hits.sort(function(a,b){ return b.ns-a.ns; }); return hits[0].ns>=60&&hits[0].ns>hits[1].ns?hits[0]:null; }
+    var top=opts[0]; if(top&&top.score>=65&&(opts.length===1||top.score-opts[1].score>=15)) return top; return null;
   }
   function identity(tp){ var d=digits(tp.E34); if(d.length===13) return "c"+d; var n=digits(tp.C35); if(n) return "n"+n; return "m"+normName(tp.E32||""); }
 
@@ -2372,7 +2389,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     return {rows:rows,ok:ok,total:tot};
   }
 
-  var api={KEYS:KEYS,parseIrisReturn:parseIrisReturn,excelFigures:excelFigures,matchClient:matchClient,identity:identity,compare:compare,nameScore:nameScore};
+  var api={KEYS:KEYS,parseIrisReturn:parseIrisReturn,excelFigures:excelFigures,matchClient:matchClient,autoChoice:autoChoice,near:near,identity:identity,compare:compare,nameScore:nameScore};
 
   /* ---- screen (browser) ---- */
   function chip(t,cls){ return '<span class="cf-chip '+(cls||"")+'">'+esc(t)+'</span>'; }
@@ -2396,7 +2413,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       var tp=(g.excel&&g.excel.result.taxpayer)||(g.pdf&&g.pdf.result.taxpayer)||{}, name=tp.E32||"(no name found)";
       var cmp=g.excel&&g.pdf&&g.pdf.result.haveReturn?F_compare(g):null;
       h+='<tr><td><b>'+esc(name)+'</b><div class="cf-sub">'+esc(tp.E34||tp.C35||"")+'</div></td><td>'+(g.excel?chip("Excel","ok"):chip("no Excel","warn"))+' '+(g.pdf?chip("PDF","ok"):chip("no PDF"))+'</td>';
-      h+='<td><select class="cg-in cf-pick" data-g="'+gi+'"><option value="">Do not save</option>'+g.options.map(function(o){ var c=clients[o.idx]; return '<option value="'+o.idx+'"'+(g.choice===o.idx?" selected":"")+'>'+esc(c.name)+(o.score<90?" ("+o.score+"% match)":"")+'</option>'; }).join("")+(g.choice!=null&&!g.options.some(function(o){ return o.idx===g.choice; })?'<option value="'+g.choice+'" selected>'+esc(clients[g.choice].name)+'</option>':'')+'</select></td>';
+      h+='<td><select class="cg-in cf-pick" data-g="'+gi+'"><option value="">Do not save</option>'+g.options.map(function(o){ var c=clients[o.idx]; return '<option value="'+o.idx+'"'+(g.choice===o.idx?" selected":"")+'>'+esc(c.name)+(o.score<90?" ("+o.score+"% match)":"")+'</option>'; }).join("")+(g.choice!=null&&!g.options.some(function(o){ return o.idx===g.choice; })?'<option value="'+g.choice+'" selected>'+esc(clients[g.choice].name)+'</option>':'')+'</select>'+self.whyHtml(g)+'</td>';
       h+='<td>'+(cmp?(cmp.ok===cmp.total?chip("All "+cmp.total+" match","ok"):chip(cmp.ok+" of "+cmp.total+" match","bad")):(g.pdf&&!g.pdf.result.haveReturn?chip("PDF has no return figures","warn"):chip("needs both files")))+'</td><td class="cg-r"><button type="button" class="cg-link cf-det" data-g="'+gi+'">'+(self.open[gi]?"Hide":"Details")+'</button></td></tr>';
       if(self.open[gi]) h+='<tr><td colspan="5">'+self.detailHtml(g)+'</td></tr>';
     });
@@ -2411,6 +2428,14 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     KEYS.forEach(function(k,i){ var st=cmp?cmp.rows[i].st:"na", iv=pf[k[0]];
       h+='<tr><td class="cg-code">'+k[0]+'</td><td>'+k[1]+'</td><td class="cg-r">'+(sv?fmt(sv[k[0]]):"")+'</td><td class="cg-r">'+(sy?fmt(sy[k[0]]):"")+'</td><td class="cg-r">'+(iv!=null?fmt(iv):"")+'</td><td>'+(st==="match"?chip("match","ok"):st==="round"?chip("Rs 1","ok"):st==="diff"?chip("differs","bad"):"")+'</td></tr>'; });
     return h+'</tbody></table>';
+  };
+  Panel.prototype.whyHtml=function(g){
+    var h="", o=g.options.filter(function(x){ return x.idx===g.choice; })[0];
+    if(g.choice!=null){ if(o) h+=o.why==="name"?chip("matched by name, please check","warn"):chip("matched by "+o.why,"ok"); else h+=chip("chosen by you","ok");
+      var ex=this.ctx.get(g.choice); if(ex) h+=" "+chip("replaces the one saved "+new Date(ex.saved).toLocaleDateString("en-PK",{day:"numeric",month:"short"}),"warn"); }
+    else if(g.options.length) h+=chip("several possible, choose one","warn"); else h+=chip("no client found","bad");
+    if(g.dup) h+=" "+chip((g.dup+1)+" copies, newest used","warn");
+    return '<div style="margin-top:3px">'+h+'</div>';
   };
   Panel.prototype.wire=function(){
     var self=this;
@@ -2428,17 +2453,17 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   };
   Panel.prototype.readOne=function(it,tpl){
     return it.f.arrayBuffer().then(function(buf){
-      if(it.kind==="pdf") return root.CompOpening.readPdfLines(buf).then(function(lines){ it.result=parseIrisReturn(lines); it.done=true; });
+      if(it.kind==="pdf") return root.CompOpening.readPdfLines(buf).then(function(lines){ var r=parseIrisReturn(lines); if(r.taxYear&&r.taxYear!=="2026") throw new Error("Tax year "+r.taxYear+", not 2026"); it.result=r; it.done=true; });
       if(typeof XLSX==="undefined") throw new Error("Excel reader not loaded");
       var r=root.CompImport.convert(XLSX,new Uint8Array(buf)); it.result=excelFigures(r.model,r.cached,tpl); it.done=true;
     }).catch(function(e){ it.error=(e.message||String(e)).slice(0,60); });
   };
   Panel.prototype.group=function(){
     var by={}, clients=this.ctx.clients(), order=[];
-    this.items.forEach(function(it){ if(!it.done) return; var id=identity(it.result.taxpayer); if(!by[id]){ by[id]={id:id}; order.push(id); } by[id][it.kind]=it; });
+    this.items.forEach(function(it){ if(!it.done) return; var id=identity(it.result.taxpayer); if(!by[id]){ by[id]={id:id}; order.push(id); } var old=by[id][it.kind]; if(old){ by[id].dup=(by[id].dup||0)+1; if((old.f.lastModified||0)>(it.f.lastModified||0)) return; } by[id][it.kind]=it; });
     // pair a PDF and an Excel that identify the same person by name when ids differ
     this.groups=order.map(function(id){ return by[id]; });
-    this.groups.forEach(function(g){ var tp=(g.excel&&g.excel.result.taxpayer)||(g.pdf&&g.pdf.result.taxpayer)||{}; var m=matchClient(tp,clients); g.options=m; g.choice=m.length&&m[0].score>=90&&(m.length===1||m[0].score>m[1].score)?m[0].idx:null; });
+    this.groups.forEach(function(g){ var tp=(g.excel&&g.excel.result.taxpayer)||(g.pdf&&g.pdf.result.taxpayer)||{}; var m=matchClient(tp,clients); g.options=m; var pick=autoChoice(m); g.choice=pick?pick.idx:null; });
   };
   Panel.prototype.saveAll=function(){
     var self=this, n=0, by=this.ctx.by();
@@ -2456,13 +2481,28 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     if(!rows.length){ box.innerHTML=h+'<p class="cg-sub">Nothing saved yet. Upload the filed returns above.</p></section>'; return; }
     h+='<p class="cg-sub">Figures are the new system\'s calculation from each workbook. The last column shows whether it agrees with the IRIS filed return, where you gave the PDF.</p><div class="cf-scroll"><table class="cg-t"><thead><tr><th>Client</th>'+cols.map(function(c){ return '<th class="cg-r">'+lab[c]+'</th>'; }).join("")+'<th>Against IRIS</th><th></th></tr></thead><tbody>';
     rows.forEach(function(x){ var f=x.r.systemFigs||{}; cols.forEach(function(c){ tot[c]=(tot[c]||0)+num(f[c]); });
-      var ck=x.r.check; h+='<tr><td>'+esc(x.c.name)+'</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(num(f[c]))+'</td>'; }).join("")+'<td>'+(ck?(ck.ok===ck.total?chip("matches","ok"):chip(ck.ok+"/"+ck.total,"bad")):chip("no PDF"))+'</td><td class="cg-r"><button type="button" class="cg-link cf-del" data-i="'+x.i+'" title="Remove the saved figures">Remove</button></td></tr>'; });
+      var ck=x.r.check; h+='<tr><td>'+esc(x.c.name)+'</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(num(f[c]))+'</td>'; }).join("")+'<td>'+(ck?(ck.ok===ck.total?chip("matches","ok"):chip(ck.ok+"/"+ck.total,"bad")):chip("no PDF"))+'</td><td class="cg-r"><label class="cg-link cf-upd" title="Replace this client\'s saved figures and last year\'s wealth with a revised workbook or IRIS PDF">Update<input type="file" accept=".xlsx,.pdf" hidden data-i="'+x.i+'"></label> <button type="button" class="cg-link cf-del" data-i="'+x.i+'" title="Remove the saved figures">Remove</button></td></tr>'; });
     h+='<tr class="cg-tot"><td>Total</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(tot[c]||0)+'</td>'; }).join("")+'<td></td><td></td></tr></tbody></table></div><div class="co-actions"><button type="button" class="cg-link cf-csv">Download as CSV</button></div></section>';
     box.innerHTML=h;
+    box.querySelectorAll(".cf-upd input").forEach(function(inp){ inp.onchange=function(){ if(inp.files[0]) self.updateFor(+inp.dataset.i,inp.files[0]); inp.value=""; }; });
     box.querySelectorAll(".cf-del").forEach(function(b){ b.onclick=function(){ if(confirm("Remove the saved 2026 figures for this client?")){ self.ctx.del(+b.dataset.i); self.drawSaved(); } }; });
     var cv=box.querySelector(".cf-csv"); if(cv) cv.onclick=function(){ var lines=[["Client"].concat(cols.map(function(c){ return lab[c]; })).join(",")];
       rows.forEach(function(x){ var f=x.r.systemFigs||{}; lines.push(['"'+String(x.c.name).replace(/"/g,'""')+'"'].concat(cols.map(function(c){ return Math.round(num(f[c])); })).join(",")); });
       var a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv"})); a.download="2026-figures.csv"; a.click(); };
+  };
+  /* replace one client's saved figures from a revised workbook (everything) or IRIS PDF (IRIS figures and closing wealth) */
+  Panel.prototype.updateFor=function(idx,file){
+    var self=this, old=this.ctx.get(idx)||{}, by=this.ctx.by(); this.msg="Reading "+file.name+"\u2026"; this.render();
+    this.ctx.template().then(function(tpl){ return file.arrayBuffer().then(function(buf){
+      var isPdf=/\.pdf$/i.test(file.name);
+      if(!isPdf){ if(typeof XLSX==="undefined") throw new Error("Excel reader not loaded"); var r=root.CompImport.convert(XLSX,new Uint8Array(buf)), res=excelFigures(r.model,r.cached,tpl);
+        var cmp=old.iris?compare(res.system,old.iris):null;
+        return Object.assign({},old,{saved:new Date().toISOString(),by:by,files:Object.assign({},old.files,{excel:file.name}),taxpayer:res.taxpayer,excelFigs:res.saved,systemFigs:res.system,wealth:res.wealth,check:cmp?{ok:cmp.ok,total:cmp.total}:old.check}); }
+      return root.CompOpening.readPdfLines(buf).then(function(lines){ var rr=parseIrisReturn(lines); if(rr.taxYear&&rr.taxYear!=="2026") throw new Error("This PDF is for tax year "+rr.taxYear+", not 2026.");
+        var w=root.CompOpening.parseIrisLines(lines), cmp=old.systemFigs&&rr.haveReturn?compare(old.systemFigs,rr.figs):null;
+        return Object.assign({},old,{saved:new Date().toISOString(),by:by,files:Object.assign({},old.files,{pdf:file.name}),iris:rr.haveReturn?rr.figs:old.iris,check:cmp?{ok:cmp.ok,total:cmp.total}:old.check,wealth:w,taxpayer:old.taxpayer||rr.taxpayer}); });
+    }); }).then(function(rec){ self.ctx.put(idx,rec); self.msg="Updated the saved return for "+self.ctx.clients()[idx].name+"."; self.render(); })
+      .catch(function(e){ self.msg=e.message||String(e); self.render(); });
   };
   api.Panel=Panel;
   if(typeof module!=="undefined") module.exports=api; else root.CompFiled=api;
