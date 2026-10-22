@@ -609,6 +609,30 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 .cg-in{padding:5px 8px;font-size:13px}.cg-t{font-size:13px}.cg-t td{padding:3px 8px}.cg-t .cg-in{padding:3px 7px}.cg-r{width:150px}
 .cg-calc{padding:5px 8px;font-size:13px}.cg-foot{padding:2px 0 14px}.cg-addbtn,.cg-addrow,.cg-link,.cg-foot button{padding:6px 12px;font-size:13px}
 .co-drop{padding:14px}.cg-grp-off{padding:7px 12px;margin-bottom:6px}
+
+/* ── tighter pass ── */
+#cxo-open,#cxo-guided,#cxo-iris,.cxo-modes{max-width:1000px}
+#comp-overlay .cxo-bar{padding:7px 20px}#comp-overlay .cxo-title{font-size:19px}#comp-overlay .cxo-bar .eyebrow{font-size:10px;margin-bottom:0}
+.cxo-body{padding:10px 16px}.cxo-modes{gap:4px;margin-bottom:8px}.cxo-mode{padding:4px 12px;font-size:12px}
+.ci-bar{gap:6px;margin-bottom:6px}.ci-tabs{gap:3px}.ci-tab{padding:3px 9px;font-size:12px;border-radius:6px}.ci-q{width:230px;padding:4px 9px;font-size:12px}.ci-chk{font-size:12px}
+.ci-body{max-height:calc(100vh - 140px)}.ci-sec{margin-bottom:8px;border-radius:8px}.ci-sec-t{padding:5px 10px;font-size:12.5px}
+.ci-t{font-size:12px}.ci-t th{padding:3px 6px;font-size:11px}.ci-t td{padding:0 6px;line-height:1.25}.ci-r td{height:22px}
+.ci-code{width:72px;font-size:11px}.ci-v{width:112px}.ci-t th{white-space:nowrap}.ci-go{width:24px}.ci-gob svg{width:13px;height:13px}
+.ci-in input{padding:0 5px;font-size:12px;height:20px;border-radius:4px}
+.ci-cards{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-bottom:8px}.ci-card{padding:6px 10px;border-radius:8px}.ci-card-l{font-size:10.5px}.ci-card-v{font-size:14px;margin-top:0}
+.ci-banner{margin:6px 10px;padding:5px 9px;font-size:12px}.ci-paste{padding:8px 10px;gap:6px}.ci-list li{padding:4px 0;font-size:12px}.ci-empty{padding:16px}
+.cg{grid-template-columns:150px minmax(0,1fr);gap:10px}.cg-step{padding:5px 8px;font-size:12.5px;gap:8px}.cg-step i{width:18px;height:18px;font-size:10.5px}.cg-nav{gap:2px}
+.cg-main{max-height:calc(100vh - 140px)}.cg-card{padding:9px 12px;margin-bottom:8px;border-radius:10px}.cg-card h3{font-size:14px;margin-bottom:2px}
+.cg-sub{font-size:12px;margin:0 0 6px;line-height:1.4}.cg-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:5px 10px;margin-bottom:4px}.cg-f{font-size:11.5px;gap:2px}
+.cg-in{padding:2px 7px;font-size:12.5px;height:26px;border-radius:6px}select.cg-in{padding:0 4px}
+.cg-t{font-size:12.5px}.cg-t th{padding:3px 6px}.cg-t td{padding:1px 6px}.cg-t .cg-in{height:22px;padding:0 6px}.cg-r{width:136px}.cg-code{width:78px}
+.cg-calc{padding:3px 7px;font-size:12.5px}.cg-big{font-size:15px}.cg-foot{padding:0 0 10px}.cg-addbtn,.cg-addrow,.cg-link,.cg-foot button{padding:4px 10px;font-size:12px;border-radius:6px}
+.cg-addrow{margin-top:5px}.cg-add{margin-top:6px}.cg-add select,.cg-add input{padding:4px 8px;font-size:12.5px;min-width:230px}.cg-net{margin-top:3px;font-size:12px}
+.cg-grp-off{padding:4px 10px;margin-bottom:4px;font-size:12.5px}.cg-tot td{padding:2px 6px}
+.co-drop{padding:9px;font-size:12.5px}.co-drop input{margin-bottom:4px}.co-msg{font-size:12px;margin-top:6px}.co-actions{margin-top:8px}
+.cx-tab{padding:6px 11px;font-size:12px}.cx-tools{padding:6px 12px;gap:4px 14px;font-size:12px}.cx-grid{max-height:calc(100vh - 160px)}
+.cx-t{font-size:12px}.cx-t td{height:22px}.cx-t td.cx-l{padding:2px 6px;line-height:1.2}.cx-t td.cx-i input{height:22px;font-size:12px}
+.cx-wrap{gap:12px}.cx-side{font-size:12px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -7102,7 +7126,7 @@ window.renderFiling=function(){
     shown++; if(shown>150) continue;
     var s=st&&st.summary||{}, chk=st&&st.check?Object.keys(st.check).length:0;
     function chip(on,t){ return '<span style="display:inline-block;font-size:11.5px;padding:3px 9px;border-radius:999px;margin-right:4px;background:'+(on?"var(--green-soft)":"var(--line-2)")+';color:'+(on?"var(--green)":"var(--ink-3)")+';">'+t+'</span>'; }
-    rows.push('<tr style="border-bottom:1px solid var(--line-2);"><td style="padding:10px 8px;"><div style="font-weight:500;">'+escHtml(c.name)+'</div>'+(c.ntn?'<div class="mono" style="font-size:11.5px;color:var(--ink-3);">NTN '+escHtml(c.ntn)+'</div>':'')+'</td><td style="padding:10px 8px;">'+(st?chip(!!st.opening,"Opening figures")+chip(!!s["Total income"],"Prepared")+chip(chk>0,"Checked"):'<span style="font-size:12.5px;color:var(--ink-3);">Not started</span>')+'</td><td style="padding:10px 8px;text-align:right;">'+(s["Taxable income"]!=null?'<span class="mono" style="font-size:12.5px;color:var(--ink-2);">'+CompScreen.fmt(s["Taxable income"],"#,##0")+'</span>':'')+'</td><td style="padding:10px 8px;text-align:right;white-space:nowrap;">'+(st?'<button class="btn" onclick="compOpen('+i+',\''+(st.opening?"guided":"open")+'\')">Open</button>':'<button class="btn-sec" onclick="compStartBlank('+i+')">'+ico("plus")+'Start return</button>')+'</td></tr>');
+    rows.push('<tr style="border-bottom:1px solid var(--line-2);"><td style="padding:4px 8px;"><div style="font-weight:500;">'+escHtml(c.name)+'</div>'+(c.ntn?'<div class="mono" style="font-size:11.5px;color:var(--ink-3);">NTN '+escHtml(c.ntn)+'</div>':'')+'</td><td style="padding:4px 8px;">'+(st?chip(!!st.opening,"Opening figures")+chip(!!s["Total income"],"Prepared")+chip(chk>0,"Checked"):'<span style="font-size:12.5px;color:var(--ink-3);">Not started</span>')+'</td><td style="padding:4px 8px;text-align:right;">'+(s["Taxable income"]!=null?'<span class="mono" style="font-size:12.5px;color:var(--ink-2);">'+CompScreen.fmt(s["Taxable income"],"#,##0")+'</span>':'')+'</td><td style="padding:4px 8px;text-align:right;white-space:nowrap;">'+(st?'<button class="btn" onclick="compOpen('+i+',\''+(st.opening?"guided":"open")+'\')">Open</button>':'<button class="btn-sec" onclick="compStartBlank('+i+')">'+ico("plus")+'Start return</button>')+'</td></tr>');
   }
   var h='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Tax Year '+COMP_TY+'. For each client: bring in last year\'s figures, prepare the return, check it against IRIS, then enter it in IRIS. '+started+' of '+total+' clients started.</div></div><div class="page">';
   h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"><input class="search-input" id="filing-q" type="text" placeholder="Search by client name or NTN..." value="'+escHtml(_filingQ)+'" style="max-width:340px;"><select id="filing-f" style="padding:9px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;"><option value="all"'+(_filingF==="all"?" selected":"")+'>All clients</option><option value="progress"'+(_filingF==="progress"?" selected":"")+'>Started</option><option value="none"'+(_filingF==="none"?" selected":"")+'>Not started</option></select></div>';
