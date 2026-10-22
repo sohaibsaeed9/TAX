@@ -558,6 +558,38 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 .ci-list li b{font-weight:600}.ci-list li span{color:var(--ink-2)}
 .ci-pass b::before{content:"\2713  ";color:var(--green)}.ci-warn b::before{content:"\26A0  ";color:var(--red)}.ci-info b::before{content:"\2139  ";color:var(--blue)}
 @media(max-width:700px){.ci-v{width:90px}.ci-code{width:64px}}
+/* ── GUIDED ENTRY ── */
+.cg{display:grid;grid-template-columns:200px minmax(0,1fr);gap:18px;align-items:start}
+.cg-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:0}
+.cg-step{font:inherit;font-size:13.5px;display:flex;gap:10px;align-items:center;text-align:left;padding:9px 12px;border:1px solid transparent;border-radius:10px;background:none;color:var(--ink-2);cursor:pointer}
+.cg-step i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--line-2);display:grid;place-items:center;font-size:11.5px;color:var(--ink-3)}
+.cg-step.on{background:var(--card);border-color:var(--line);color:var(--navy-800);font-weight:600;box-shadow:var(--shadow)}.cg-step.on i{background:var(--navy-700);color:#fff}
+.cg-main{min-width:0;max-height:calc(100vh - 190px);overflow:auto}
+.cg-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.cg-card h3{margin:0 0 4px;font-size:16px;color:var(--navy-800)}.cg-sub{margin:0 0 12px;font-size:13px;color:var(--ink-2);line-height:1.5}
+.cg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px 16px;margin-bottom:10px}
+.cg-f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-2)}
+.cg-in{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);width:100%}
+.cg-in:focus{outline:none;border-color:var(--navy-700);box-shadow:var(--ring)}.cg-num{text-align:right;font-family:var(--mono)}
+.cg-calc{font-family:var(--mono);font-size:14px;color:var(--ink-2);padding:8px 10px;background:#fafaf8;border-radius:8px;display:block;text-align:right}.cg-big{font-size:18px;color:var(--navy-800)}
+.cg-na{color:var(--ink-3);font-size:12px}
+.cg-t{width:100%;border-collapse:collapse;font-size:13.5px}.cg-t th{font-size:11.5px;font-weight:500;color:var(--ink-3);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.cg-t td{padding:5px 8px;border-bottom:1px solid var(--line-2);vertical-align:middle}.cg-r{text-align:right!important;width:170px}
+.cg-t .cg-in{padding:6px 8px}.cg-tot td{font-weight:600;background:#fafaf8}.cg-code{font-family:var(--mono);font-size:12px;color:var(--ink-3);width:92px}
+.cg-empty{color:var(--ink-3);text-align:center;padding:14px!important}
+.cg-add{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}.cg-add label{font-size:12.5px;color:var(--ink-2)}
+.cg-add select,.cg-add input{font:inherit;font-size:13.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-width:260px;max-width:100%}
+.cg-addbtn,.cg-addrow,.cg-link,.cg-foot button{font:inherit;font-size:13.5px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--navy-700);cursor:pointer}
+.cg-addbtn{margin-bottom:14px}.cg-addrow{margin-top:8px}.cg-foot{display:flex;justify-content:space-between;padding:4px 0 24px}.cg-foot button:disabled{opacity:.4;cursor:default}
+.cg-foot .cg-next{background:var(--navy-700);color:#fff;border-color:var(--navy-700)}
+.cg-net{font-size:13px;color:var(--ink-2);margin-top:6px}.cg-net b{font-family:var(--mono);color:var(--navy-800)}
+.cg-grp-off{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border:1px dashed var(--line);border-radius:12px;margin-bottom:10px;font-size:13.5px;color:var(--ink-2)}
+@media(max-width:860px){.cg{grid-template-columns:1fr}.cg-nav{flex-direction:row;flex-wrap:wrap;position:static}.cg-r{width:110px}}
+/* ── OPENING FIGURES ── */
+.co-drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--ink-2);cursor:pointer;background:#fbfaf7}
+.co-drop:hover{border-color:var(--navy-700)}.co-drop input{display:block;margin:0 auto 8px}
+.co-msg{font-size:13px;color:var(--blue);margin-top:10px;min-height:18px}
+.co-actions{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:14px}.cg-chk{font-size:13px;color:var(--ink-2);display:flex;gap:6px;align-items:center}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1608,7 +1640,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     ];
   };
   IrisView.prototype.render=function(){
-    var self=this;
+    var self=this; this.al=CA.makeAligner(this.template,this.screen.wb.model);
     var h='<div class="ci"><div class="ci-bar"><div class="ci-tabs" role="tablist">';
     PAGES.forEach(function(p){ h+='<button type="button" class="ci-tab'+(p[0]===self.page&&!self.q?' on':'')+(p[0]==="check"?' ci-check':'')+'" data-p="'+p[0]+'">'+esc(p[1])+'</button>'; });
     h+='</div><div class="ci-find"><input type="search" class="ci-q" placeholder="Find an IRIS line by code or name (e.g. 64040052 or rent)" value="'+esc(this.q)+'"><label class="ci-chk"><input type="checkbox" class="ci-all"'+(this.showAll?" checked":"")+'> Show empty lines</label></div></div><div class="ci-body"></div></div>';
@@ -1746,6 +1778,402 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   IrisView.prototype.refreshValues=function(){ if(this.page==="check"&&!this.q){ return; } var y=this.el.querySelector(".ci-body").scrollTop; this.drawBody(); this.el.querySelector(".ci-body").scrollTop=y; };
 
   root.CompIris={IrisView:IrisView};
+})(typeof window!=="undefined"?window:this);
+</script>
+<script>
+/* Guided entry: plain-language forms (dropdowns, add-line tables) that write into the workbook's own input cells.
+   Nothing here calculates tax; it only puts figures where the workbook expects them. */
+(function(root){
+  "use strict";
+  var CS=root.CompScreen, CA=root.CompAlign, E=root.CompEngine;
+  var C="COMPUATION -2026", W="WEALTH AND RECONCILIATION -2026", D="DATA ENTRY-2026";
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function num(v){ return typeof v==="number"&&isFinite(v)?v:0; }
+  function fmt(v){ return CS.fmt(v,"#,##0"); }
+  function clean(s){ return String(s||"").replace(/\s+/g," ").trim(); }
+  function title(s){ s=clean(s).toLowerCase().replace(/\b[a-z]/g,function(c){ return c.toUpperCase(); }); return s.replace(/\bU\/S\b/g,"u/s"); }
+  function parseNum(raw){ raw=String(raw).trim(); if(raw==="") return null; var neg=/^\(.*\)$|^-/.test(raw), n=parseFloat(raw.replace(/[(),\-\s]/g,"")); return isNaN(n)?raw:(neg?-n:n); }
+
+  var SECTIONS=[["tp","Taxpayer"],["sal","Salary"],["prop","Rental property"],["oth","Other income"],["biz","Business"],["wh","Tax deducted"],["pe","Personal expenses"],["we","Wealth"],["rev","Review"]];
+  var TP=[ // [label, kind, template address, options]
+    ["Taxpayer name","text",C,"E32"],["Father / husband name","text",C,"E33"],["CNIC (individual) or AOP name","text",C,"E34"],["NTN","text",C,"C35"],
+    ["Residential address","text",C,"E35"],["Contact number","text",C,"E39"],
+    ["Taxpayer type","select",C,"C37",[["Individual","IND"],["Association of Persons","AOP"]]],
+    ["Residential status","select",C,"C36",[["Resident","RESIDENT "],["Non-resident","NON-RESIDENT "]]],
+    ["Sex","select",C,"C38",[["Male","MALE"],["Female","FEMALE"]]],
+    ["Tax office","text",C,"C34"],["Children whose tuition fee is paid","num",C,"C39"],
+    ["Business name","text",C,"E36"],["Business sector","text",C,"E37"],["Business address","text",C,"E38"]];
+  var SAL=[["Pay, wages or other remuneration",113],["Allowances",114],["Pension / annuity",115],["Expenditure reimbursement",116],["Value of perquisites",117],["Profits in lieu of or in addition to pay",118]];
+  var PROP_COLS="CDEFGHIJKLMNOP".split("");
+  var PROP_DED=[["Insurance premium",171],["Local rate, tax, charge or cess",172],["Ground rent",173],["Profit on capital borrowed",174],["Share paid to HBFC / bank",175],["Legal service charges",176],["Irrecoverable rent claimed",177],["Other deductions against rent",179]];
+
+  function Guided(el,screen,template,opts){
+    this.el=el; this.screen=screen; this.template=template; this.opts=opts||{}; this.sec="tp"; this.shown={}; this.catalog=null;
+    this.rebuild(); this.render();
+  }
+  Guided.prototype.rebuild=function(){ var n=this.screen.ops.length; if(this.al&&this._ops===n) return; this._ops=n; this.al=CA.makeAligner(this.template,this.screen.wb.model); };
+  Guided.prototype.wb=function(){ return this.screen.wb; };
+  Guided.prototype.A=function(sheet,a){ return this.al.resolve(sheet,a); };
+  /* read a template-addressed cell: {a,v,edit} */
+  Guided.prototype.cell=function(sheet,a,raw0){
+    var wb=this.wb(), x=raw0?a:this.A(sheet,a); if(!x) return {a:null,v:null,edit:false};
+    var raw=(wb.model.sheets[sheet]||{})[x], k=sheet+"!"+x;
+    var calc=raw&&("f" in raw)&&!(k in wb.inputs)&&!this.screen.isConstFormula(sheet,x,raw.f);
+    return {a:x,v:wb.get(sheet,x),edit:!calc};
+  };
+  Guided.prototype.put=function(sheet,a,v){ var x=this.A(sheet,a); if(!x) return; this.screen.setValue(sheet,x,v); };
+  Guided.prototype.input=function(sheet,a,kind,opts,raw0){
+    var c=this.cell(sheet,a,raw0); if(!c.a) return '<span class="cg-na">n/a</span>';
+    var v=c.v;
+    if(kind==="select"){
+      var cur=typeof v==="string"?v:"", o=(opts||[]).slice(), hit=o.some(function(p){ return p[1]===cur||clean(p[1]).toLowerCase()===clean(cur).toLowerCase(); });
+      var h='<select class="cg-in" data-s="'+esc(sheet)+'" data-a="'+a+'" data-k="select"><option value=""></option>';
+      o.forEach(function(p){ var sel=p[1]===cur||clean(p[1]).toLowerCase()===clean(cur).toLowerCase(); h+='<option value="'+esc(p[1])+'"'+(sel?" selected":"")+'>'+esc(p[0])+'</option>'; });
+      if(cur&&!hit) h+='<option value="'+esc(cur)+'" selected>'+esc(clean(cur))+'</option>';
+      return h+'</select>';
+    }
+    if(!c.edit) return '<span class="cg-calc" data-c="'+esc(sheet)+'|'+c.a+'">'+(typeof v==="number"?fmt(v):esc(v))+'</span>';
+    var shown=kind==="text"?(v==null?"":v):(typeof v==="number"&&v!==0?fmt(v):(typeof v==="string"?v:""));
+    return '<input class="cg-in'+(kind==="text"?"":" cg-num")+'" data-s="'+esc(sheet)+'" data-a="'+a+'" data-k="'+kind+'" value="'+esc(shown)+'"'+(kind==="text"?"":' inputmode="decimal"')+'>';
+  };
+  Guided.prototype.render=function(){
+    var self=this, h='<div class="cg"><nav class="cg-nav">';
+    SECTIONS.forEach(function(s,i){ h+='<button type="button" class="cg-step'+(s[0]===self.sec?" on":"")+'" data-s="'+s[0]+'"><i>'+(i+1)+'</i>'+esc(s[1])+'</button>'; });
+    h+='</nav><div class="cg-main"><div class="cg-body"></div><div class="cg-foot"><button type="button" class="cg-prev">Back</button><button type="button" class="cg-next">Next</button></div></div></div>';
+    this.el.innerHTML=h;
+    this.el.querySelectorAll(".cg-step").forEach(function(b){ b.onclick=function(){ self.sec=b.dataset.s; self.render(); }; });
+    var idx=SECTIONS.map(function(s){ return s[0]; }).indexOf(this.sec);
+    var pv=this.el.querySelector(".cg-prev"), nx=this.el.querySelector(".cg-next");
+    pv.disabled=idx===0; nx.disabled=idx===SECTIONS.length-1;
+    pv.onclick=function(){ self.sec=SECTIONS[idx-1][0]; self.render(); }; nx.onclick=function(){ self.sec=SECTIONS[idx+1][0]; self.render(); };
+    this.draw();
+  };
+  Guided.prototype.draw=function(){
+    var ae=document.activeElement; if(ae&&ae!==document.body&&this.el.contains(ae)&&ae.blur) ae.blur();
+    var body=this.el.querySelector(".cg-body"); this.rebuild();
+    var h=({tp:this.tpHtml,sal:this.salHtml,prop:this.propHtml,oth:this.othHtml,biz:this.bizHtml,wh:this.whHtml,pe:this.peHtml,we:this.weHtml,rev:this.revHtml})[this.sec].call(this);
+    body.innerHTML=h; this.wire(body);
+  };
+  Guided.prototype.card=function(t,sub,inner){ return '<section class="cg-card"><h3>'+esc(t)+'</h3>'+(sub?'<p class="cg-sub">'+sub+'</p>':'')+inner+'</section>'; };
+  Guided.prototype.tpHtml=function(){
+    var self=this, h='<div class="cg-grid">';
+    TP.forEach(function(f){ h+='<label class="cg-f"><span>'+esc(f[0])+'</span>'+self.input(f[2],f[3],f[1],f[4])+'</label>'; });
+    return this.card("Who is filing","Pick from the lists where there is one. These appear on the return.",h+'</div>');
+  };
+  Guided.prototype.tableHtml=function(rows,cols,o){   // rows:[{label,key,cells:[tpl addr...]}] ; cols:[header...]
+    var self=this, shown="", pick="", hasAny=function(r){ return r.cells.some(function(a){ var c=self.cell(o.sheet,a); return c.a&&typeof c.v==="number"&&c.v!==0; }); };
+    var h='<table class="cg-t"><thead><tr><th>'+esc(o.first||"Item")+'</th>'+cols.map(function(c){ return '<th class="cg-r">'+esc(c)+'</th>'; }).join("")+'</tr></thead><tbody>', n=0, hidden=[];
+    rows.forEach(function(r){
+      if(!o.all&&!hasAny(r)&&!self.shown[o.key+r.key]){ hidden.push(r); return; } n++;
+      h+='<tr><td>'+esc(r.label)+'</td>'+r.cells.map(function(a){ return '<td class="cg-r">'+(a?self.input(o.sheet,a,"num"):"")+'</td>'; }).join("")+'</tr>'; });
+    if(!n) h+='<tr><td colspan="'+(cols.length+1)+'" class="cg-empty">Nothing added yet.</td></tr>';
+    h+='</tbody></table>';
+    if(hidden.length){ h+='<div class="cg-add"><label>Add a line</label><select class="cg-addsel" data-key="'+esc(o.key)+'"><option value="">Choose&hellip;</option>'+hidden.map(function(r){ return '<option value="'+esc(r.key)+'">'+esc(r.label)+'</option>'; }).join("")+'</select></div>'; }
+    return h;
+  };
+  Guided.prototype.salHtml=function(){
+    var rows=SAL.map(function(s){ return {label:s[0],key:String(s[1]),cells:["F"+s[1],"G"+s[1]]}; });
+    var t=this.tableHtml(rows,["Amount received","of which exempt / final tax"],{sheet:C,all:true,first:"Salary item",key:"sal"});
+    var rates='<div class="cg-grid"><label class="cg-f"><span>Tax rate on salary arrears u/s 12(7) (%)</span>'+this.input(C,"E111","num")+'</label><label class="cg-f"><span>Average rate on employment termination benefits (%)</span>'+this.input(C,"E112","num")+'</label></div>';
+    return this.card("Salary","Enter the annual totals from the salary certificate. Tax deducted by the employer goes under Tax deducted.",t)+this.card("Special rates","Only if the client received arrears or termination benefits.",rates);
+  };
+  Guided.prototype.propHtml=function(){
+    var self=this, used=0, h="";
+    PROP_COLS.forEach(function(c,i){
+      var rent=self.cell(C,c+"128"), has=(typeof rent.v==="number"&&rent.v!==0)||PROP_DED.some(function(d){ var x=self.cell(C,c+d[1]); return typeof x.v==="number"&&x.v!==0; });
+      if(!has&&!self.shown["prop"+c]) return; used++;
+      var body='<div class="cg-grid"><label class="cg-f"><span>Share of income (1 = 100%)</span>'+self.input(C,c+"127","num")+'</label><label class="cg-f"><span>Rent received for the year</span>'+self.input(C,c+"128","num")+'</label></div>';
+      body+='<div class="cg-grid">'+PROP_DED.map(function(d){ return '<label class="cg-f"><span>'+esc(d[0])+'</span>'+self.input(C,c+d[1],"num")+'</label>'; }).join("")+'</div>';
+      body+='<div class="cg-net">Net rental income: <b data-c="'+C+'|'+self.cell(C,c+"181").a+'">'+fmt(num(self.cell(C,c+"181").v))+'</b></div>';
+      h+=self.card("Property "+(i+1),"",body);
+    });
+    var next=PROP_COLS.filter(function(c){ return !self.shown["prop"+c]&&!(typeof self.cell(C,c+"128").v==="number"&&self.cell(C,c+"128").v!==0)&&!PROP_DED.some(function(d){ var x=self.cell(C,c+d[1]); return typeof x.v==="number"&&x.v!==0; }); })[0];
+    var flags='<div class="cg-grid"><label class="cg-f"><span>Claim 4% rent collection expenses</span>'+this.input(C,"B180","select",[["Yes","YES"],["No","NO"]])+'</label><label class="cg-f"><span>Tax deducted on rent u/s 155</span>'+this.input(C,"D182","num")+'</label></div>';
+    return (used?"":this.card("Rental property","No rental income entered. Add a property if the client has one.",""))+h+(next?'<button type="button" class="cg-addbtn" data-prop="'+next+'">+ Add a property</button>':"")+this.card("Rent settings","The 4% allowance is the standard rent collection deduction.",flags);
+  };
+  Guided.prototype.othHtml=function(){
+    var self=this, rows=[]; for(var r=186;r<=196;r++){ var t=this.template.sheets[C]["A"+r]; if(t&&t.v) rows.push({label:title(t.v),key:String(r),cells:["C"+r,"D"+r,"F"+r]}); }
+    var t=this.tableHtml(rows,["Gross receipts","Expenses","Exempt part"],{sheet:C,first:"Type of income",key:"oth"});
+    return this.card("Income from other sources","Profit on debt, royalty, annuity and similar. Add only the lines that apply.",t);
+  };
+  Guided.prototype.bizHtml=function(){
+    var b='<p class="cg-sub">Business is the largest part of the workbook (trading account, expenses, tax deducted on receipts, depreciation). Enter it in the IRIS-ordered business page, where every line carries its IRIS code.</p><button type="button" class="cg-link" data-go="bus">Open Business in IRIS view</button> <button type="button" class="cg-link" data-gow="BUSINESS INCOME ONLY-2026">Open the business working sheet</button>';
+    return this.card("Business","",b);
+  };
+  /* tax-deducted catalogue: every IRIS "tax deducted" line with an input cell, from the template's IRIS view */
+  Guided.prototype.cat=function(){
+    if(this.catalog) return this.catalog; var byCode={}, order=[];
+    var pg=(this.template.irisView.pages||[]).filter(function(p){ return p.id==="wh"; })[0]; if(!pg) return (this.catalog=[]);
+    pg.sections.forEach(function(sec){ sec.lines.forEach(function(ln){
+      var e=byCode[ln.c]; if(!e){ e=byCode[ln.c]={code:ln.c,label:clean(ln.l),sheet:null,ta:null,td:null}; order.push(e); }
+      (ln.cells||[]).forEach(function(c){
+        if(c[2]!=="i"||/rate/i.test(c[4]||"")) return; if(e.sheet&&c[0]!==e.sheet) return;
+        var slot=c[3]==="a"?"ta":c[3]; if(slot!=="ta"&&slot!=="td") return; if(!e[slot]){ e[slot]=c[1]; e.sheet=c[0]; } });
+    }); });
+    return (this.catalog=order.filter(function(e){ return e.sheet&&(e.ta||e.td); }));
+  };
+  Guided.prototype.whHtml=function(){
+    var self=this, cat=this.cat(), rows="", n=0;
+    cat.forEach(function(l){
+      var a=l.ta&&self.cell(l.sheet,l.ta), b=l.td&&self.cell(l.sheet,l.td);
+      var has=(a&&typeof a.v==="number"&&a.v!==0)||(b&&typeof b.v==="number"&&b.v!==0);
+      if(!has&&!self.shown["wh"+l.code]) return; n++;
+      rows+='<tr><td class="cg-code">'+esc(l.code)+'</td><td>'+esc(l.label)+'</td><td class="cg-r">'+(l.ta?self.input(l.sheet,l.ta,"num"):"")+'</td><td class="cg-r">'+(l.td?self.input(l.sheet,l.td,"num"):"")+'</td></tr>'; });
+    var t='<table class="cg-t"><thead><tr><th>Code</th><th>Deduction</th><th class="cg-r">Payment / receipt</th><th class="cg-r">Tax deducted</th></tr></thead><tbody>'+(rows||'<tr><td colspan="4" class="cg-empty">Nothing added yet.</td></tr>')+'</tbody></table>';
+    t+='<div class="cg-add"><label>Add a deduction</label><input class="cg-whfind" list="cg-whlist" placeholder="Type a section, rate or code (e.g. 153, 236K, bank profit)"><datalist id="cg-whlist">'+cat.map(function(l){ return '<option value="'+esc(l.code+" · "+l.label)+'"></option>'; }).join("")+'</datalist></div>';
+    var tot=this.opts.iris?this.opts.iris.keyOutputs().filter(function(k){ return k.code==="9201"; })[0]:null;
+    if(tot) t+='<p class="cg-sub" style="margin-top:12px">Total tax deducted counted by the workbook: <b>'+fmt(tot.v)+'</b>. Lines entered on the business sheet (receipts with tax deducted) are included. See them in <button type="button" class="cg-link" data-go="wh">IRIS view &rsaquo; Tax Deducted</button>.</p>';
+    return this.card("Tax deducted by others","Salary tax, bank profit tax, tax on cash withdrawals, vehicle and utility taxes, and everything withheld from receipts. Choose the line, then enter the amount and the tax.",t);
+  };
+  Guided.prototype.peHtml=function(){
+    var rows=[]; for(var r=4;r<=41;r++){ var t=this.template.sheets[D]["A"+r]; if(t&&t.v) rows.push({label:title(t.v),key:String(r),cells:["K"+r,"J"+r]}); }
+    var t=this.tableHtml(rows,["Amount for the year","Income tax deducted"],{sheet:D,first:"Expense",key:"pe"});
+    return this.card("Personal expenses","Household and living expenses. They feed the wealth reconciliation. Add only the ones that apply.",t);
+  };
+  /* wealth: groups found from the SUM ranges in the header rows of the client's own sheet */
+  Guided.prototype.groups=function(){
+    var m=this.wb().model.sheets[W], out=[], net=0, r;
+    Object.keys(m).forEach(function(a){ var x=/^A(\d+)$/.exec(a); if(x&&typeof m[a].v==="string"&&/^NET ASSETS CURRENT/i.test(clean(m[a].v))) net=+x[1]; });
+    for(r=1;r<net;r++){
+      var g=m["G"+r], a=m["A"+r]; if(!g||!("f" in g)||!a||typeof a.v!=="string") continue;
+      var q=/^(?:ROUND\()?SUM\(G(\d+):G(\d+)\)(?:,0\))?$/.exec(g.f); if(!q) continue;
+      out.push({row:r,label:title(a.v),from:+q[1],to:+q[2]});
+    }
+    var cash=null; for(r=1;r<net;r++){ var a2=m["A"+r]; if(a2&&typeof a2.v==="string"&&/^CASH \(NON-BUSINESS\)/i.test(clean(a2.v))) cash=r; }
+    return {groups:out,cash:cash,net:net};
+  };
+  Guided.prototype.weRow=function(r){
+    var wb=this.wb(), m=wb.model.sheets[W], self=this;
+    function f(col){ var x=m[col+r], k=W+"!"+col+r; var calc=x&&("f" in x)&&!(k in wb.inputs)&&!self.screen.isConstFormula(W,col+r,x.f); var v=wb.get(W,col+r);
+      if(calc) return '<span class="cg-calc" data-c="'+W+'|'+col+r+'">'+fmt(num(v))+'</span>';
+      var sh=typeof v==="number"&&v!==0?fmt(v):""; return '<input class="cg-in cg-num cg-raw" data-s="'+esc(W)+'" data-a="'+col+r+'" data-k="num" value="'+esc(sh)+'">'; }
+    var dv=wb.get(W,"A"+r);
+    return '<tr><td><input class="cg-in cg-raw" data-s="'+esc(W)+'" data-a="A'+r+'" data-k="text" value="'+esc(dv==null?"":dv)+'" placeholder="Description"></td><td class="cg-r">'+f("G")+'</td><td class="cg-r">'+f("H")+'</td></tr>';
+  };
+  Guided.prototype.weHtml=function(){
+    var self=this, G=this.groups(), wb=this.wb(), h="";
+    if(G.cash){ var cg=num(wb.get(W,"G"+G.cash)), ch=wb.get(W,"H"+G.cash);
+      h+=this.card("Cash in hand","Last year's closing cash is the opening figure. This year's cash is calculated from income, expenses, taxes and the change in other assets, so it is never typed.",'<div class="cg-grid"><label class="cg-f"><span>Cash at 30 June last year</span>'+this.input(W,"H"+G.cash,"num",null,true)+'</label><div class="cg-f"><span>Cash at 30 June this year (calculated)</span><span class="cg-calc cg-big" data-c="'+W+'|G'+G.cash+'">'+fmt(cg)+'</span></div></div>'); }
+    G.groups.forEach(function(g){
+      var rows=""; for(var r=g.from;r<=g.to;r++) rows+=self.weRow(r);
+      var tot='<tr class="cg-tot"><td>Total</td><td class="cg-r" data-c="'+W+'|G'+g.row+'">'+fmt(num(wb.get(W,"G"+g.row)))+'</td><td class="cg-r" data-c="'+W+'|H'+g.row+'">'+fmt(num(wb.get(W,"H"+g.row)))+'</td></tr>';
+      var blank=false; var m=wb.model.sheets[W]; for(r=g.from;r<=g.to;r++){ var a=m["A"+r]; if(!(a&&a.v)&&!num(wb.get(W,"G"+r))&&!num(wb.get(W,"H"+r))) blank=true; }
+      var any=false; for(r=g.from;r<=g.to;r++){ if((m["A"+r]&&m["A"+r].v)||num(wb.get(W,"G"+r))||num(wb.get(W,"H"+r))) any=true; }
+      if(!any&&!self.shown["we"+g.row]) { h+='<div class="cg-grp-off"><span>'+esc(g.label)+'</span><button type="button" class="cg-addrow" data-g="'+g.row+'" data-open="1">+ Add</button></div>'; return; }
+      var tbl='<table class="cg-t"><thead><tr><th>Description</th><th class="cg-r">This year (30 June)</th><th class="cg-r">Last year (30 June)</th></tr></thead><tbody>'+rows+tot+'</tbody></table><button type="button" class="cg-addrow" data-g="'+g.row+'" data-from="'+g.from+'" data-to="'+g.to+'">+ Add a line</button>';
+      h+=self.card(g.label,"",tbl);
+    });
+    return h||this.card("Wealth","",'<p class="cg-empty">No wealth sections found in this workbook.</p>');
+  };
+  Guided.prototype.revHtml=function(){
+    var iv=this.opts.iris, ko=iv?iv.keyOutputs():[], chk=iv?iv.selfChecks():[];
+    var t='<table class="cg-t"><tbody>'+ko.map(function(k){ return '<tr><td class="cg-code">'+k.code+'</td><td>'+esc(k.label)+'</td><td class="cg-r"><b>'+fmt(k.v)+'</b></td></tr>'; }).join("")+'</tbody></table>';
+    var l='<ul class="ci-list">'+chk.map(function(c){ return '<li class="'+(c.info?"ci-info":c.ok?"ci-pass":"ci-warn")+'"><b>'+esc(c.t)+'</b><span>'+esc(c.d)+'</span></li>'; }).join("")+'</ul>';
+    return this.card("Figures to enter in IRIS",'Check these against IRIS, then open <button type="button" class="cg-link" data-go="check">Check vs IRIS</button> to compare each one.',t)+this.card("Checks on this computation","",l);
+  };
+  Guided.prototype.wire=function(body){
+    var self=this;
+    body.querySelectorAll("input.cg-in").forEach(function(inp){
+      inp.addEventListener("focus",function(){ inp.select(); });
+      inp.addEventListener("change",function(){ var k=inp.dataset.k, v=k==="text"?inp.value:parseNum(inp.value); if(inp.value.trim()==="") v=null;
+        self.commit(inp.dataset.s,inp.dataset.a,v,true); });
+      inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); var all=[].slice.call(body.querySelectorAll("input.cg-in")), i=all.indexOf(inp); inp.blur(); if(all[i+1]) all[i+1].focus(); } });
+    });
+    body.querySelectorAll("select.cg-in").forEach(function(s){ s.addEventListener("change",function(){ self.commit(s.dataset.s,s.dataset.a,s.value===""?null:s.value,false); }); });
+    body.querySelectorAll(".cg-addsel").forEach(function(s){ s.onchange=function(){ if(!s.value) return; self.shown[s.dataset.key+s.value]=1; self.draw(); }; });
+    var wf=body.querySelector(".cg-whfind"); if(wf) wf.addEventListener("change",function(){ var code=wf.value.split(" · ")[0].trim(); var hit=self.cat().filter(function(l){ return l.code===code; })[0]; if(hit){ self.shown["wh"+hit.code]=1; self.draw(); } });
+    body.querySelectorAll("[data-prop]").forEach(function(b){ b.onclick=function(){ self.shown["prop"+b.dataset.prop]=1; self.draw(); }; });
+    body.querySelectorAll("[data-go]").forEach(function(b){ b.onclick=function(){ if(self.opts.onIris) self.opts.onIris(b.dataset.go); }; });
+    body.querySelectorAll("[data-gow]").forEach(function(b){ b.onclick=function(){ if(self.opts.onWork) self.opts.onWork(b.dataset.gow); }; });
+    body.querySelectorAll(".cg-addrow").forEach(function(b){ b.onclick=function(){ self.addWealthLine(+b.dataset.g,b.dataset.open?null:+b.dataset.from,b.dataset.open?null:+b.dataset.to); }; });
+  };
+  Guided.prototype.commit=function(sheet,addr,v,rerender){
+    this.screen.setValue(sheet,addr,v); this.refreshCalc();
+  };
+  Guided.prototype.refreshCalc=function(){
+    var wb=this.wb(); this.el.querySelectorAll("[data-c]").forEach(function(n){ var p=n.dataset.c.split("|"), v=wb.get(p[0],p[1]); n.textContent=typeof v==="number"?fmt(v):(v==null?"":v); });
+  };
+  Guided.prototype.addWealthLine=function(headRow,from,to){
+    var G=this.groups(), g=G.groups.filter(function(x){ return x.row===headRow; })[0]; if(!g) return;
+    if(from===null){ this.shown["we"+headRow]=1; this.draw(); return; }
+    var m=this.wb().model.sheets[W];
+    for(var r=g.from;r<=g.to;r++){ var a=m["A"+r]; if(!(a&&a.v)&&!num(this.wb().get(W,"G"+r))&&!num(this.wb().get(W,"H"+r))){ var el=this.el.querySelector('[data-a="A'+r+'"]'); if(el){ el.focus(); return; } } }
+    if(g.from===g.to){ alert("This section has one line only. Use the Working view to add more lines here."); return; }
+    var prev=this.screen.sheet; this.screen.sheet=W; this.screen.addLine(g.to-1); this.screen.sheet=prev;
+    this.draw(); var el2=this.el.querySelector('[data-a="A'+g.to+'"]'); if(el2) el2.focus();
+  };
+
+  root.CompGuided={Guided:Guided};
+})(typeof window!=="undefined"?window:this);
+</script>
+<script>
+/* Opening figures for a new return: read last year's closing wealth statement from the previous year's Excel workbook or
+   from the IRIS return PDF, show it for confirmation, then write it into this year's wealth statement. */
+(function(root){
+  "use strict";
+  var E=root.CompEngine||(typeof require!=="undefined"?require("./engine.js"):null);
+  function clean(s){ return String(s==null?"":s).replace(/\s+/g," ").trim(); }
+  function norm(s){ return clean(s).toLowerCase().replace(/[^a-z0-9]/g,""); }
+  function num(v){ return typeof v==="number"&&isFinite(v)?v:0; }
+  function title(s){ return clean(s).toLowerCase().replace(/\b[a-z]/g,function(c){ return c.toUpperCase(); }); }
+
+  /* wealth groups: header rows whose G is SUM(G<from>:G<to>), above the "NET ASSETS CURRENT YEAR" row */
+  function wealthSheetName(model){ return model.order.filter(function(s){ return /^WEALTH/i.test(s); })[0]||null; }
+  function wealthGroups(model,sheet){
+    var m=model.sheets[sheet], out=[], net=0, cash=null, r;
+    Object.keys(m).forEach(function(a){ var x=/^A(\d+)$/.exec(a); if(x&&typeof m[a].v==="string"&&/^NET ASSETS CURRENT/i.test(clean(m[a].v))) net=+x[1]; });
+    for(r=1;r<net;r++){
+      var g=m["G"+r], a=m["A"+r]; if(!g||!("f" in g)||!a||typeof a.v!=="string") continue;
+      var q=/^(?:ROUND\()?SUM\(G(\d+):G(\d+)\)(?:,0\))?$/.exec(g.f); if(!q) continue;
+      out.push({row:r,label:title(a.v),key:norm(a.v),from:+q[1],to:+q[2]});
+    }
+    for(r=1;r<net;r++){ var a2=m["A"+r]; if(a2&&typeof a2.v==="string"&&/^CASH \(NON-BUSINESS\)/i.test(clean(a2.v))) cash=r; }
+    return {groups:out,cash:cash,net:net};
+  }
+
+  /* ---- source 1: a computation workbook (previous year's Excel, or a stored computation) ---- */
+  function extractFromWorkbook(model,cached){
+    var sheet=wealthSheetName(model); if(!sheet) throw new Error("This workbook has no wealth statement sheet.");
+    var wb=new E.Workbook(JSON.parse(JSON.stringify(model))), G=wealthGroups(model,sheet), items=[];
+    function val(a){ var c=cached&&cached[sheet]&&cached[sheet][a]; return typeof c==="number"?c:num(wb.get(sheet,a)); }
+    G.groups.forEach(function(g){ for(var r=g.from;r<=g.to;r++){
+      var d=wb.get(sheet,"A"+r), v=Math.round(val("G"+r)); d=typeof d==="string"?clean(d):"";
+      if(d||v) items.push({cat:g.label,key:g.key,desc:d,value:v}); } });
+    var cashRow=G.cash, cash=cashRow?Math.round(val("G"+cashRow)):0;
+    return {source:"excel",items:items,cash:cash,net:Math.round(val("G"+G.net)),totals:G.groups.map(function(g){ return {cat:g.label,value:Math.round(val("G"+g.row))}; })};
+  }
+
+  /* ---- source 2: IRIS return PDF (lines of text, one per visual row) ---- */
+  var CATS=[ // [pattern on the IRIS category name, workbook group key pattern]
+    [/agricultur/i,/^agricultural/],[/commercial|residential|industrial|plot|building/i,/^commercial/],[/investment|stock|bond|bank account/i,/^investment/],
+    [/advance|prepay|receivable/i,/^debt/],[/motor vehicle/i,/^motorvehicle/],[/business capital/i,/^businesscapital/],[/precious/i,/^precious/],[/household/i,/^household/],
+    [/personal item/i,/^personalitem/],[/equipment/i,/^equipment/],[/animal/i,/^animal/],[/held on other|other.s name|others name/i,/^assetsinother/],[/any other/i,/^anyother/],
+    [/payable|borrowing|loan|credit/i,/^credit/]];
+  function parseAmount(s){ var neg=/^-/.test(s)||/^\(/.test(s); var n=parseFloat(String(s).replace(/[^0-9.]/g,"")); return isNaN(n)?0:(neg?-n:n); }
+  var CODE_LINE=/^(?:(.*?)\s+)?(7\d{3,5})\s+(-?\(?[\d,]+(?:\.\d+)?\)?)\s*$/;
+  function parseIrisLines(lines){
+    var start=-1, i; for(i=0;i<lines.length;i++){ if(/Personal Assets and Liabilities/i.test(lines[i])){ start=i+1; break; } }
+    if(start<0) throw new Error("Could not find the Wealth Statement (Personal Assets and Liabilities) in this PDF.");
+    var items=[], totals=[], pend=[], cat=null, net=null, last=null, prev=null, inRecon=false;
+    function isPrefixStart(t){ return cat&&new RegExp("^"+cat.replace(/[.*+?^${}()|[\]\\\/]/g,"\\$&")+"\\s*-").test(t); }
+    for(i=start;i<lines.length;i++){
+      var t=clean(lines[i]); if(!t) continue;
+      if(/^Reconciliation of Net Assets/i.test(t)||/^Net Assets Previous Year/i.test(t)) inRecon=true;
+      if(/^Description\s+Code\s+Amount/i.test(t)||/^Print Date/i.test(t)||/^Wealth Statement$/i.test(t)||/^Personal Assets and Liabilities/i.test(t)||/^Page \d+ of/i.test(t)) { if(/^Print Date/i.test(t)) pend=[]; continue; }
+      var m=CODE_LINE.exec(t);
+      if(!m){ pend.push(t); continue; }
+      var text=clean(m[1]||""), code=m[2], amt=parseAmount(m[3]);
+      if(code==="703001"){ net=amt; if(!inRecon) { /* first occurrence is the closing net assets */ } break; }
+      // trailing fragments belong to the previous entry; leading fragments (from the last prefix start) to this one
+      var idx=-1; for(var k=pend.length-1;k>=0;k--){ if(isPrefixStart(pend[k])){ idx=k; break; } }
+      var lead=idx>=0?pend.slice(idx):[], trail=idx>=0?pend.slice(0,idx):pend;
+      if(trail.length&&last) last.desc=clean(last.desc+" "+trail.join(" "));
+      pend=[];
+      if(/^total\b/i.test(text)){ continue; }
+      var full=clean((lead.join(" ")+" "+text));
+      var sub=cat&&new RegExp("^"+cat.replace(/[.*+?^${}()|[\]\\\/]/g,"\\$&")+"\\s*-\\s*(?:\\.\\s*-\\s*)?","i").exec(full);
+      if(sub){ last={cat:cat,code:code,desc:clean(full.slice(sub[0].length)),value:amt,sub:true}; items.push(last); }
+      else { cat=full; last={cat:cat,code:code,desc:"",value:amt,sub:false}; totals.push({cat:cat,code:code,value:amt}); prev=last; }
+    }
+    if(pend.length&&last&&last.sub) last.desc=clean(last.desc+" "+pend.join(" "));
+    // categories with no sub-lines but a non-zero total become one line each
+    var out=[], cash=0, haveSub={}; items.forEach(function(it){ haveSub[it.cat]=1; });
+    items.forEach(function(it){ out.push({cat:it.cat,code:it.code,desc:it.desc,value:Math.round(it.value)}); });
+    totals.forEach(function(t){ if(/^cash in hand/i.test(t.cat)){ cash=Math.round(t.value); return; } if(/^total/i.test(t.cat)||/^net assets/i.test(t.cat)) return; if(!haveSub[t.cat]&&t.value) out.push({cat:t.cat,code:t.code,desc:"",value:Math.round(t.value)}); });
+    out.forEach(function(o){ o.key=groupKey(o.cat); });
+    return {source:"pdf",items:out,cash:cash,net:net==null?null:Math.round(net),totals:totals.filter(function(t){ return !/^total|^net assets/i.test(t.cat); }).map(function(t){ return {cat:t.cat,value:Math.round(t.value)}; })};
+  }
+  function groupKey(cat){ for(var i=0;i<CATS.length;i++){ if(CATS[i][0].test(cat)) return CATS[i][1]; } return null; }
+
+  /* ---- PDF -> text lines (browser, pdf.js) ---- */
+  function pdfLinesFromItems(pages){
+    var lines=[];
+    pages.forEach(function(items){
+      var rows={}; items.forEach(function(it){ if(!it.str||!it.str.trim()) return; var y=Math.round(it.y/2.5); (rows[y]=rows[y]||[]).push(it); });
+      Object.keys(rows).map(Number).sort(function(a,b){ return b-a; }).forEach(function(y){
+        var its=rows[y].sort(function(a,b){ return a.x-b.x; }), s="", endx=null;
+        its.forEach(function(it){ if(endx!==null){ var gap=it.x-endx; s+=gap>14?"    ":(gap>1.2?" ":""); } s+=it.str; endx=it.x+(it.w||0); });
+        lines.push(s);
+      });
+    });
+    return lines;
+  }
+  function loadPdfJs(){
+    if(root.pdfjsLib) return Promise.resolve(root.pdfjsLib);
+    return new Promise(function(res,rej){ var s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"; s.onload=function(){ root.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(root.pdfjsLib); }; s.onerror=function(){ rej(new Error("The PDF reader could not be loaded. Check the internet connection, or use the previous year's Excel file instead.")); }; document.head.appendChild(s); });
+  }
+  function extractFromPdf(buffer){
+    return loadPdfJs().then(function(lib){ return lib.getDocument({data:buffer}).promise; }).then(function(doc){
+      var jobs=[]; for(var p=1;p<=doc.numPages;p++) jobs.push(doc.getPage(p).then(function(pg){ return pg.getTextContent(); }).then(function(tc){ return tc.items.map(function(i){ return {str:i.str,x:i.transform[4],y:i.transform[5],w:i.width}; }); }));
+      return Promise.all(jobs); }).then(function(pages){ return parseIrisLines(pdfLinesFromItems(pages)); });
+  }
+
+  /* ---- apply to the current computation ---- */
+  function currentLayout(screen){ var m=screen.wb.model, sheet=wealthSheetName(m); return {sheet:sheet,G:wealthGroups(m,sheet)}; }
+  function emptyRow(wb,sheet,r){ var d=wb.get(sheet,"A"+r); return !(typeof d==="string"&&clean(d))&&!num(wb.get(sheet,"G"+r))&&!num(wb.get(sheet,"H"+r)); }
+  function targetGroup(G,item){
+    return G.groups.filter(function(g){ return item.key&&(typeof item.key==="string"?g.key===item.key:item.key.test(g.key)); })[0]||null;
+  }
+  /* mode "replace": clear every wealth line first. Returns {placed,unplaced:[items]} */
+  function apply(screen,data,opts){
+    opts=opts||{}; var L=currentLayout(screen), sheet=L.sheet, wb=screen.wb, unplaced=[], placed=0;
+    function clearAll(){ L.G.groups.forEach(function(g){ for(var r=g.from;r<=g.to;r++){ ["A","G","H"].forEach(function(c){ var raw=wb.model.sheets[sheet][c+r]; if(raw&&("f" in raw)&&!screen.isConstFormula(sheet,c+r,raw.f)) return; screen.setValue(sheet,c+r,null); }); } }); }
+    if(opts.replace!==false) clearAll();
+    data.items.forEach(function(it){
+      var cur=currentLayout(screen), g=targetGroup(cur.G,it); if(!g){ unplaced.push(it); return; }
+      var r=null, i; for(i=g.from;i<=g.to;i++){ if(emptyRow(wb,sheet,i)){ r=i; break; } }
+      if(r===null){
+        if(g.from===g.to){ unplaced.push(it); return; }
+        var prev=screen.sheet; screen.sheet=sheet; screen.addLine(g.to-1); screen.sheet=prev; r=g.to; // new blank row inside the group's range
+      }
+      screen.setValue(sheet,"A"+r,it.desc||it.cat); screen.setValue(sheet,"H"+r,it.value); if(opts.copyToCurrent!==false) screen.setValue(sheet,"G"+r,it.value); placed++;
+    });
+    var cur2=currentLayout(screen); if(cur2.G.cash){ screen.setValue(sheet,"H"+cur2.G.cash,data.cash||0); }
+    return {placed:placed,unplaced:unplaced};
+  }
+  function netPrev(screen){ var L=currentLayout(screen); return Math.round(num(screen.wb.get(L.sheet,"H"+L.G.net))); }
+
+  /* ---- panel (browser) ---- */
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function fmt(v){ return root.CompScreen?root.CompScreen.fmt(v,"#,##0"):String(v); }
+  function Panel(el,screen,opts){ this.el=el; this.screen=screen; this.opts=opts||{}; this.data=null; this.msg=""; this.render(); }
+  Panel.prototype.render=function(){
+    var self=this, d=this.data, h='<div class="co"><section class="cg-card"><h3>Opening figures from last year</h3><p class="cg-sub">Give the previous year\'s computation workbook (.xlsx) or the filed return (PDF from IRIS). The closing wealth statement in it becomes this year\'s opening statement. You will see the figures and confirm before anything is changed.</p>';
+    h+='<label class="co-drop"><input type="file" accept=".xlsx,.pdf" class="co-file"><span>Choose the previous year\'s Excel file or the return PDF</span></label><div class="co-msg">'+esc(this.msg)+'</div></section>';
+    if(d){
+      var tot=d.items.reduce(function(s,i){ return s+i.value; },0)+0;
+      h+='<section class="cg-card"><h3>Found in '+(d.source==="pdf"?"the PDF":"the workbook")+'</h3><table class="cg-t"><thead><tr><th>Section</th><th>Description</th><th class="cg-r">Closing amount</th></tr></thead><tbody>';
+      d.items.forEach(function(i){ h+='<tr><td>'+esc(i.cat)+'</td><td>'+esc(i.desc||"")+'</td><td class="cg-r">'+fmt(i.value)+'</td></tr>'; });
+      h+='<tr class="cg-tot"><td colspan="2">Cash in hand</td><td class="cg-r">'+fmt(d.cash)+'</td></tr></tbody></table>';
+      if(d.net!=null) h+='<p class="cg-sub" style="margin-top:10px">Net assets at 30 June in the source: <b>'+fmt(d.net)+'</b></p>';
+      h+='<div class="co-actions"><button type="button" class="cg-addbtn co-apply">Use as opening figures</button><label class="cg-chk"><input type="checkbox" class="co-copy" checked> Start this year\'s figures the same as last year\'s</label></div></section>';
+    }
+    this.el.innerHTML=h+'</div>';
+    var f=this.el.querySelector(".co-file"); f.onchange=function(){ if(f.files[0]) self.load(f.files[0]); };
+    var ap=this.el.querySelector(".co-apply"); if(ap) ap.onclick=function(){ self.applyNow(); };
+  };
+  Panel.prototype.load=function(file){
+    var self=this; this.msg="Reading "+file.name+"…"; this.data=null; this.render();
+    file.arrayBuffer().then(function(buf){
+      if(/\.pdf$/i.test(file.name)) return extractFromPdf(buf);
+      if(!/\.xlsx$/i.test(file.name)) throw new Error("Please choose an .xlsx workbook or a PDF.");
+      if(typeof XLSX==="undefined") throw new Error("The Excel reader did not load. Check the internet connection.");
+      var r=root.CompImport.convert(XLSX,new Uint8Array(buf)); return extractFromWorkbook(r.model,r.cached);
+    }).then(function(d){ self.data=d; self.msg=d.items.length+" lines found."+(d.items.some(function(i){ return !i.key; })?" Some lines could not be matched to a wealth section and will need adding by hand.":""); self.render(); })
+      .catch(function(e){ self.msg=e.message||String(e); self.data=null; self.render(); });
+  };
+  Panel.prototype.applyNow=function(){
+    var d=this.data; if(!d) return; var copy=this.el.querySelector(".co-copy").checked;
+    var L=currentLayout(this.screen), anyData=L.G.groups.some(function(g){ for(var r=g.from;r<=g.to;r++) if(!emptyRow(this.screen.wb,L.sheet,r)) return true; return false; },this);
+    if(anyData&&!confirm("This computation already has wealth lines. Replace them with the figures from last year?")) return;
+    var res=apply(this.screen,d,{copyToCurrent:copy}), chk=netPrev(this.screen), ok=d.net==null||Math.abs(chk-d.net)<=2;
+    var msg=res.placed+" lines placed. Opening net assets now "+fmt(chk)+(d.net!=null?(ok?" (matches the source).":" but the source shows "+fmt(d.net)+". Check the lines below."):".");
+    if(res.unplaced.length) msg+=" Not placed: "+res.unplaced.map(function(i){ return (i.desc||i.cat)+" "+fmt(i.value); }).join("; ")+".";
+    this.msg=msg; this.render(); if(this.opts.onApplied) this.opts.onApplied(res,ok);
+  };
+
+  var api={wealthSheetName:wealthSheetName,wealthGroups:wealthGroups,extractFromWorkbook:extractFromWorkbook,parseIrisLines:parseIrisLines,extractFromPdf:extractFromPdf,apply:apply,netPrev:netPrev,Panel:Panel,pdfLinesFromItems:pdfLinesFromItems};
+  if(typeof module!=="undefined") module.exports=api; else root.CompOpening=api;
 })(typeof window!=="undefined"?window:this);
 </script>
 <script>
@@ -6551,12 +6979,12 @@ function compOverlay(){
   o.innerHTML='<div class="cxo-bar"><div><div class="eyebrow" id="cxo-eyebrow">Tax Computation</div><div class="cxo-title" id="cxo-title"></div></div><div class="cxo-right"><span id="cxo-status" class="cxo-status"></span><button class="btn-sec" onclick="compClose()">'+ico("close")+'Close</button></div></div><div class="cxo-body" id="cxo-body"></div>';
   document.body.appendChild(o); return o;
 }
-var _compIris=null;
+var _compIris=null, _compGuided=null;
 window.compClose=function(){
   if(_compSaveT){ clearTimeout(_compSaveT); compSaveNow(); }
   var o=document.getElementById("comp-overlay"); if(o) o.classList.remove("on");
   document.body.style.overflow="";
-  _compScreen=null; _compIris=null;
+  _compScreen=null; _compIris=null; _compGuided=null;
   if(profileIdx!==null&&profileTab==="computation") renderProfileTab();
 };
 function compSaveNow(){
@@ -6583,16 +7011,20 @@ window.compOpen=function(idx){
       Object.keys(model.sheets[s]).forEach(function(a){ var v=model.sheets[s][a].v; if(typeof v==="string"&&_compBoldText[v.trim()]&&!b[a]) L.bold.push(a); }); }); }
     _compIdx=idx; _compState=st;
     var tpl=r[0], hasIris=!!(tpl&&tpl.irisView&&window.CompIris);
-    body.innerHTML=hasIris?'<div class="cxo-modes"><button type="button" class="cxo-mode on" data-m="iris">IRIS view</button><button type="button" class="cxo-mode" data-m="work">Working (Excel layout)</button></div><div id="cxo-iris"></div><div id="cxo-work" hidden></div>':'<div id="cxo-work"></div>';
-    var workEl=body.querySelector("#cxo-work"), irisEl=body.querySelector("#cxo-iris"), modes=body.querySelectorAll(".cxo-mode");
-    function setMode(m){ modes.forEach(function(b){ b.classList.toggle("on",b.dataset.m===m); }); if(irisEl) irisEl.hidden=m!=="iris"; workEl.hidden=m!=="work"; if(m==="iris"&&_compIris) _compIris.render(); }
+    var first=(st.src==="template"&&!st.opening&&!Object.keys(st.inputs||{}).length)?"open":"guided";
+    body.innerHTML=hasIris?'<div class="cxo-modes"><button type="button" class="cxo-mode" data-m="open">Opening figures</button><button type="button" class="cxo-mode" data-m="guided">Guided entry</button><button type="button" class="cxo-mode" data-m="iris">IRIS view</button><button type="button" class="cxo-mode" data-m="work">Working (Excel layout)</button></div><div id="cxo-open" hidden></div><div id="cxo-guided" hidden></div><div id="cxo-iris" hidden></div><div id="cxo-work" hidden></div>':'<div id="cxo-work"></div>';
+    var workEl=body.querySelector("#cxo-work"), irisEl=body.querySelector("#cxo-iris"), guidedEl=body.querySelector("#cxo-guided"), openEl=body.querySelector("#cxo-open"), modes=body.querySelectorAll(".cxo-mode");
+    function setMode(m){ modes.forEach(function(b){ b.classList.toggle("on",b.dataset.m===m); }); if(openEl) openEl.hidden=m!=="open"; if(guidedEl) guidedEl.hidden=m!=="guided"; if(irisEl) irisEl.hidden=m!=="iris"; workEl.hidden=m!=="work"; if(m==="iris"&&_compIris) _compIris.render(); if(m==="guided"&&_compGuided) _compGuided.draw(); }
     modes.forEach(function(b){ b.onclick=function(){ setMode(b.dataset.m); }; });
+    if(!hasIris) workEl.hidden=false; else setMode(first);
     _compScreen=new CompScreen.Screen(workEl,model,{inputs:st.inputs||{},ops:st.ops||[],labels:_compLabels,onChange:function(){
       var s2=document.getElementById("cxo-status"); if(s2) s2.textContent="Saving…";
       clearTimeout(_compSaveT); _compSaveT=setTimeout(compSaveNow,700); }});
     _compScreen.formulaEdits=Object.assign({},st.formulas||{});
-    _compIris=null;
-    if(hasIris){ _compIris=new CompIris.IrisView(irisEl,_compScreen,tpl.irisView,tpl,{check:st.check||{},onCheck:function(c){ _compState.check=c; _compScreen.opts.onChange(); },onGoto:function(sh,a){ setMode("work"); _compScreen.goto(sh,a); }}); }
+    _compIris=null; _compGuided=null;
+    if(hasIris){ _compIris=new CompIris.IrisView(irisEl,_compScreen,tpl.irisView,tpl,{check:st.check||{},onCheck:function(c){ _compState.check=c; _compScreen.opts.onChange(); },onGoto:function(sh,a){ setMode("work"); _compScreen.goto(sh,a); }});
+      _compGuided=new CompGuided.Guided(guidedEl,_compScreen,tpl,{iris:_compIris,onIris:function(pg){ setMode("iris"); _compIris.page=pg; _compIris.q=""; _compIris.render(); },onWork:function(sh){ setMode("work"); _compScreen.sheet=sh; _compScreen.render(); }});
+      new CompOpening.Panel(openEl,_compScreen,{onApplied:function(res,ok){ _compState.opening={at:new Date().toISOString(),ok:ok}; _compScreen.opts.onChange(); if(_compGuided) _compGuided.draw(); }}); }
     document.getElementById("cxo-status").textContent=st.updated?"Last saved "+new Date(st.updated).toLocaleString("en-PK",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
     if(!st.summary){ compSaveNow(); }
   }).catch(function(e){ body.innerHTML='<div class="cp-empty">'+escHtml(e.message||String(e))+'</div>'; document.getElementById("cxo-status").textContent=""; });
