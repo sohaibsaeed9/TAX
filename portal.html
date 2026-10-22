@@ -636,6 +636,11 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 .ci-pct{width:100%;text-align:right;font:inherit;font-family:var(--mono);font-size:12px;height:20px;padding:0 5px;border:1px solid var(--gold);border-radius:4px;background:#fffdf7}.ci-ratio td{background:#fffdf7}
 .ci-biz{display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap}.ci-bizb{font:inherit;font-size:12px;padding:3px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink-2);cursor:pointer}
 .ci-bizb.on{background:var(--navy-700);border-color:var(--navy-700);color:#fff}.ci-bizb i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-left:5px;vertical-align:middle}.ci-bizn{font-size:11.5px;color:var(--ink-3);margin-left:8px}
+/* ── FILED RETURNS ── */
+.cf-chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--line-2);color:var(--ink-3);white-space:nowrap}
+.cf-chip.ok{background:var(--green-soft);color:var(--green)}.cf-chip.bad{background:var(--red-soft);color:var(--red)}.cf-chip.warn{background:var(--amber-soft);color:var(--amber)}
+.cf-sub{font-size:11.5px;color:var(--ink-3)}.cf-scroll{overflow:auto}.cf .cg-t td{vertical-align:top}.cf-files td{padding:2px 6px}
+.cf-views{display:flex;gap:4px;margin-bottom:12px}.cf-view{font:inherit;font-size:12.5px;padding:5px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink-2);cursor:pointer}.cf-view.on{background:var(--navy-800);border-color:var(--navy-800);color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -2206,6 +2211,11 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     if(root.pdfjsLib) return Promise.resolve(root.pdfjsLib);
     return new Promise(function(res,rej){ var s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"; s.onload=function(){ root.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(root.pdfjsLib); }; s.onerror=function(){ rej(new Error("The PDF reader could not be loaded. Check the internet connection, or use the previous year's Excel file instead.")); }; document.head.appendChild(s); });
   }
+  function readPdfLines(buffer){
+    return loadPdfJs().then(function(lib){ return lib.getDocument({data:buffer}).promise; }).then(function(doc){
+      var jobs=[]; for(var p=1;p<=doc.numPages;p++) jobs.push(doc.getPage(p).then(function(pg){ return pg.getTextContent(); }).then(function(tc){ return tc.items.map(function(i){ return {str:i.str,x:i.transform[4],y:i.transform[5],w:i.width}; }); }));
+      return Promise.all(jobs); }).then(pdfLinesFromItems);
+  }
   function extractFromPdf(buffer){
     return loadPdfJs().then(function(lib){ return lib.getDocument({data:buffer}).promise; }).then(function(doc){
       var jobs=[]; for(var p=1;p<=doc.numPages;p++) jobs.push(doc.getPage(p).then(function(pg){ return pg.getTextContent(); }).then(function(tc){ return tc.items.map(function(i){ return {str:i.str,x:i.transform[4],y:i.transform[5],w:i.width}; }); }));
@@ -2264,6 +2274,8 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       h+='<div class="co-actions"><button type="button" class="cg-addbtn co-apply">Use as opening figures</button><label class="cg-chk"><input type="checkbox" class="co-copy" checked> Start this year\'s figures the same as last year\'s</label></div></section>';
     }
     this.el.innerHTML=h+'</div>';
+    var sv=this.opts.getSaved&&this.opts.getSaved(); if(sv&&sv.wealth){ var box=document.createElement("section"); box.className="cg-card"; box.innerHTML='<h3>Saved Tax Year 2026 return for this client</h3><p class="cg-sub">Saved from the filed returns upload ('+esc(sv.files&&sv.files.excel||"")+'). Net assets '+fmt(sv.wealth.net)+'. Use it as the opening figures, or upload a different file above.</p><button type="button" class="cg-addbtn co-usesaved">Use the saved return</button>'; this.el.querySelector(".co").insertBefore(box,this.el.querySelector(".co").children[1]||null);
+      box.querySelector(".co-usesaved").onclick=function(){ self.data=Object.assign({source:"saved"},sv.wealth,{taxpayer:sv.taxpayer||{}}); self.msg="Using the saved Tax Year 2026 return."; self.render(); }; }
     var f=this.el.querySelector(".co-file"); f.onchange=function(){ if(f.files[0]) self.load(f.files[0]); };
     var ap=this.el.querySelector(".co-apply"); if(ap) ap.onclick=function(){ self.applyNow(); };
   };
@@ -2287,8 +2299,173 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     if(tpn) msg+=" "+tpn+" taxpayer detail"+(tpn>1?"s":"")+" filled in."; this.msg=msg; this.render(); if(this.opts.onApplied) this.opts.onApplied(res,ok);
   };
 
-  var api={wealthSheetName:wealthSheetName,wealthGroups:wealthGroups,extractFromWorkbook:extractFromWorkbook,parseIrisLines:parseIrisLines,extractFromPdf:extractFromPdf,apply:apply,applyTaxpayer:applyTaxpayer,taxpayerFromWorkbook:taxpayerFromWorkbook,taxpayerFromLines:taxpayerFromLines,netPrev:netPrev,Panel:Panel,pdfLinesFromItems:pdfLinesFromItems};
+  var api={wealthSheetName:wealthSheetName,wealthGroups:wealthGroups,extractFromWorkbook:extractFromWorkbook,parseIrisLines:parseIrisLines,extractFromPdf:extractFromPdf,readPdfLines:readPdfLines,apply:apply,applyTaxpayer:applyTaxpayer,taxpayerFromWorkbook:taxpayerFromWorkbook,taxpayerFromLines:taxpayerFromLines,netPrev:netPrev,Panel:Panel,pdfLinesFromItems:pdfLinesFromItems};
   if(typeof module!=="undefined") module.exports=api; else root.CompOpening=api;
+})(typeof window!=="undefined"?window:this);
+</script>
+<script>
+/* Filed returns: bulk-read the computation workbooks (Excel) and IRIS return PDFs of returns already submitted, match them to
+   clients, check the workbook figures against what IRIS filed, and keep the 2026 figures (and closing wealth) per client. */
+(function(root){
+  "use strict";
+  var E=root.CompEngine||(typeof require!=="undefined"?require("./engine.js"):null);
+  var CA=root.CompAlign||(typeof require!=="undefined"?require("./comp-align.js"):null);
+  var O=root.CompOpening||(typeof require!=="undefined"?require("./comp-opening.js"):null);
+  var CF=root.CompFixes||(typeof require!=="undefined"?require("./comp-fixes.js"):null);
+  var C="COMPUATION -2026", W="WEALTH AND RECONCILIATION -2026", F="FORMUL SHEET-2026";
+  var KEYS=[["9000","Total income"],["9100","Taxable income"],["920000","Normal tax"],["920100","Fixed / final tax"],["9200","Tax chargeable"],["9201","Withholding tax"],["9203","Admitted tax u/s 137(1)"],["9210","Refundable tax"],["703001","Net assets"]];
+  function clean(s){ return String(s==null?"":s).replace(/\s+/g," ").trim(); }
+  function num(v){ return typeof v==="number"&&isFinite(v)?v:0; }
+  function digits(s){ return String(s||"").replace(/\D/g,""); }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function fmt(v){ return root.CompScreen?root.CompScreen.fmt(v,"#,##0"):String(Math.round(v)); }
+
+  /* ---- IRIS return (text lines) -> key figures ---- */
+  function parseIrisReturn(lines){
+    var figs={}, tp=O.taxpayerFromLines(lines);
+    KEYS.forEach(function(k){
+      var re=new RegExp("(?:^|\\s)"+k[0]+"\\s+(-?\\(?\\d[\\d,]*\\)?)(?:\\s|$)");
+      for(var i=0;i<lines.length;i++){ var m=re.exec(lines[i]); if(m){ var raw=m[1], neg=/^-|^[(]/.test(raw); var n=parseFloat(raw.replace(/[^0-9.]/g,"")); figs[k[0]]=neg?-n:n; break; } }
+    });
+    if(figs["9210"]==null) figs["9210"]=0;
+    if(figs["9203"]==null) figs["9203"]=0;
+    var ty=null; for(var j=0;j<Math.min(lines.length,30);j++){ var y=/Tax Year\s*:\s*(\d{4})/.exec(lines[j]); if(y){ ty=y[1]; break; } }
+    return {source:"pdf",taxYear:ty,taxpayer:tp,figs:figs,haveReturn:figs["9000"]!=null||figs["9100"]!=null};
+  }
+
+  /* ---- workbook -> key figures (as saved in Excel, and as the new system works them out) ---- */
+  function excelFigures(model,cached,template){
+    var miss=Object.keys(template.sheets).filter(function(s){ return model.order.indexOf(s)<0; });
+    if(miss.length>2) throw new Error("This workbook does not have the Tax Year 2026 sheets.");
+    var al=CA.makeAligner(template,model);
+    var clone=JSON.parse(JSON.stringify(model)); if(CF&&!clone.fixes) CF.apply(clone);
+    var wb=new E.Workbook(clone), wbRaw=new E.Workbook(JSON.parse(JSON.stringify(model)));
+    function at(sh,a){ return al.resolve(sh,a); }
+    function saved(sh,a){ var r=at(sh,a); if(!r) return 0; var c=cached&&cached[sh]&&cached[sh][r]; return typeof c==="number"?c:num(wbRaw.get(sh,r)); }
+    function sys(sh,a){ var r=at(sh,a); return r?num(wb.get(sh,r)):0; }
+    var map=[["9000",C,"F50"],["9100",C,"H57"],["920000",C,"H59"],["920100",C,"E6"],["9200",C,"H58"],["9203",C,"H104"],["9210",C,"H107"],["703001",W,"G93"]];
+    var s={}, n={}; map.forEach(function(m){ s[m[0]]=Math.round(saved(m[1],m[2])); n[m[0]]=Math.round(sys(m[1],m[2])); });
+    s["9201"]=Math.round(saved(C,"F95")); n["9201"]=Math.round(sys(C,"F95")+sys(F,"G259"));
+    var wealth=null; try{ wealth=O.extractFromWorkbook(model,cached); }catch(e){}
+    return {source:"excel",saved:s,system:n,taxpayer:O.taxpayerFromWorkbook(model),wealth:wealth};
+  }
+
+  /* ---- matching ---- */
+  function normName(s){ return clean(s).toLowerCase().replace(/[^a-z ]/g,"").replace(/\b(m\/s|mr|mrs|ms|muhammad|mohammad|mohd|md)\b/g,"").replace(/\s+/g," ").trim(); }
+  function nameScore(a,b){ var A=normName(a).split(" ").filter(function(w){ return w.length>1; }), B=normName(b).split(" ").filter(function(w){ return w.length>1; }); if(!A.length||!B.length) return 0;
+    if(A.join(" ")===B.join(" ")) return 90; var common=A.filter(function(w){ return B.indexOf(w)>=0; }).length; return Math.round(70*common/Math.max(A.length,B.length)); }
+  /* clients: [{name,id,ntn}] indexed like the portal's list. Returns [{idx,score}] best first */
+  function matchClient(tp,clients){
+    var cnic=digits(tp.E34), ntn=digits(tp.C35), out=[];
+    clients.forEach(function(c,i){ if(!c) return; var score=0, cid=digits(c.id), cn=digits(c.ntn);
+      if(cnic.length===13&&(cid===cnic||cn===cnic)) score=100; else if(ntn&&(cn===ntn||cid===ntn)) score=100; else if(tp.E32) score=nameScore(tp.E32,c.name);
+      if(score>=40) out.push({idx:i,score:score}); });
+    return out.sort(function(a,b){ return b.score-a.score; }).slice(0,4);
+  }
+  function identity(tp){ var d=digits(tp.E34); if(d.length===13) return "c"+d; var n=digits(tp.C35); if(n) return "n"+n; return "m"+normName(tp.E32||""); }
+
+  /* ---- compare ---- */
+  function compare(sys,pdf){ var rows=[], ok=0, tot=0;
+    KEYS.forEach(function(k){ var a=sys?sys[k[0]]:null, b=pdf?pdf[k[0]]:null; var st="na";
+      if(a!=null&&b!=null){ tot++; var d=Math.round(a)-Math.round(b); st=d===0?"match":Math.abs(d)<=1?"round":"diff"; if(st!=="diff") ok++; rows.push({code:k[0],label:k[1],a:a,b:b,diff:d,st:st}); }
+      else rows.push({code:k[0],label:k[1],a:a,b:b,diff:null,st:st}); });
+    return {rows:rows,ok:ok,total:tot};
+  }
+
+  var api={KEYS:KEYS,parseIrisReturn:parseIrisReturn,excelFigures:excelFigures,matchClient:matchClient,identity:identity,compare:compare,nameScore:nameScore};
+
+  /* ---- screen (browser) ---- */
+  function chip(t,cls){ return '<span class="cf-chip '+(cls||"")+'">'+esc(t)+'</span>'; }
+  function Panel(el,ctx){ this.el=el; this.ctx=ctx; this.items=[]; this.groups=[]; this.msg=""; this.busy=false; this.open={}; this.render(); }
+  Panel.prototype.render=function(){
+    var self=this, h='<div class="cf">';
+    h+='<section class="cg-card"><h3>Filed returns, Tax Year 2026</h3><p class="cg-sub">Choose the computation workbooks (.xlsx) and, if you have them, the IRIS return PDFs of the returns already filed. You can pick many files at once. Each file is matched to its client, and the workbook figures are checked against what IRIS filed.</p>';
+    h+='<label class="co-drop"><input type="file" class="cf-file" accept=".xlsx,.pdf" multiple><span>Choose the Excel files and PDFs together</span></label><div class="co-msg">'+esc(this.msg)+'</div>';
+    if(this.items.length){ h+='<table class="cg-t cf-files"><tbody>'+this.items.map(function(i){ return '<tr><td>'+esc(i.file)+'</td><td class="cg-r">'+(i.error?chip(i.error,"bad"):i.done?chip(i.kind==="pdf"?"IRIS PDF read":"Workbook read","ok"):chip("Reading…"))+'</td></tr>'; }).join("")+'</tbody></table>'; }
+    h+='</section>';
+    if(this.groups.length) h+=this.reviewHtml();
+    h+='<div class="cf-saved"></div></div>';
+    this.el.innerHTML=h; this.drawSaved();
+    var f=this.el.querySelector(".cf-file"); f.onchange=function(){ if(f.files.length) self.load([].slice.call(f.files)); f.value=""; };
+    this.wire();
+  };
+  Panel.prototype.reviewHtml=function(){
+    var self=this, clients=this.ctx.clients(), h='<section class="cg-card"><h3>Review and save</h3><p class="cg-sub">Check each file is matched to the right client, then save. Nothing is stored until you press Save.</p>';
+    h+='<table class="cg-t"><thead><tr><th>In the files</th><th>Files</th><th>Client</th><th>Against IRIS</th><th></th></tr></thead><tbody>';
+    this.groups.forEach(function(g,gi){
+      var tp=(g.excel&&g.excel.result.taxpayer)||(g.pdf&&g.pdf.result.taxpayer)||{}, name=tp.E32||"(no name found)";
+      var cmp=g.excel&&g.pdf&&g.pdf.result.haveReturn?F_compare(g):null;
+      h+='<tr><td><b>'+esc(name)+'</b><div class="cf-sub">'+esc(tp.E34||tp.C35||"")+'</div></td><td>'+(g.excel?chip("Excel","ok"):chip("no Excel","warn"))+' '+(g.pdf?chip("PDF","ok"):chip("no PDF"))+'</td>';
+      h+='<td><select class="cg-in cf-pick" data-g="'+gi+'"><option value="">Do not save</option>'+g.options.map(function(o){ var c=clients[o.idx]; return '<option value="'+o.idx+'"'+(g.choice===o.idx?" selected":"")+'>'+esc(c.name)+(o.score<90?" ("+o.score+"% match)":"")+'</option>'; }).join("")+(g.choice!=null&&!g.options.some(function(o){ return o.idx===g.choice; })?'<option value="'+g.choice+'" selected>'+esc(clients[g.choice].name)+'</option>':'')+'</select></td>';
+      h+='<td>'+(cmp?(cmp.ok===cmp.total?chip("All "+cmp.total+" match","ok"):chip(cmp.ok+" of "+cmp.total+" match","bad")):(g.pdf&&!g.pdf.result.haveReturn?chip("PDF has no return figures","warn"):chip("needs both files")))+'</td><td class="cg-r"><button type="button" class="cg-link cf-det" data-g="'+gi+'">'+(self.open[gi]?"Hide":"Details")+'</button></td></tr>';
+      if(self.open[gi]) h+='<tr><td colspan="5">'+self.detailHtml(g)+'</td></tr>';
+    });
+    var n=this.groups.filter(function(g){ return g.choice!=null&&g.choice!==""&&g.excel; }).length;
+    h+='</tbody></table><div class="co-actions"><button type="button" class="cg-addbtn cf-save"'+(n?"":" disabled")+'>Save '+n+' return'+(n===1?"":"s")+'</button><span class="cf-sub">Only returns with a workbook and a chosen client are saved.</span></div></section>';
+    return h;
+  };
+  function F_compare(g){ var pdfFigs=g.pdf.result.figs; return compare(g.excel.result.system,pdfFigs); }
+  Panel.prototype.detailHtml=function(g){
+    var sv=g.excel?g.excel.result.saved:null, sy=g.excel?g.excel.result.system:null, pf=g.pdf?g.pdf.result.figs:{}, cmp=g.excel&&g.pdf?compare(sy,pf):null;
+    var h='<table class="cg-t"><thead><tr><th>Code</th><th>Figure</th><th class="cg-r">Excel as saved</th><th class="cg-r">New system</th><th class="cg-r">IRIS filed</th><th></th></tr></thead><tbody>';
+    KEYS.forEach(function(k,i){ var st=cmp?cmp.rows[i].st:"na", iv=pf[k[0]];
+      h+='<tr><td class="cg-code">'+k[0]+'</td><td>'+k[1]+'</td><td class="cg-r">'+(sv?fmt(sv[k[0]]):"")+'</td><td class="cg-r">'+(sy?fmt(sy[k[0]]):"")+'</td><td class="cg-r">'+(iv!=null?fmt(iv):"")+'</td><td>'+(st==="match"?chip("match","ok"):st==="round"?chip("Rs 1","ok"):st==="diff"?chip("differs","bad"):"")+'</td></tr>'; });
+    return h+'</tbody></table>';
+  };
+  Panel.prototype.wire=function(){
+    var self=this;
+    this.el.querySelectorAll(".cf-pick").forEach(function(s){ s.onchange=function(){ self.groups[+s.dataset.g].choice=s.value===""?null:+s.value; self.render(); }; });
+    this.el.querySelectorAll(".cf-det").forEach(function(b){ b.onclick=function(){ self.open[+b.dataset.g]=!self.open[+b.dataset.g]; self.render(); }; });
+    var sv=this.el.querySelector(".cf-save"); if(sv) sv.onclick=function(){ self.saveAll(); };
+  };
+  Panel.prototype.load=function(files){
+    var self=this; this.items=files.map(function(f){ return {file:f.name,f:f,kind:/\.pdf$/i.test(f.name)?"pdf":"excel"}; }); this.groups=[]; this.msg="Reading "+files.length+" files…"; this.render();
+    this.ctx.template().then(function(tpl){
+      var chain=Promise.resolve();
+      self.items.forEach(function(it){ chain=chain.then(function(){ return self.readOne(it,tpl); }).then(function(){ self.render(); },function(){ self.render(); }); });
+      return chain; }).then(function(){ self.group(); self.msg=self.items.filter(function(i){ return i.done; }).length+" of "+self.items.length+" files read."; self.render(); })
+      .catch(function(e){ self.msg=e.message||String(e); self.render(); });
+  };
+  Panel.prototype.readOne=function(it,tpl){
+    return it.f.arrayBuffer().then(function(buf){
+      if(it.kind==="pdf") return root.CompOpening.readPdfLines(buf).then(function(lines){ it.result=parseIrisReturn(lines); it.done=true; });
+      if(typeof XLSX==="undefined") throw new Error("Excel reader not loaded");
+      var r=root.CompImport.convert(XLSX,new Uint8Array(buf)); it.result=excelFigures(r.model,r.cached,tpl); it.done=true;
+    }).catch(function(e){ it.error=(e.message||String(e)).slice(0,60); });
+  };
+  Panel.prototype.group=function(){
+    var by={}, clients=this.ctx.clients(), order=[];
+    this.items.forEach(function(it){ if(!it.done) return; var id=identity(it.result.taxpayer); if(!by[id]){ by[id]={id:id}; order.push(id); } by[id][it.kind]=it; });
+    // pair a PDF and an Excel that identify the same person by name when ids differ
+    this.groups=order.map(function(id){ return by[id]; });
+    this.groups.forEach(function(g){ var tp=(g.excel&&g.excel.result.taxpayer)||(g.pdf&&g.pdf.result.taxpayer)||{}; var m=matchClient(tp,clients); g.options=m; g.choice=m.length&&m[0].score>=90&&(m.length===1||m[0].score>m[1].score)?m[0].idx:null; });
+  };
+  Panel.prototype.saveAll=function(){
+    var self=this, n=0, by=this.ctx.by();
+    this.groups.forEach(function(g){ if(g.choice==null||!g.excel) return; var r=g.excel.result, cmp=g.pdf&&g.pdf.result.haveReturn?compare(r.system,g.pdf.result.figs):null;
+      var rec={saved:new Date().toISOString(),by:by,files:{excel:g.excel.file,pdf:g.pdf?g.pdf.file:null},taxpayer:r.taxpayer,excelFigs:r.saved,systemFigs:r.system,iris:g.pdf?g.pdf.result.figs:null,check:cmp?{ok:cmp.ok,total:cmp.total}:null,wealth:r.wealth};
+      self.ctx.put(g.choice,rec); n++; });
+    this.msg="Saved "+n+" return"+(n===1?"":"s")+"."; this.items=[]; this.groups=[]; this.render();
+  };
+  Panel.prototype.drawSaved=function(){
+    var self=this, box=this.el.querySelector(".cf-saved"), clients=this.ctx.clients(), rows=[], tot={};
+    clients.forEach(function(c,i){ var r=c&&self.ctx.get(i); if(r) rows.push({i:i,c:c,r:r}); });
+    rows.sort(function(a,b){ return (a.c.name||"").localeCompare(b.c.name||""); });
+    var cols=["9000","9100","9200","9201","9210","703001"], lab={"9000":"Total income","9100":"Taxable income","9200":"Tax chargeable","9201":"Tax paid / deducted","9210":"Refund","703001":"Net assets"};
+    var h='<section class="cg-card"><h3>2026 figures on file ('+rows.length+' client'+(rows.length===1?"":"s")+')</h3>';
+    if(!rows.length){ box.innerHTML=h+'<p class="cg-sub">Nothing saved yet. Upload the filed returns above.</p></section>'; return; }
+    h+='<p class="cg-sub">Figures are the new system\'s calculation from each workbook. The last column shows whether it agrees with the IRIS filed return, where you gave the PDF.</p><div class="cf-scroll"><table class="cg-t"><thead><tr><th>Client</th>'+cols.map(function(c){ return '<th class="cg-r">'+lab[c]+'</th>'; }).join("")+'<th>Against IRIS</th><th></th></tr></thead><tbody>';
+    rows.forEach(function(x){ var f=x.r.systemFigs||{}; cols.forEach(function(c){ tot[c]=(tot[c]||0)+num(f[c]); });
+      var ck=x.r.check; h+='<tr><td>'+esc(x.c.name)+'</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(num(f[c]))+'</td>'; }).join("")+'<td>'+(ck?(ck.ok===ck.total?chip("matches","ok"):chip(ck.ok+"/"+ck.total,"bad")):chip("no PDF"))+'</td><td class="cg-r"><button type="button" class="cg-link cf-del" data-i="'+x.i+'" title="Remove the saved figures">Remove</button></td></tr>'; });
+    h+='<tr class="cg-tot"><td>Total</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(tot[c]||0)+'</td>'; }).join("")+'<td></td><td></td></tr></tbody></table></div><div class="co-actions"><button type="button" class="cg-link cf-csv">Download as CSV</button></div></section>';
+    box.innerHTML=h;
+    box.querySelectorAll(".cf-del").forEach(function(b){ b.onclick=function(){ if(confirm("Remove the saved 2026 figures for this client?")){ self.ctx.del(+b.dataset.i); self.drawSaved(); } }; });
+    var cv=box.querySelector(".cf-csv"); if(cv) cv.onclick=function(){ var lines=[["Client"].concat(cols.map(function(c){ return lab[c]; })).join(",")];
+      rows.forEach(function(x){ var f=x.r.systemFigs||{}; lines.push(['"'+String(x.c.name).replace(/"/g,'""')+'"'].concat(cols.map(function(c){ return Math.round(num(f[c])); })).join(",")); });
+      var a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv"})); a.download="2026-figures.csv"; a.click(); };
+  };
+  api.Panel=Panel;
+  if(typeof module!=="undefined") module.exports=api; else root.CompFiled=api;
 })(typeof window!=="undefined"?window:this);
 </script>
 <script>
@@ -7145,7 +7322,7 @@ window.compOpen=function(idx,mode){
     if(hasIris){ _compIris=new CompIris.IrisView(irisEl,_compScreen,tpl.irisView,tpl,{check:st.check||{},onCheck:function(c){ _compState.check=c; _compScreen.opts.onChange(); },onGoto:function(sh,a){ setMode("work"); _compScreen.goto(sh,a); }});
       _compGuided=new CompGuided.Guided(guidedEl,_compScreen,tpl,{iris:_compIris,onIris:function(pg){ setMode("iris"); _compIris.page=pg; _compIris.q=""; _compIris.render(); },onWork:function(sh){ setMode("work"); _compScreen.sheet=sh; _compScreen.render(); }});
       if(mode==="check"){ setMode("iris"); _compIris.page="check"; _compIris.render(); }
-      new CompOpening.Panel(openEl,_compScreen,{clientName:getClient(idx).name,onApplied:function(res,ok){ _compState.opening={at:new Date().toISOString(),ok:ok}; _compScreen.opts.onChange(); if(_compGuided) _compGuided.draw(); }}); }
+      new CompOpening.Panel(openEl,_compScreen,{clientName:getClient(idx).name,getSaved:function(){ return filedGet(idx); },onApplied:function(res,ok){ _compState.opening={at:new Date().toISOString(),ok:ok}; _compScreen.opts.onChange(); if(_compGuided) _compGuided.draw(); }}); }
     document.getElementById("cxo-status").textContent=st.updated?"Last saved "+new Date(st.updated).toLocaleString("en-PK",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
     if(!st.summary){ compSaveNow(); }
   }).catch(function(e){ body.innerHTML='<div class="cp-empty">'+escHtml(e.message||String(e))+'</div>'; document.getElementById("cxo-status").textContent=""; });
@@ -7188,7 +7365,11 @@ window.compDelete=function(idx){
   try{ localStorage.setItem(compKey(idx,COMP_TY),"null"); }catch(e){}
   renderProfileTab();
 };
-var _filingQ="", _filingF="all";
+function filedKey(i){ return "sc_filed_"+i+"_2026"; }
+function filedGet(i){ try{ return JSON.parse(localStorage.getItem(filedKey(i))||"null"); }catch(e){ return null; } }
+function filedPut(i,rec){ try{ localStorage.setItem(filedKey(i),JSON.stringify(rec)); }catch(e){ alert("Could not save: "+e.message); } }
+function filedDel(i){ try{ localStorage.setItem(filedKey(i),"null"); }catch(e){} }
+var _filingQ="", _filingF="all", _filingView="clients", _filedPanel=null;
 window.renderFiling=function(){
   var pg=document.getElementById("pg-filing"); if(!pg) return;
   var q=_filingQ.toLowerCase(), rows=[], i, shown=0, total=0, started=0;
@@ -7201,10 +7382,17 @@ window.renderFiling=function(){
     function chip(on,t){ return '<span style="display:inline-block;font-size:11.5px;padding:3px 9px;border-radius:999px;margin-right:4px;background:'+(on?"var(--green-soft)":"var(--line-2)")+';color:'+(on?"var(--green)":"var(--ink-3)")+';">'+t+'</span>'; }
     rows.push('<tr style="border-bottom:1px solid var(--line-2);"><td style="padding:4px 8px;"><div style="font-weight:500;">'+escHtml(c.name)+'</div>'+(c.ntn?'<div class="mono" style="font-size:11.5px;color:var(--ink-3);">NTN '+escHtml(c.ntn)+'</div>':'')+'</td><td style="padding:4px 8px;">'+(st?chip(!!st.opening,"Opening figures")+chip(!!s["Total income"],"Prepared")+chip(chk>0,"Checked"):'<span style="font-size:12.5px;color:var(--ink-3);">Not started</span>')+'</td><td style="padding:4px 8px;text-align:right;">'+(s["Taxable income"]!=null?'<span class="mono" style="font-size:12.5px;color:var(--ink-2);">'+CompScreen.fmt(s["Taxable income"],"#,##0")+'</span>':'')+'</td><td style="padding:4px 8px;text-align:right;white-space:nowrap;">'+(st?'<button class="btn" onclick="compOpen('+i+',\''+(st.opening?"guided":"open")+'\')">Open</button>':'<button class="btn-sec" onclick="compStartBlank('+i+')">'+ico("plus")+'Start return</button>')+'</td></tr>');
   }
-  var h='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Tax Year '+COMP_TY+'. For each client: bring in last year\'s figures, prepare the return, check it against IRIS, then enter it in IRIS. '+started+' of '+total+' clients started.</div></div><div class="page">';
+  if(_filingView==="filed"){
+    pg.innerHTML='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Filed returns, Tax Year '+COMP_TY+'. Upload the workbooks and IRIS PDFs of returns already submitted.</div></div><div class="page"><div class="cf-views"><button class="cf-view" data-v="clients">Clients</button><button class="cf-view on" data-v="filed">Filed returns '+COMP_TY+'</button></div><div id="filed-host"></div></div>';
+    pg.querySelectorAll(".cf-view").forEach(function(b){ b.onclick=function(){ _filingView=b.dataset.v; renderFiling(); }; });
+    _filedPanel=new CompFiled.Panel(document.getElementById("filed-host"),{clients:function(){ return ALL_CLIENTS.map(function(c,i){ return getClient(i); }); },template:compTemplate,get:filedGet,put:filedPut,del:filedDel,by:function(){ return userName; }});
+    return;
+  }
+  var h='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Tax Year '+COMP_TY+'. For each client: bring in last year\'s figures, prepare the return, check it against IRIS, then enter it in IRIS. '+started+' of '+total+' clients started.</div></div><div class="page"><div class="cf-views"><button class="cf-view on" data-v="clients">Clients</button><button class="cf-view" data-v="filed">Filed returns '+COMP_TY+'</button></div>';
   h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"><input class="search-input" id="filing-q" type="text" placeholder="Search by client name or NTN..." value="'+escHtml(_filingQ)+'" style="max-width:340px;"><select id="filing-f" style="padding:9px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;"><option value="all"'+(_filingF==="all"?" selected":"")+'>All clients</option><option value="progress"'+(_filingF==="progress"?" selected":"")+'>Started</option><option value="none"'+(_filingF==="none"?" selected":"")+'>Not started</option></select></div>';
   h+='<div class="cp-info-item" style="padding:4px 12px;overflow:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr style="text-align:left;font-size:11.5px;color:var(--ink-3);"><th style="padding:8px;">Client</th><th style="padding:8px;">Progress</th><th style="padding:8px;text-align:right;">Taxable income</th><th></th></tr></thead><tbody>'+(rows.join("")||'<tr><td colspan="4" class="cp-empty">No clients match.</td></tr>')+'</tbody></table></div>'+(shown>150?'<div style="font-size:12.5px;color:var(--ink-3);margin-top:8px;">Showing the first 150 of '+shown+'. Search to narrow the list.</div>':'')+'</div>';
   pg.innerHTML=h;
+  pg.querySelectorAll(".cf-view").forEach(function(b){ b.onclick=function(){ _filingView=b.dataset.v; renderFiling(); }; });
   var qi=document.getElementById("filing-q"); qi.oninput=function(){ _filingQ=qi.value; var pos=qi.selectionStart; renderFiling(); var n=document.getElementById("filing-q"); n.focus(); n.setSelectionRange(pos,pos); };
   document.getElementById("filing-f").onchange=function(){ _filingF=this.value; renderFiling(); };
 };
