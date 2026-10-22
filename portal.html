@@ -422,6 +422,11 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 .cx-sum-r.strong{font-weight:600}.cx-sum-r.strong b{font-weight:600;color:var(--navy-900)}
 @media(max-width:1000px){.cx-wrap{grid-template-columns:1fr}.cx-side{position:static}}
 
+.cx-fixbtn{border:1px solid var(--line);background:var(--gold-soft);color:var(--amber);font-size:12px;font-weight:500;padding:4px 12px;border-radius:999px;cursor:pointer}
+.cx-fixes{padding:18px 20px;max-width:900px}.cx-fixes-t{font-family:var(--serif);font-size:22px;font-weight:600;margin-bottom:6px}
+.cx-fixt{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0 14px}.cx-fixt th{text-align:left;background:#fbfaf7;color:var(--ink-3);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border:1px solid var(--line)}
+.cx-fixt td{padding:9px 10px;border:1px solid var(--line-2);vertical-align:top}.cx-fixclose{border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+
 #comp-overlay{display:none;position:fixed;inset:0;z-index:970;background:var(--paper);flex-direction:column}
 #comp-overlay.on{display:flex}
 .cxo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px max(24px,env(safe-area-inset-right,0px)) 12px max(24px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--card)}
@@ -1313,27 +1318,53 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     this.ins={}; var self0=this; this.ops.forEach(function(op){ self0.trackIns(op.sheet,op.at); });
     this.render();
   }
-  Screen.prototype.find=function(sheet,col,label){
-    var cells=this.wb.model.sheets[sheet], best=null;
+  function findRow(wb,sheet,col,label){
+    var cells=wb.model.sheets[sheet], best=null;
     Object.keys(cells).forEach(function(a){ var m=/^([A-Z]+)(\d+)$/.exec(a); if(m[1]!==col) return; var v=cells[a].v;
       if(typeof v==="string"&&v.trim().toUpperCase().indexOf(label)===0&&(!best||+m[2]<best)) best=+m[2]; });
     return best;
-  };
-  Screen.prototype.results=function(){
-    var self=this;
-    return RESULTS.map(function(g){ return {g:g.g,items:g.items.map(function(it){
+  }
+  /* minimum-tax totals row on the Formula Sheet, found through the admitted-tax formula */
+  function minTaxRow(wb){
+    var r=findRow(wb,C,"A","ADMITTED INCOME TAX U/S 137"); var f=r&&wb.model.sheets[C]["H"+r]&&wb.model.sheets[C]["H"+r].f;
+    var m=f&&/'([^']+)'!G(\d+)/.exec(f); return m?{sheet:m[1],row:+m[2]}:null;
+  }
+  function resultsOf(wb){
+    var out=RESULTS.map(function(g){ return {g:g.g,items:g.items.map(function(it){
       var v=null;
-      if(it[2]==="ABS") v=self.wb.get(it[1],it[3]);
-      else { var r=self.find(it[1],it[2],it[3]); if(r) v=self.wb.get(it[1],it[4]+r); }
+      if(it[2]==="ABS") v=wb.get(it[1],it[3]);
+      else { var r=findRow(wb,it[1],it[2],it[3]); if(r) v=wb.get(it[1],it[4]+r); }
       return {label:it[0],v:typeof v==="number"?v:0,strong:!!it[5]}; })}; });
-  };
+    var mt=minTaxRow(wb);
+    if(mt){
+      var col=wb.get(mt.sheet,"G"+mt.row), chg=wb.get(mt.sheet,"E"+mt.row);
+      if(typeof col==="number"&&typeof chg==="number"&&(col>0||chg>0)){
+        var tax=out.filter(function(g){ return g.g==="Tax"; })[0];
+        tax.items.push({label:"Minimum tax chargeable",v:chg,strong:false});
+        tax.items.push({label:"Minimum tax collected",v:col,strong:false});
+        if(col>chg) tax.items.push({label:"Collected above minimum tax (credited)",v:col-chg,strong:false});
+      }
+    }
+    return out;
+  }
+  Screen.prototype.find=function(sheet,col,label){ return findRow(this.wb,sheet,col,label); };
+  Screen.prototype.results=function(){ return resultsOf(this.wb); };
   Screen.prototype.render=function(){
     var self=this, m=this.wb.model;
-    this.el.innerHTML='<div class="cx-wrap"><div class="cx-main"><div class="cx-tabs" role="tablist"></div><div class="cx-tools"><label class="cx-chk"><input type="checkbox" class="cx-hid"> Show hidden lines</label><span class="cx-note">Type in the white boxes. Grey figures are calculated. Use <b>+</b> at the start of a line to add a line below it.</span></div><div class="cx-grid"></div></div><aside class="cx-side"></aside></div>';
+    this.el.innerHTML='<div class="cx-wrap"><div class="cx-main"><div class="cx-tabs" role="tablist"></div><div class="cx-tools"><label class="cx-chk"><input type="checkbox" class="cx-hid"> Show hidden lines</label><button type="button" class="cx-fixbtn" hidden></button><span class="cx-note">Type in the white boxes. Grey figures are calculated. Use <b>+</b> at the start of a line to add a line below it.</span></div><div class="cx-grid"></div></div><aside class="cx-side"></aside></div>';
     var tabs=this.el.querySelector(".cx-tabs");
     m.order.forEach(function(s){ var b=document.createElement("button"); b.type="button"; b.className="cx-tab"+(s===self.sheet?" on":""); b.textContent=SHEET_LABEL[s]||s.trim(); b.onclick=function(){ self.sheet=s; self.render(); }; tabs.appendChild(b); });
     var hid=this.el.querySelector(".cx-hid"); hid.checked=this.showHidden; hid.onchange=function(){ self.showHidden=hid.checked; self.drawGrid(); };
+    var fb=this.el.querySelector(".cx-fixbtn"), fx=(this.wb.model.fixes&&this.wb.model.fixes.log)||[];
+    if(fb&&fx.length){ fb.hidden=false; fb.textContent=(this.wb.model.fixes.version||"v2")+": "+fx.length+" correction"+(fx.length>1?"s":"")+" applied"; fb.onclick=function(){ self.showFixes(); }; }
     this.drawGrid(); this.drawSide();
+  };
+  Screen.prototype.showFixes=function(){
+    var fx=(this.wb.model.fixes&&this.wb.model.fixes.log)||[], g=this.el.querySelector(".cx-grid");
+    var h='<div class="cx-fixes"><div class="cx-fixes-t">Corrections applied to the workbook formulas ('+esc(this.wb.model.fixes.version||"")+')</div><p>These fix known problems found by testing against filed IRIS returns. Your original Excel file is not changed.</p><table class="cx-fixt"><thead><tr><th>Where</th><th>What changed</th></tr></thead><tbody>';
+    fx.forEach(function(f){ h+='<tr><td>'+esc(f.cells)+'</td><td>'+esc(f.what)+'</td></tr>'; });
+    h+='</tbody></table><button type="button" class="cx-fixclose">Back to the computation</button></div>';
+    var prev=g.innerHTML; g.innerHTML=h; var self=this; g.querySelector(".cx-fixclose").onclick=function(){ self.drawGrid(); };
   };
   Screen.prototype.drawSide=function(){
     var side=this.el.querySelector(".cx-side"); if(!side) return;
@@ -1423,7 +1454,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   };
   Screen.prototype.state=function(){ return {ops:this.ops.slice(),inputs:Object.assign({},this.wb.inputs),formulas:Object.assign({},this.formulaEdits||{})}; };
 
-  root.CompScreen={Screen:Screen,fmt:fmt,results:RESULTS};
+  root.CompScreen={Screen:Screen,fmt:fmt,results:RESULTS,resultsOf:resultsOf};
 })(typeof window!=="undefined"?window:this);
 
 </script>
@@ -1465,6 +1496,74 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   }
   var api={convert:convert,verify:verify};
   if(typeof module!=="undefined") module.exports=api; else root.CompImport=api;
+})(typeof window!=="undefined"?window:this);
+
+</script>
+<script>
+/* TY2026 v2 corrections to the Office Copy computation workbook.
+   Works on any workbook model (blank template or an imported client file) by matching formula patterns and row labels,
+   so it still applies when rows were inserted or deleted. Returns a change log. */
+(function(root){
+  "use strict";
+  var VERSION="TY2026 v2";
+  var COMP="COMPUATION -2026", FORM="FORMUL SHEET-2026";
+  function colNum(s){ var n=0; for(var i=0;i<s.length;i++) n=n*26+(s.charCodeAt(i)-64); return n; }
+  function findSheet(model,prefix){ for(var i=0;i<model.order.length;i++) if(model.order[i].toUpperCase().indexOf(prefix.slice(0,8).toUpperCase())===0) return model.order[i]; return null; }
+  function labelRow(cells,text,col){
+    col=col||"A"; var best=null, t=text.toUpperCase();
+    Object.keys(cells).forEach(function(a){ var m=/^([A-Z]+)(\d+)$/.exec(a); if(m[1]!==col) return; var v=cells[a].v;
+      if(typeof v==="string"&&v.trim().toUpperCase().indexOf(t)===0&&(best===null||+m[2]<best)) best=+m[2]; });
+    return best;
+  }
+  function fixes(model){
+    var log=[], skipped=[];
+    var comp=findSheet(model,COMP), form=findSheet(model,FORM);
+    // 1. Minimum tax = rate x receipts (IRIS rule). Tax collected above it is credited, not charged.
+    if(form){
+      var n=0, cells=model.sheets[form], re=/^IF\(D(\d+)\*I(\d+)>G(\d+),D\1\*I\2,G\3\)$/;
+      Object.keys(cells).forEach(function(a){ var m=/^E(\d+)$/.exec(a); if(!m) return; var c=cells[a]; if(!("f" in c)) return;
+        var g=re.exec(c.f); if(g&&g[1]===m[1]&&g[2]===m[1]&&g[3]===m[1]){ c.f="D"+m[1]+"*I"+m[1]; n++; } });
+      if(n) log.push({id:"MIN-TAX",sheet:form,cells:n+" cells in column E",what:"Minimum tax is now rate x receipts only, as IRIS computes it. Tax collected above that is credited against the tax chargeable and refunded."});
+      else skipped.push("MIN-TAX: no minimum-tax lines of the expected form were found");
+    }
+    if(comp){
+      var C=model.sheets[comp];
+      // 2. Admitted tax / refundable credit the minimum-tax collections
+      var rAd=labelRow(C,"ADMITTED INCOME TAX U/S 137"), rRef=labelRow(C,"Refundable Income Tax","A");
+      var gref=null;
+      if(rAd&&C["H"+rAd]&&C["H"+rAd].f){
+        var f=C["H"+rAd].f, m1=/^ROUND\(IF\(\((.+)\)>0,\(\1-'([^']+)'!(G\d+)\),0\),0\)$/.exec(f);
+        if(m1){ gref=m1[3]; C["H"+rAd].f="ROUND(MAX(0,("+m1[1]+")-'"+m1[2]+"'!"+m1[3]+"),0)";
+          log.push({id:"ADMITTED",sheet:comp,cells:"H"+rAd,what:"Admitted tax can no longer go negative; any shortfall below zero is shown as a refund."}); }
+        else skipped.push("ADMITTED: H"+rAd+" has a different formula, left unchanged");
+      } else skipped.push("ADMITTED: row not found");
+      if(rRef){ var rr=labelRow(C,"Refundable Income Tax","A"); /* first match is the plain Refundable line */
+        var cell=C["H"+rr];
+        if(cell&&cell.f&&gref){ var m2=/^IF\(((?:F\d+\+)+F\d+-H\d+)>(H\d+),\1-\2,0\)$/.exec(cell.f);
+          if(m2){ var x=m2[1]+"+'"+form+"'!"+gref; cell.f="IF("+x+">"+m2[2]+","+x+"-"+m2[2]+",0)";
+            log.push({id:"REFUND",sheet:comp,cells:"H"+rr,what:"Refundable tax now includes tax collected under the minimum-tax provisions, so refunds show in this line."}); }
+          else skipped.push("REFUND: H"+rr+" has a different formula, left unchanged"); } }
+      // 3. Property columns M and N were skipped in the property totals
+      [["Total Receipts from Property"],["Total Deductions from Property"]].forEach(function(t){
+        var r=labelRow(C,t[0]); if(!r||!C["H"+r]||!C["H"+r].f) return; var f=C["H"+r].f;
+        if(/SUM\(M\d+:M\d+\)/.test(f)){ return; }
+        var nf=f.replace(/SUM\(O(\d+):O(\d+)\)\*O(\d+)/,function(all,a,b,c){ return "SUM(M"+a+":M"+b+")*M"+c+"+SUM(N"+a+":N"+b+")*N"+c+"+"+all; });
+        if(nf!==f){ C["H"+r].f=nf; log.push({id:"PROP-MN",sheet:comp,cells:"H"+r,what:"Property columns M and N (properties 11 and 12) are now included in the "+t[0].toLowerCase()+"."}); }
+        else skipped.push("PROP-MN: H"+r+" not in the expected form");
+      });
+      var rTax=labelRow(C,"Share in Tax deduct"), rShare=labelRow(C,"% of share in Property Income");
+      if(rTax&&rShare){
+        var madeMN=[], madeShare=[];
+        ["M","N"].forEach(function(c){ if(!C[c+rTax]){ C[c+rTax]={f:"ROUND("+c+(rTax-1)+"*"+c+rShare+",0)"}; madeMN.push(c); } });
+        ["D","G"].forEach(function(c){ var cell=C[c+rTax]; if(cell&&cell.f===c+(rTax-1)){ cell.f="ROUND("+c+(rTax-1)+"*"+c+rShare+",0)"; madeShare.push(c); } });
+        if(madeMN.length) log.push({id:"TAX155-MN",sheet:comp,cells:madeMN.map(function(c){ return c+rTax; }).join(", "),what:"Tax deducted u/s 155 for properties 11 and 12 is now carried into the totals."});
+        if(madeShare.length) log.push({id:"TAX155-SHARE",sheet:comp,cells:madeShare.map(function(c){ return c+rTax; }).join(", "),what:"Share percentage now applied to tax deducted u/s 155 in these columns, like the others."});
+      } else skipped.push("TAX155: rows not found");
+    }
+    return {version:VERSION,log:log,skipped:skipped};
+  }
+  var api={VERSION:VERSION,apply:fixes};
+  if(typeof module!=="undefined") module.exports=api; else root.CompFixes=api;
 })(typeof window!=="undefined"?window:this);
 
 </script>
@@ -6185,7 +6284,8 @@ window.compOpen=function(idx){
   o.classList.add("on"); document.body.style.overflow="hidden";
   Promise.all([compTemplate(),compBaseModel(st)]).then(function(r){
     compLabels(r[0]);
-    var model=r[1], w=new CompEngine.Workbook(model);
+    var model=r[1]; if(!model.fixes){ model.fixes=CompFixes.apply(model); }
+    var w=new CompEngine.Workbook(model);
     (st.ops||[]).forEach(function(op){ if(op.op==="ins") w.insertRow(op.sheet,op.at); });
     Object.keys(st.formulas||{}).forEach(function(k){ var p=k.split("!"); model.sheets[p[0]][p[1]]={f:st.formulas[k]}; });
     if(st.src==="import"){ Object.keys(model.sheets).forEach(function(s){ var L=model.layout[s]; if(!L) return; var b={}; L.bold.forEach(function(a){ b[a]=1; });
@@ -6216,14 +6316,18 @@ window.compImport=function(idx,file){
     var v=CompImport.verify(CompEngine,r.model,r.cached), total=0;
     Object.keys(r.model.sheets).forEach(function(s){ Object.keys(r.model.sheets[s]).forEach(function(a){ if("f" in r.model.sheets[s][a]) total++; }); });
     if(v.ok<total&&!confirm((total-v.ok)+" of "+total+" figures did not match the Excel file exactly. Import anyway?")) throw new Error("Import cancelled.");
+    var before=CompScreen.resultsOf(new CompEngine.Workbook(JSON.parse(JSON.stringify(r.model))));
+    var fx=CompFixes.apply(r.model); r.model.fixes=fx;
+    var after=CompScreen.resultsOf(new CompEngine.Workbook(JSON.parse(JSON.stringify(r.model))));
+    var changed=[]; before.forEach(function(g,gi){ g.items.forEach(function(it,ii){ var a=after[gi].items[ii]; if(a&&Math.round(a.v)!==Math.round(it.v)) changed.push(it.label+": "+CompScreen.fmt(it.v,"#,##0")+" \u2192 "+CompScreen.fmt(a.v,"#,##0")); }); });
     var text=JSON.stringify(r.model), path="computations/"+idx+"/"+COMP_TY+"-"+Date.now()+".json";
     if(info) info.textContent="Saving…";
     return Promise.resolve(_sb.storage.from("notices").upload(path,new Blob([text],{type:"application/json"}),{contentType:"application/json",upsert:true})).then(function(up){
       if(up&&up.error) throw new Error("Could not store the workbook online: "+up.error.message);
       _compBase[path]=text;
-      compPut(idx,COMP_TY,{src:"import",ty:COMP_TY,base:path,fileName:file.name,verified:{ok:v.ok,total:total},ops:[],inputs:{},formulas:{}});
+      compPut(idx,COMP_TY,{src:"import",ty:COMP_TY,base:path,fileName:file.name,verified:{ok:v.ok,total:total},fixes:fx.log.map(function(f){ return f.id; }),fixChanged:changed,ops:[],inputs:{},formulas:{}});
       if(info) info.textContent="";
-      showToast("Imported "+file.name+": "+v.ok.toLocaleString()+" of "+total.toLocaleString()+" figures match Excel.");
+      showToast("Imported "+file.name+": "+v.ok.toLocaleString()+" of "+total.toLocaleString()+" figures matched Excel before "+fx.log.length+" corrections were applied."+(changed.length?" Changed by the corrections: "+changed.join("; ")+".":" The corrections changed no results."));
       compOpen(idx);
     });
   }).catch(function(e){ if(info) info.textContent=""; if(e.message!=="Import cancelled.") alert(e.message||String(e)); });
@@ -6243,6 +6347,7 @@ function compProfileHtml(idx){
   h+='<button class="btn-sec" onclick="compStartBlank('+idx+')">'+ico("plus")+'Start blank</button>';
   if(st) h+='<button class="task-del-btn" onclick="compDelete('+idx+')">'+ico("trash")+'Delete</button>';
   h+='</div></div><div id="cp-comp-msg" style="font-size:13px;color:var(--blue);margin-bottom:8px;"></div>';
+  if(st&&st.fixChanged&&st.fixChanged.length) h+='<div style="font-size:12.5px;color:var(--amber);background:var(--amber-soft);border-radius:8px;padding:8px 12px;margin-bottom:10px;">Corrections (TY2026 v2) changed these results compared with the Excel file: '+escHtml(st.fixChanged.join("; "))+'.</div>';
   if(!st){ h+='<div class="cp-empty">No computation for Tax Year '+COMP_TY+' yet. Import the client\'s Excel workbook, or start from the blank template.</div>'; return h; }
   var s=st.summary||{};
   var groups=[["Income",["Total income","Income under normal tax","Taxable income"]],["Tax",["Normal income tax","Final / minimum tax","Tax paid / deducted","Admitted tax u/s 137(1)","CVT payable","Workers Welfare Fund","Refundable"]],["Wealth",["Net assets this year","Net assets last year","Increase in net assets","Personal expenses"]]];
