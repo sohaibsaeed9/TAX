@@ -634,6 +634,8 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 .cx-t{font-size:12px}.cx-t td{height:22px}.cx-t td.cx-l{padding:2px 6px;line-height:1.2}.cx-t td.cx-i input{height:22px;font-size:12px}
 .cx-wrap{gap:12px}.cx-side{font-size:12px}
 .ci-pct{width:100%;text-align:right;font:inherit;font-family:var(--mono);font-size:12px;height:20px;padding:0 5px;border:1px solid var(--gold);border-radius:4px;background:#fffdf7}.ci-ratio td{background:#fffdf7}
+.ci-biz{display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap}.ci-bizb{font:inherit;font-size:12px;padding:3px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink-2);cursor:pointer}
+.ci-bizb.on{background:var(--navy-700);border-color:var(--navy-700);color:#fff}.ci-bizb i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-left:5px;vertical-align:middle}.ci-bizn{font-size:11.5px;color:var(--ink-3);margin-left:8px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1657,8 +1659,16 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   }
   IrisView.prototype.wb=function(){ return this.screen.wb; };
   IrisView.prototype.addr=function(sheet,a){ return this.al.resolve(sheet,a); };
+  /* the Business sheet holds three identical blocks; the Business page can show any of them */
+  /* row offsets of business 2 and 3 against business 1 (they change inside the block because rows were added or removed in the workbook) */
+  var BIZ_STEPS=[null,[[21,314],[23,313],[306,312],[322,311]],[[21,625],[23,624],[306,623],[322,622]]];
+  function bizRow(r,biz){ if(!biz) return r; if(r<20) return 0; var off=0; BIZ_STEPS[biz].forEach(function(s){ if(r>=s[0]) off=s[1]; }); return r+off; }
+  IrisView.prototype.shift=function(sheet,a){
+    if(sheet!==BIZ||this.page!=="bus"||!this.biz) return a; var m=/^([A-Z]+)(\d+)$/.exec(a); if(!m) return a; var r=bizRow(+m[2],this.biz); return r?m[1]+r:"";
+  };
   IrisView.prototype.cellInfo=function(c){            // c = [sheet,addr,role,slot,meaning]
-    var wb=this.wb(), a=this.addr(c[0],c[1]); if(!a) return null;
+    if(this.page==="bus"&&this.biz&&c[0]!==BIZ) return null;   // totals over all businesses are only shown on Business 1
+    var wb=this.wb(), s0=this.shift(c[0],c[1]), a=s0?this.addr(c[0],s0):null; if(!a) return null;
     var raw=(wb.model.sheets[c[0]]||{})[a], k=c[0]+"!"+a;
     var isF=raw&&("f" in raw)&&!(k in wb.inputs)&&!this.screen.isConstFormula(c[0],a,raw.f);
     var v=wb.get(c[0],a);
@@ -1716,7 +1726,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       if(i.editable){ var v=typeof i.v==="number"&&i.v!==0?fmt(i.v):(typeof i.v==="string"?i.v:""); r+='<td class="ci-v ci-in"><input data-s="'+esc(i.sheet)+'" data-a="'+i.addr+'" value="'+esc(v)+'" aria-label="'+esc(ln.l)+'"></td>'; }
       else r+='<td class="ci-v ci-calc">'+(typeof i.v==="number"?fmt(i.v):esc(i.v==null?"":i.v))+'</td>';
     });
-    var go=ln.f&&this.addr(ln.f[0],ln.f[1]);
+    var s1=ln.f&&this.shift(ln.f[0],ln.f[1]), go=s1&&this.addr(ln.f[0],s1);
     r+='<td class="ci-go">'+(go?'<button type="button" class="ci-gob" data-s="'+esc(ln.f[0])+'" data-a="'+go+'" title="Open this line in the workbook (Working view)">'+ico("arrow")+'</button>':'')+'</td></tr>';
     return r;
   };
@@ -1728,6 +1738,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     var self=this, pg=this.view.pages.filter(function(p){ return p.id===id; })[0]; if(!pg) return "";
     var h="";
     if(id==="sum") h+=this.summaryStrip();
+    if(id==="bus") h+=this.bizPicker();
     var any=false;
     pg.sections.forEach(function(sec){
       var slots=self.slotsFor(sec.lines), rows="";
@@ -1742,9 +1753,15 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   var BIZ="BUSINESS INCOME ONLY-2026";
   function pctText(v){ if(typeof v!=="number"||!v) return ""; return String(Math.round(v*1000000)/10000)+"%"; }
   IrisView.prototype.ratioRow=function(slots){
-    var a=this.addr(BIZ,"C39"); if(!a) return ""; var v=this.wb().get(BIZ,a), cells="";
+    var s2=this.shift(BIZ,"C39"), a=s2&&this.addr(BIZ,s2); if(!a) return ""; var v=this.wb().get(BIZ,a), cells="";
     for(var i=0;i<slots.length-1;i++) cells+='<td class="ci-v"></td>';
     return '<tr class="ci-r ci-ratio"><td class="ci-code">GP %</td><td class="ci-lab">Gross profit ratio (% of net revenue)<span class="ci-pg">Gross profit = net revenue \u00d7 this ratio, as in the Excel sheet</span></td>'+cells+'<td class="ci-v"><input class="ci-pct" data-s="'+BIZ+'" data-a="'+a+'" value="'+esc(pctText(v))+'" placeholder="e.g. 5.8%" aria-label="Gross profit ratio"></td><td class="ci-go"></td></tr>';
+  };
+  IrisView.prototype.bizPicker=function(){
+    var self=this, wb=this.wb(), h='<div class="ci-biz">';
+    for(var i=0;i<3;i++){ var a=this.addr(BIZ,"H"+bizRow(21,i)), v=a?wb.get(BIZ,a):0, used=typeof v==="number"&&v!==0;
+      h+='<button type="button" class="ci-bizb'+(i===(this.biz||0)?" on":"")+'" data-b="'+i+'">Business '+(i+1)+(used?' <i title="has figures"></i>':'')+'</button>'; }
+    return h+'<span class="ci-bizn">Each business has its own trading account, expenses and gross profit ratio. Grey figures in the Total column on Business 1 add up all businesses.</span></div>';
   };
   IrisView.prototype.summaryStrip=function(){
     var res=CS.resultsOf(this.wb()), pick={};
@@ -1819,6 +1836,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
         self.screen.setValue(inp.dataset.s,inp.dataset.a,v); self.refreshValues(); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); var all=[].slice.call(body.querySelectorAll(".ci-in input[data-a]")), i=all.indexOf(inp); inp.blur(); if(all[i+1]) all[i+1].focus(); } });
     });
+    body.querySelectorAll(".ci-bizb").forEach(function(b){ b.onclick=function(){ self.biz=+b.dataset.b; self.drawBody(); }; });
     body.querySelectorAll(".ci-pct").forEach(function(inp){
       inp.addEventListener("focus",function(){ inp.select(); });
       inp.addEventListener("change",function(){ var raw=inp.value.replace(/[%\s,]/g,""), n=raw===""?null:parseFloat(raw); self.screen.setValue(inp.dataset.s,inp.dataset.a,n===null||isNaN(n)?null:n/100); self.refreshValues(); });
@@ -1956,8 +1974,10 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     return this.card("Income from other sources","Profit on debt, royalty, annuity and similar. Add only the lines that apply.",t);
   };
   Guided.prototype.bizHtml=function(){
-    var ba=this.A("BUSINESS INCOME ONLY-2026","C39"), bv=ba?this.wb().get("BUSINESS INCOME ONLY-2026",ba):null, pv=typeof bv==="number"&&bv?String(Math.round(bv*1000000)/10000)+"%":"";
-    var ratio=ba?'<div class="cg-grid"><label class="cg-f"><span>Gross profit ratio (% of net revenue). Gross profit = net revenue \u00d7 this ratio, as in the Excel sheet</span><input class="cg-in cg-num cg-pct" data-s="BUSINESS INCOME ONLY-2026" data-a="'+ba+'" data-k="num" value="'+esc(pv)+'" placeholder="e.g. 5.8%"></label></div>':"";
+    var self=this, BZ="BUSINESS INCOME ONLY-2026", ratio='<div class="cg-grid">';
+    [["C39","Business 1"],["C352","Business 2"],["C663","Business 3"]].forEach(function(r){ var ba=self.A(BZ,r[0]); if(!ba) return; var bv=self.wb().get(BZ,ba), pv=typeof bv==="number"&&bv?String(Math.round(bv*1000000)/10000)+"%":"";
+      ratio+='<label class="cg-f"><span>'+r[1]+': gross profit ratio (% of net revenue)</span><input class="cg-in cg-num cg-pct" data-s="'+BZ+'" data-a="'+ba+'" data-k="num" value="'+esc(pv)+'" placeholder="e.g. 5.8%"></label>'; });
+    ratio+='</div><p class="cg-sub">Gross profit = net revenue \u00d7 this ratio, as in the Excel sheet.</p>';
     var b=ratio+'<p class="cg-sub">Business is the largest part of the workbook (trading account, expenses, tax deducted on receipts, depreciation). Enter it in the IRIS-ordered business page, where every line carries its IRIS code.</p><button type="button" class="cg-link" data-go="bus">Open Business in IRIS view</button> <button type="button" class="cg-link" data-gow="BUSINESS INCOME ONLY-2026">Open the business working sheet</button>';
     return this.card("Business","",b);
   };
@@ -7108,7 +7128,7 @@ window.compOpen=function(idx,mode){
       Object.keys(model.sheets[s]).forEach(function(a){ var v=model.sheets[s][a].v; if(typeof v==="string"&&_compBoldText[v.trim()]&&!b[a]) L.bold.push(a); }); }); }
     _compIdx=idx; _compState=st;
     var tpl=r[0], hasIris=!!(tpl&&tpl.irisView&&window.CompIris);
-    var first=(st.src==="template"&&!st.opening&&!Object.keys(st.inputs||{}).filter(function(k){ return k!=="BUSINESS INCOME ONLY-2026!C39"; }).length)?"open":"guided";
+    var first=(st.src==="template"&&!st.opening&&!Object.keys(st.inputs||{}).filter(function(k){ return !/^BUSINESS INCOME ONLY-2026!C(39|352|663)$/.test(k); }).length)?"open":"guided";
     body.innerHTML=hasIris?'<div class="cxo-modes"><button type="button" class="cxo-mode" data-m="open">Opening figures</button><button type="button" class="cxo-mode" data-m="guided">Guided entry</button><button type="button" class="cxo-mode" data-m="iris">IRIS view</button><button type="button" class="cxo-mode" data-m="work">Working (Excel layout)</button></div><div id="cxo-open" hidden></div><div id="cxo-guided" hidden></div><div id="cxo-iris" hidden></div><div id="cxo-work" hidden></div>':'<div id="cxo-work"></div>';
     var workEl=body.querySelector("#cxo-work"), irisEl=body.querySelector("#cxo-iris"), guidedEl=body.querySelector("#cxo-guided"), openEl=body.querySelector("#cxo-open"), modes=body.querySelectorAll(".cxo-mode");
     function setMode(m){ modes.forEach(function(b){ b.classList.toggle("on",b.dataset.m===m); }); if(openEl) openEl.hidden=m!=="open"; if(guidedEl) guidedEl.hidden=m!=="guided"; if(irisEl) irisEl.hidden=m!=="iris"; workEl.hidden=m!=="work"; if(m==="iris"&&_compIris) _compIris.render(); if(m==="guided"&&_compGuided) _compGuided.draw(); }
@@ -7132,7 +7152,7 @@ window.compOpen=function(idx,mode){
 };
 window.compStartBlank=function(idx){
   if(compGet(idx,COMP_TY)&&!confirm("Replace this client's existing Tax Year "+COMP_TY+" computation with a blank one?")) return;
-  compPut(idx,COMP_TY,{src:"template",ty:COMP_TY,ops:[],inputs:{"BUSINESS INCOME ONLY-2026!C39":0},formulas:{}});
+  compPut(idx,COMP_TY,{src:"template",ty:COMP_TY,ops:[],inputs:{"BUSINESS INCOME ONLY-2026!C39":0,"BUSINESS INCOME ONLY-2026!C352":0,"BUSINESS INCOME ONLY-2026!C663":0},formulas:{}});
   compOpen(idx);
 };
 window.compImport=function(idx,file){
