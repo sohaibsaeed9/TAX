@@ -641,6 +641,14 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 .cf-chip.ok{background:var(--green-soft);color:var(--green)}.cf-chip.bad{background:var(--red-soft);color:var(--red)}.cf-chip.warn{background:var(--amber-soft);color:var(--amber)}
 .cf-sub{font-size:11.5px;color:var(--ink-3)}.cf-scroll{overflow:auto}.cf .cg-t td{vertical-align:top}.cf-files td{padding:2px 6px}
 .cf-views{display:flex;gap:4px;margin-bottom:12px}.cf-view{font:inherit;font-size:12.5px;padding:5px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink-2);cursor:pointer}.cf-view.on{background:var(--navy-800);border-color:var(--navy-800);color:#fff}
+/* ── VIEW RETURN ── */
+#fv-overlay{display:none;position:fixed;inset:0;z-index:975;background:var(--paper);flex-direction:column}#fv-overlay.on{display:flex}
+#fv-overlay .cxo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 20px;border-bottom:1px solid var(--line);background:var(--card)}
+#fv-overlay .cxo-title{font-family:var(--serif);font-size:19px;font-weight:600}#fv-overlay .cxo-right{display:flex;gap:8px}#fv-overlay .cxo-body{flex:1;overflow:auto;padding:10px 16px}
+.fv-tabs,.fv-main{max-width:1000px;margin-left:auto;margin-right:auto}.fv-main.wide{max-width:none}
+.fv-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.fv-pdf iframe{width:100%;height:calc(100vh - 230px);border:1px solid var(--line);border-radius:8px}
+.cg-val{font-size:13px;color:var(--ink)}.cf-bar{display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap}.cf-find{font:inherit;font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;width:260px;max-width:100%}
+@media(max-width:900px){.fv-split{grid-template-columns:1fr}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -2392,6 +2400,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   var api={KEYS:KEYS,parseIrisReturn:parseIrisReturn,excelFigures:excelFigures,matchClient:matchClient,autoChoice:autoChoice,near:near,identity:identity,compare:compare,nameScore:nameScore};
 
   /* ---- screen (browser) ---- */
+  var F_KEYS=KEYS;
   function chip(t,cls){ return '<span class="cf-chip '+(cls||"")+'">'+esc(t)+'</span>'; }
   function Panel(el,ctx){ this.el=el; this.ctx=ctx; this.items=[]; this.groups=[]; this.msg=""; this.busy=false; this.open={}; this.render(); }
   Panel.prototype.render=function(){
@@ -2417,8 +2426,8 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       h+='<td>'+(cmp?(cmp.ok===cmp.total?chip("All "+cmp.total+" match","ok"):chip(cmp.ok+" of "+cmp.total+" match","bad")):(g.pdf&&!g.pdf.result.haveReturn?chip("PDF has no return figures","warn"):chip("needs both files")))+'</td><td class="cg-r"><button type="button" class="cg-link cf-det" data-g="'+gi+'">'+(self.open[gi]?"Hide":"Details")+'</button></td></tr>';
       if(self.open[gi]) h+='<tr><td colspan="5">'+self.detailHtml(g)+'</td></tr>';
     });
-    var n=this.groups.filter(function(g){ return g.choice!=null&&g.choice!==""&&g.excel; }).length;
-    h+='</tbody></table><div class="co-actions"><button type="button" class="cg-addbtn cf-save"'+(n?"":" disabled")+'>Save '+n+' return'+(n===1?"":"s")+'</button><span class="cf-sub">Only returns with a workbook and a chosen client are saved.</span></div></section>';
+    var n=this.groups.filter(function(g){ return g.choice!=null&&g.choice!==""&&(g.excel||(g.pdf&&g.pdf.result.haveReturn)); }).length;
+    h+='</tbody></table><div class="co-actions"><button type="button" class="cg-addbtn cf-save"'+(n?"":" disabled")+'>Save '+n+' return'+(n===1?"":"s")+'</button><span class="cf-sub">Returns with a chosen client are saved. A return with only the IRIS PDF keeps its IRIS figures and closing wealth.</span></div></section>';
     return h;
   };
   function F_compare(g){ var pdfFigs=g.pdf.result.figs; return compare(g.excel.result.system,pdfFigs); }
@@ -2453,7 +2462,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   };
   Panel.prototype.readOne=function(it,tpl){
     return it.f.arrayBuffer().then(function(buf){
-      if(it.kind==="pdf") return root.CompOpening.readPdfLines(buf).then(function(lines){ var r=parseIrisReturn(lines); if(r.taxYear&&r.taxYear!=="2026") throw new Error("Tax year "+r.taxYear+", not 2026"); it.result=r; it.done=true; });
+      if(it.kind==="pdf") return root.CompOpening.readPdfLines(buf).then(function(lines){ var r=parseIrisReturn(lines); if(r.taxYear&&r.taxYear!=="2026") throw new Error("Tax year "+r.taxYear+", not 2026"); try{ r.wealth=root.CompOpening.parseIrisLines(lines); }catch(e){} it.result=r; it.done=true; });
       if(typeof XLSX==="undefined") throw new Error("Excel reader not loaded");
       var r=root.CompImport.convert(XLSX,new Uint8Array(buf)); it.result=excelFigures(r.model,r.cached,tpl); it.done=true;
     }).catch(function(e){ it.error=(e.message||String(e)).slice(0,60); });
@@ -2465,35 +2474,58 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     this.groups=order.map(function(id){ return by[id]; });
     this.groups.forEach(function(g){ var tp=(g.excel&&g.excel.result.taxpayer)||(g.pdf&&g.pdf.result.taxpayer)||{}; var m=matchClient(tp,clients); g.options=m; var pick=autoChoice(m); g.choice=pick?pick.idx:null; });
   };
+  /* put the files in online storage; keeps the old paths only if the new upload works, then removes the old files */
+  Panel.prototype.storeFiles=function(idx,rec,old,newFiles){
+    var self=this, ctx=this.ctx, kinds=Object.keys(newFiles).filter(function(k){ return newFiles[k]; }), removeOld=[], stored=false;
+    rec.files=rec.files||{};
+    if(old&&old.files){ ["excel","pdf"].forEach(function(k){ if(!newFiles[k]&&old.files[k+"Path"]){ rec.files[k+"Path"]=old.files[k+"Path"]; rec.files[k+"Size"]=old.files[k+"Size"]; } }); }
+    var chain=Promise.resolve();
+    kinds.forEach(function(k){ chain=chain.then(function(){ return ctx.store?Promise.resolve(ctx.store(idx,newFiles[k],k)).catch(function(e){ self.storeErr=e.message||String(e); return null; }):null; }).then(function(path){ if(path){ rec.files[k+"Path"]=path; rec.files[k+"Size"]=newFiles[k].size; stored=true; if(old&&old.files&&old.files[k+"Path"]) removeOld.push(old.files[k+"Path"]); } }); });
+    return chain.then(function(){ if(removeOld.length&&ctx.remove) return Promise.resolve(ctx.remove(removeOld)).catch(function(){}); }).then(function(){ return stored; });
+  };
   Panel.prototype.saveAll=function(){
-    var self=this, n=0, by=this.ctx.by();
-    this.groups.forEach(function(g){ if(g.choice==null||!g.excel) return; var r=g.excel.result, cmp=g.pdf&&g.pdf.result.haveReturn?compare(r.system,g.pdf.result.figs):null;
-      var rec={saved:new Date().toISOString(),by:by,files:{excel:g.excel.file,pdf:g.pdf?g.pdf.file:null},taxpayer:r.taxpayer,excelFigs:r.saved,systemFigs:r.system,iris:g.pdf?g.pdf.result.figs:null,check:cmp?{ok:cmp.ok,total:cmp.total}:null,wealth:r.wealth};
-      self.ctx.put(g.choice,rec); n++; });
-    this.msg="Saved "+n+" return"+(n===1?"":"s")+"."; this.items=[]; this.groups=[]; this.render();
+    var self=this, by=this.ctx.by(), todo=this.groups.filter(function(g){ return g.choice!=null&&(g.excel||(g.pdf&&g.pdf.result.haveReturn)); }), n=0, stored=0, chain=Promise.resolve();
+    todo.forEach(function(g){ chain=chain.then(function(){
+      self.msg="Saving "+(n+1)+" of "+todo.length+"…"; self.render();
+      var old=self.ctx.get(g.choice), rec;
+      if(g.excel){ var r=g.excel.result, cmp=g.pdf&&g.pdf.result.haveReturn?compare(r.system,g.pdf.result.figs):null;
+        rec={saved:new Date().toISOString(),by:by,files:{excel:g.excel.file,pdf:g.pdf?g.pdf.file:null},taxpayer:r.taxpayer,excelFigs:r.saved,systemFigs:r.system,iris:g.pdf?g.pdf.result.figs:null,check:cmp?{ok:cmp.ok,total:cmp.total}:null,wealth:r.wealth}; }
+      else { var pr=g.pdf.result; rec={saved:new Date().toISOString(),by:by,files:{excel:null,pdf:g.pdf.file},taxpayer:pr.taxpayer,excelFigs:null,systemFigs:null,iris:pr.figs,check:null,wealth:pr.wealth,pdfOnly:true}; }
+      return self.storeFiles(g.choice,rec,old,{excel:g.excel?g.excel.f:null,pdf:g.pdf?g.pdf.f:null}).then(function(ok){ self.ctx.put(g.choice,rec); n++; if(ok) stored++; }); }); });
+    chain.then(function(){ self.msg="Saved "+n+" return"+(n===1?"":"s")+"."+(stored<n?" The original files could not be stored for "+(n-stored)+" ("+(self.storeErr||"the portal is offline, or online file storage is not set up")+"), so only the figures were kept for them.":" Original files stored online."); self.items=[]; self.groups=[]; self.render(); })
+      .catch(function(e){ self.msg="Stopped after "+n+" saved: "+(e.message||String(e)); self.render(); });
   };
   Panel.prototype.drawSaved=function(){
     var self=this, box=this.el.querySelector(".cf-saved"), clients=this.ctx.clients(), rows=[], tot={};
     clients.forEach(function(c,i){ var r=c&&self.ctx.get(i); if(r) rows.push({i:i,c:c,r:r}); });
     rows.sort(function(a,b){ return (a.c.name||"").localeCompare(b.c.name||""); });
     var cols=["9000","9100","9200","9201","9210","703001"], lab={"9000":"Total income","9100":"Taxable income","9200":"Tax chargeable","9201":"Tax paid / deducted","9210":"Refund","703001":"Net assets"};
-    var h='<section class="cg-card"><h3>2026 figures on file ('+rows.length+' client'+(rows.length===1?"":"s")+')</h3>';
+    var q=(this.q||"").toLowerCase().trim(), all=rows.length;
+    if(q) rows=rows.filter(function(x){ var f=x.r.systemFigs||x.r.iris||{}, t=(x.c.name||"").toLowerCase(); if(t.indexOf(q)>=0) return true; var d=q.replace(/[^0-9]/g,""); return d&&Object.keys(f).some(function(k){ return String(Math.round(num(f[k]))).indexOf(d)>=0; }); });
+    var bytes=0, nfiles=0; clients.forEach(function(c,i){ var r=c&&self.ctx.get(i); if(r&&r.files){ ["excel","pdf"].forEach(function(k){ if(r.files[k+"Path"]){ nfiles++; bytes+=r.files[k+"Size"]||0; } }); } });
+    var h='<section class="cg-card"><h3>2026 figures on file ('+all+' client'+(all===1?"":"s")+')</h3><div class="cf-bar"><input type="search" class="cf-find" placeholder="Find by client name or an amount" value="'+esc(this.q||"")+'"><span class="cf-sub">Files stored online: '+nfiles+' ('+(bytes>1048576?(bytes/1048576).toFixed(1)+" MB":Math.round(bytes/1024)+" KB")+')</span></div>';
     if(!rows.length){ box.innerHTML=h+'<p class="cg-sub">Nothing saved yet. Upload the filed returns above.</p></section>'; return; }
     h+='<p class="cg-sub">Figures are the new system\'s calculation from each workbook. The last column shows whether it agrees with the IRIS filed return, where you gave the PDF.</p><div class="cf-scroll"><table class="cg-t"><thead><tr><th>Client</th>'+cols.map(function(c){ return '<th class="cg-r">'+lab[c]+'</th>'; }).join("")+'<th>Against IRIS</th><th></th></tr></thead><tbody>';
-    rows.forEach(function(x){ var f=x.r.systemFigs||{}; cols.forEach(function(c){ tot[c]=(tot[c]||0)+num(f[c]); });
-      var ck=x.r.check; h+='<tr><td>'+esc(x.c.name)+'</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(num(f[c]))+'</td>'; }).join("")+'<td>'+(ck?(ck.ok===ck.total?chip("matches","ok"):chip(ck.ok+"/"+ck.total,"bad")):chip("no PDF"))+'</td><td class="cg-r"><label class="cg-link cf-upd" title="Replace this client\'s saved figures and last year\'s wealth with a revised workbook or IRIS PDF">Update<input type="file" accept=".xlsx,.pdf" hidden data-i="'+x.i+'"></label> <button type="button" class="cg-link cf-del" data-i="'+x.i+'" title="Remove the saved figures">Remove</button></td></tr>'; });
-    h+='<tr class="cg-tot"><td>Total</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(tot[c]||0)+'</td>'; }).join("")+'<td></td><td></td></tr></tbody></table></div><div class="co-actions"><button type="button" class="cg-link cf-csv">Download as CSV</button></div></section>';
+    rows.forEach(function(x){ var f=x.r.systemFigs||x.r.iris||{}; cols.forEach(function(c){ tot[c]=(tot[c]||0)+num(f[c]); });
+      var ck=x.r.check; h+='<tr><td>'+esc(x.c.name)+'</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(num(f[c]))+'</td>'; }).join("")+'<td>'+(ck?(ck.ok===ck.total?chip("matches","ok"):chip(ck.ok+"/"+ck.total,"bad")):(x.r.pdfOnly?chip("IRIS PDF only"):chip("no PDF")))+'</td><td class="cg-r"><button type="button" class="cg-link cf-view1" data-i="'+x.i+'">View</button> <label class="cg-link cf-upd" title="Replace this client\'s saved figures and last year\'s wealth with a revised workbook or IRIS PDF">Update<input type="file" accept=".xlsx,.pdf" hidden data-i="'+x.i+'"></label> <button type="button" class="cg-link cf-del" data-i="'+x.i+'" title="Remove the saved figures">Remove</button></td></tr>'; });
+    h+='<tr class="cg-tot"><td>Total</td>'+cols.map(function(c){ return '<td class="cg-r">'+fmt(tot[c]||0)+'</td>'; }).join("")+'<td></td><td></td></tr></tbody></table></div><div class="co-actions"><button type="button" class="cg-link cf-csv">Download as CSV</button> <button type="button" class="cg-link cf-xlsx">Download as Excel</button></div></section>';
     box.innerHTML=h;
+    box.querySelectorAll(".cf-view1").forEach(function(b){ b.onclick=function(){ if(self.ctx.openView) self.ctx.openView(+b.dataset.i); }; });
+    var fd=box.querySelector(".cf-find"); if(fd){ fd.oninput=function(){ self.q=fd.value; var pos=fd.selectionStart; self.drawSaved(); var n=self.el.querySelector(".cf-find"); n.focus(); n.setSelectionRange(pos,pos); }; }
     box.querySelectorAll(".cf-upd input").forEach(function(inp){ inp.onchange=function(){ if(inp.files[0]) self.updateFor(+inp.dataset.i,inp.files[0]); inp.value=""; }; });
     box.querySelectorAll(".cf-del").forEach(function(b){ b.onclick=function(){ if(confirm("Remove the saved 2026 figures for this client?")){ self.ctx.del(+b.dataset.i); self.drawSaved(); } }; });
+    var xb=box.querySelector(".cf-xlsx"); if(xb) xb.onclick=function(){ if(typeof XLSX==="undefined"){ alert("The Excel writer did not load."); return; }
+      var head=["Client","CNIC / registration"].concat(F_KEYS.map(function(k){ return k[1]; })).concat(["Against IRIS"]), aoa=[head];
+      rows.forEach(function(x){ var f=x.r.systemFigs||x.r.iris||{}, ck=x.r.check, tp=x.r.taxpayer||{}; aoa.push([x.c.name,tp.E34||tp.C35||""].concat(F_KEYS.map(function(k){ return Math.round(num(f[k[0]])); })).concat([ck?(ck.ok===ck.total?"matches":ck.ok+"/"+ck.total):"no PDF"])); });
+      var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),"TY2026"); XLSX.writeFile(wb,"2026-filed-returns.xlsx"); };
     var cv=box.querySelector(".cf-csv"); if(cv) cv.onclick=function(){ var lines=[["Client"].concat(cols.map(function(c){ return lab[c]; })).join(",")];
-      rows.forEach(function(x){ var f=x.r.systemFigs||{}; lines.push(['"'+String(x.c.name).replace(/"/g,'""')+'"'].concat(cols.map(function(c){ return Math.round(num(f[c])); })).join(",")); });
+      rows.forEach(function(x){ var f=x.r.systemFigs||x.r.iris||{}; lines.push(['"'+String(x.c.name).replace(/"/g,'""')+'"'].concat(cols.map(function(c){ return Math.round(num(f[c])); })).join(",")); });
       var a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv"})); a.download="2026-figures.csv"; a.click(); };
   };
   /* replace one client's saved figures from a revised workbook (everything) or IRIS PDF (IRIS figures and closing wealth) */
   Panel.prototype.updateFor=function(idx,file){
     var self=this, old=this.ctx.get(idx)||{}, by=this.ctx.by(); this.msg="Reading "+file.name+"\u2026"; this.render();
-    this.ctx.template().then(function(tpl){ return file.arrayBuffer().then(function(buf){
+    return this.ctx.template().then(function(tpl){ return file.arrayBuffer().then(function(buf){
       var isPdf=/\.pdf$/i.test(file.name);
       if(!isPdf){ if(typeof XLSX==="undefined") throw new Error("Excel reader not loaded"); var r=root.CompImport.convert(XLSX,new Uint8Array(buf)), res=excelFigures(r.model,r.cached,tpl);
         var cmp=old.iris?compare(res.system,old.iris):null;
@@ -2501,11 +2533,170 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       return root.CompOpening.readPdfLines(buf).then(function(lines){ var rr=parseIrisReturn(lines); if(rr.taxYear&&rr.taxYear!=="2026") throw new Error("This PDF is for tax year "+rr.taxYear+", not 2026.");
         var w=root.CompOpening.parseIrisLines(lines), cmp=old.systemFigs&&rr.haveReturn?compare(old.systemFigs,rr.figs):null;
         return Object.assign({},old,{saved:new Date().toISOString(),by:by,files:Object.assign({},old.files,{pdf:file.name}),iris:rr.haveReturn?rr.figs:old.iris,check:cmp?{ok:cmp.ok,total:cmp.total}:old.check,wealth:w,taxpayer:old.taxpayer||rr.taxpayer}); });
-    }); }).then(function(rec){ self.ctx.put(idx,rec); self.msg="Updated the saved return for "+self.ctx.clients()[idx].name+"."; self.render(); })
+    }); }).then(function(rec){ var nf={}; nf[/\.pdf$/i.test(file.name)?"pdf":"excel"]=file; return self.storeFiles(idx,rec,old,nf).then(function(ok){ self.ctx.put(idx,rec); self.msg="Updated the saved return for "+self.ctx.clients()[idx].name+"."+(ok?" File stored.":" The file could not be stored online, only the figures were updated."); self.render(); }); })
       .catch(function(e){ self.msg=e.message||String(e); self.render(); });
   };
   api.Panel=Panel;
   if(typeof module!=="undefined") module.exports=api; else root.CompFiled=api;
+})(typeof window!=="undefined"?window:this);
+</script>
+<script>
+/* View a filed return (Tax Year 2026): summary, IRIS view, Excel-layout working, wealth, comparison with the IRIS return,
+   original files, print, and a copy to revise. Read-only: the filed workbook is never changed from here. */
+(function(root){
+  "use strict";
+  var CS=root.CompScreen, CI=root.CompIris, O=root.CompOpening, F=root.CompFiled;
+  var TABS=[["sum","Summary"],["iris","IRIS view"],["work","Working (Excel layout)"],["we","Wealth"],["cmp","Compare with IRIS"],["files","Files"]];
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function num(v){ return typeof v==="number"&&isFinite(v)?v:0; }
+  function fmt(v){ return CS.fmt(v,"#,##0"); }
+  function clean(s){ return String(s==null?"":s).replace(/\s+/g," ").trim(); }
+  function kb(n){ return n>1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"; }
+  function chip(t,c){ return '<span class="cf-chip '+(c||"")+'">'+esc(t)+'</span>'; }
+
+  function lock(el){
+    var skip=".ci-q,.ci-all,.cx-hid,.ci-chkin,textarea,[type=search],[type=checkbox]";
+    function f(){ el.querySelectorAll("input,select").forEach(function(i){ if(i.matches(skip)) return; i.readOnly=true; if(i.tagName==="SELECT") i.disabled=true; }); }
+    new MutationObserver(f).observe(el,{childList:true,subtree:true}); f();
+  }
+
+  function View(ctx){ this.ctx=ctx; this.tab="sum"; this.model=null; this.loading=null; this.build(); this.show("sum"); }
+  View.prototype.build=function(){
+    var self=this, c=this.ctx, o=document.getElementById("fv-overlay");
+    if(!o){ o=document.createElement("div"); o.id="fv-overlay"; document.body.appendChild(o); }
+    o.innerHTML='<div class="cxo-bar"><div><div class="eyebrow">Filed return &middot; Tax Year 2026</div><div class="cxo-title"></div></div><div class="cxo-right"><button class="btn-sec fv-print" type="button">Print</button><button class="btn-sec fv-copy" type="button">Make a copy to revise</button><button class="btn-sec fv-close" type="button">Close</button></div></div><div class="cxo-body"><div class="cxo-modes fv-tabs"></div><div class="fv-main"></div></div>';
+    o.querySelector(".cxo-title").textContent=c.client.name;
+    var tabs=o.querySelector(".fv-tabs"); TABS.forEach(function(t){ var b=document.createElement("button"); b.type="button"; b.className="cxo-mode"; b.dataset.t=t[0]; b.textContent=t[1]; b.onclick=function(){ self.show(t[0]); }; tabs.appendChild(b); });
+    o.querySelector(".fv-close").onclick=function(){ self.close(); };
+    o.querySelector(".fv-print").onclick=function(){ self.print(); };
+    o.querySelector(".fv-copy").onclick=function(){ self.copy(); };
+    o.classList.add("on"); document.body.style.overflow="hidden"; this.el=o; this.main=o.querySelector(".fv-main");
+  };
+  View.prototype.close=function(){ var o=this.el; o.classList.remove("on"); o.innerHTML=""; document.body.style.overflow=""; if(this.ctx.onClose) this.ctx.onClose(); };
+  View.prototype.hasFiles=function(){ var f=this.ctx.rec.files||{}; return !!f.excelPath; };
+  View.prototype.show=function(t){
+    var self=this; this.tab=t;
+    this.el.querySelectorAll(".fv-tabs .cxo-mode").forEach(function(b){ b.classList.toggle("on",b.dataset.t===t); });
+    var needs=(t==="iris"||t==="work");
+    if(needs&&!this.hasFiles()){ this.main.innerHTML=this.noFiles(); this.wireAttach(); return; }
+    if(needs||(t==="we"&&this.hasFiles())){
+      this.main.innerHTML='<div class="cp-empty">Opening the workbook…</div>';
+      this.load().then(function(){ if(self.tab===t) self.draw(t); }).catch(function(e){ if(self.tab===t){ if(t==="we"){ self.draw(t); } else self.main.innerHTML='<div class="cp-empty">'+esc(e.message||String(e))+'</div>'; } });
+      return;
+    }
+    this.draw(t);
+  };
+  View.prototype.noFiles=function(){
+    return '<section class="cg-card"><h3>The Excel workbook is not stored for this client</h3><p class="cg-sub">Add the Excel workbook (and the IRIS PDF if you have it) to see the IRIS view and the working sheets.</p><label class="cg-addbtn cf-attach" style="display:inline-block;cursor:pointer">Add the files<input type="file" accept=".xlsx,.pdf" multiple hidden></label><div class="co-msg fv-msg"></div></section>';
+  };
+  View.prototype.wireAttach=function(){
+    var self=this, inp=this.main.querySelector(".cf-attach input"); if(!inp) return;
+    inp.onchange=function(){ var files=[].slice.call(inp.files); if(!files.length) return; self.main.querySelector(".fv-msg").textContent="Saving…"; self.ctx.attach(files).then(function(rec){ self.ctx.rec=rec; self.model=null; self.loading=null; self.show(self.tab); },function(e){ self.main.querySelector(".fv-msg").textContent=e.message||String(e); }); };
+  };
+  /* workbook from storage -> read-only screen + IRIS view (built once) */
+  View.prototype.load=function(){
+    var self=this; if(this.loading) return this.loading;
+    this.loading=Promise.all([this.ctx.template(),this.ctx.download(this.ctx.rec.files.excelPath)]).then(function(r){
+      return r[1].arrayBuffer().then(function(buf){
+        if(typeof XLSX==="undefined") throw new Error("The Excel reader did not load. Check the internet connection.");
+        var cv=root.CompImport.convert(XLSX,new Uint8Array(buf)); self.model=cv.model; self.cached=cv.cached; self.tpl=r[0];
+        var host=document.createElement("div"); host.className="fv-host";
+        var work=document.createElement("div"), iris=document.createElement("div"); host.appendChild(iris); host.appendChild(work);
+        self.screen=new CS.Screen(work,self.model,{labels:self.ctx.labels||{}});
+        self.screen.setValue=function(){}; self.screen.addLine=function(){};
+        self.iris=new CI.IrisView(iris,self.screen,self.tpl.irisView,self.tpl,{onGoto:function(sh,a){ self.show("work"); self.screen.goto(sh,a); }});
+        lock(work); lock(iris); self.irisEl=iris; self.workEl=work;
+      }); });
+    return this.loading;
+  };
+  View.prototype.draw=function(t){
+    var m=this.main; m.innerHTML=""; m.className="fv-main"+(t==="work"?" wide":"");
+    if(t==="sum") m.innerHTML=this.sumHtml();
+    else if(t==="iris"){ m.appendChild(this.irisEl); this.iris.render(); }
+    else if(t==="work"){ m.appendChild(this.workEl); this.screen.render(); }
+    else if(t==="we") m.innerHTML=this.weHtml();
+    else if(t==="cmp"){ m.innerHTML=this.cmpHtml(); this.loadPdf(); }
+    else if(t==="files"){ m.innerHTML=this.filesHtml(); this.wireFiles(); }
+    this.wireAttach();
+  };
+  /* ---- summary / comparison ---- */
+  View.prototype.figRows=function(){
+    var r=this.ctx.rec, cmp=r.iris&&r.systemFigs?F.compare(r.systemFigs,r.iris):null;
+    return F.KEYS.map(function(k,i){ var st=cmp?cmp.rows[i].st:"na"; return {code:k[0],label:k[1],saved:r.excelFigs?r.excelFigs[k[0]]:null,sys:r.systemFigs?r.systemFigs[k[0]]:null,iris:r.iris?r.iris[k[0]]:null,st:st}; });
+  };
+  View.prototype.figTable=function(){
+    var h='<table class="cg-t"><thead><tr><th>Code</th><th>Figure</th><th class="cg-r">Excel as saved</th><th class="cg-r">New system</th><th class="cg-r">IRIS filed</th><th></th></tr></thead><tbody>';
+    this.figRows().forEach(function(x){ h+='<tr><td class="cg-code">'+x.code+'</td><td>'+esc(x.label)+'</td><td class="cg-r">'+(x.saved!=null?fmt(x.saved):"")+'</td><td class="cg-r">'+(x.sys!=null?fmt(x.sys):"")+'</td><td class="cg-r">'+(x.iris!=null?fmt(x.iris):"")+'</td><td>'+(x.st==="match"?chip("match","ok"):x.st==="round"?chip("Rs 1","ok"):x.st==="diff"?chip("differs","bad"):"")+'</td></tr>'; });
+    return h+'</tbody></table>';
+  };
+  View.prototype.sumHtml=function(){
+    var r=this.ctx.rec, tp=r.taxpayer||{}, ck=r.check, f=r.files||{};
+    var h='<section class="cg-card"><h3>'+esc(tp.E32||this.ctx.client.name)+'</h3><div class="cg-grid">';
+    [["CNIC / registration",tp.E34||tp.C35],["Address",tp.E35],["Contact",tp.E39],["Tax office",tp.C34]].forEach(function(x){ if(x[1]) h+='<div class="cg-f"><span>'+x[0]+'</span><span class="cg-val">'+esc(x[1])+'</span></div>'; });
+    h+='</div><p class="cg-sub">Saved '+new Date(r.saved).toLocaleString("en-PK",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})+(r.by?" by "+esc(r.by):"")+'. '+(ck?(ck.ok===ck.total?chip("All "+ck.total+" figures match the IRIS return","ok"):chip(ck.ok+" of "+ck.total+" figures match the IRIS return","bad")):(r.pdfOnly?chip("From the IRIS return PDF only","warn"):chip("No IRIS PDF to compare with","warn")))+' '+(this.hasFiles()?chip("Original files stored","ok"):(f.pdfPath?chip("IRIS PDF stored","ok"):chip("Figures only, files not stored","warn")))+'</p></section>';
+    h+='<section class="cg-card"><h3>Return figures</h3>'+this.figTable()+'<p class="cg-sub" style="margin-top:8px">&ldquo;Excel as saved&rdquo; is what the workbook showed. &ldquo;New system&rdquo; is the same workbook worked out again with the corrections in this portal. &ldquo;IRIS filed&rdquo; is from the return PDF.</p></section>';
+    return h;
+  };
+  View.prototype.cmpHtml=function(){
+    var r=this.ctx.rec, f=r.files||{}, h='<div class="fv-split"><section class="cg-card"><h3>Workbook against IRIS</h3>'+(r.iris?this.figTable():'<p class="cg-sub">No IRIS return PDF was uploaded for this client. Add it under Files to compare.</p>')+'</section>';
+    h+='<section class="cg-card"><h3>IRIS return (PDF)</h3>'+(f.pdfPath?'<div class="fv-pdf cp-empty">Opening the PDF…</div>':'<p class="cg-sub">The PDF is not stored. Add it under Files.</p>')+'</section></div>';
+    return h;
+  };
+  View.prototype.loadPdf=function(){
+    var self=this, f=this.ctx.rec.files||{}; if(!f.pdfPath) return;
+    this.ctx.download(f.pdfPath).then(function(b){ var box=self.main.querySelector(".fv-pdf"); if(!box) return; var url=URL.createObjectURL(new Blob([b],{type:"application/pdf"})); box.className="fv-pdf"; box.innerHTML='<iframe title="IRIS return" src="'+url+'"></iframe>'; self.pdfUrl=url; })
+      .catch(function(e){ var box=self.main.querySelector(".fv-pdf"); if(box) box.textContent="Could not open the PDF: "+(e.message||e); });
+  };
+  /* ---- wealth ---- */
+  View.prototype.weData=function(){
+    if(this.model){ var sh=O.wealthSheetName(this.model), G=O.wealthGroups(this.model,sh), wb=this.screen.wb, rows=[];
+      G.groups.forEach(function(g){ var items=[]; for(var r=g.from;r<=g.to;r++){ var d=wb.get(sh,"A"+r), a=num(wb.get(sh,"G"+r)), b=num(wb.get(sh,"H"+r)); if((typeof d==="string"&&clean(d))||a||b) items.push({d:typeof d==="string"?clean(d):"",a:a,b:b}); }
+        if(items.length) rows.push({cat:g.label,items:items,a:num(wb.get(sh,"G"+g.row)),b:num(wb.get(sh,"H"+g.row))}); });
+      var cashR=G.cash; return {groups:rows,cash:cashR?{a:num(wb.get(sh,"G"+cashR)),b:num(wb.get(sh,"H"+cashR))}:null,net:{a:num(wb.get(sh,"G"+G.net)),b:num(wb.get(sh,"H"+G.net))}}; }
+    var w=this.ctx.rec.wealth; if(!w) return null; var by={}, order=[]; w.items.forEach(function(i){ if(!by[i.cat]){ by[i.cat]={cat:i.cat,items:[],a:0,b:null}; order.push(i.cat); } by[i.cat].items.push({d:i.desc,a:i.value,b:null}); by[i.cat].a+=i.value; });
+    return {groups:order.map(function(c){ return by[c]; }),cash:{a:w.cash,b:null},net:{a:w.net,b:null}};
+  };
+  View.prototype.weHtml=function(){
+    var d=this.weData(); if(!d) return '<div class="cp-empty">No wealth statement was found in this return.</div>';
+    var hasPrev=d.net.b!=null, h='';
+    if(d.cash) h+='<section class="cg-card"><h3>Cash in hand</h3><table class="cg-t"><tbody><tr><td>Cash at 30 June</td><td class="cg-r">'+fmt(d.cash.a)+'</td>'+(hasPrev?'<td class="cg-r">'+fmt(d.cash.b)+'</td>':'')+'</tr></tbody></table></section>';
+    d.groups.forEach(function(g){
+      h+='<section class="cg-card"><h3>'+esc(g.cat)+'</h3><table class="cg-t"><thead><tr><th>Description</th><th class="cg-r">30 June 2026</th>'+(hasPrev?'<th class="cg-r">30 June 2025</th><th class="cg-r">Change</th>':'')+'</tr></thead><tbody>';
+      g.items.forEach(function(i){ h+='<tr><td>'+esc(i.d)+'</td><td class="cg-r">'+fmt(i.a)+'</td>'+(hasPrev?'<td class="cg-r">'+fmt(i.b)+'</td><td class="cg-r">'+fmt(i.a-i.b)+'</td>':'')+'</tr>'; });
+      h+='<tr class="cg-tot"><td>Total</td><td class="cg-r">'+fmt(g.a)+'</td>'+(hasPrev?'<td class="cg-r">'+fmt(g.b)+'</td><td class="cg-r">'+fmt(g.a-g.b)+'</td>':'')+'</tr></tbody></table></section>'; });
+    h+='<section class="cg-card"><table class="cg-t"><tbody><tr class="cg-tot"><td>Net assets</td><td class="cg-r">'+fmt(d.net.a)+'</td>'+(hasPrev?'<td class="cg-r">'+fmt(d.net.b)+'</td><td class="cg-r">'+fmt(d.net.a-d.net.b)+'</td>':'')+'</tr></tbody></table></section>';
+    return h;
+  };
+  /* ---- files ---- */
+  View.prototype.filesHtml=function(){
+    var f=this.ctx.rec.files||{}, h='<section class="cg-card"><h3>Original files</h3><table class="cg-t"><thead><tr><th>File</th><th>Name</th><th class="cg-r">Size</th><th></th></tr></thead><tbody>';
+    [["Excel workbook",f.excel,f.excelPath,f.excelSize,"excel"],["IRIS return PDF",f.pdf,f.pdfPath,f.pdfSize,"pdf"]].forEach(function(x){
+      h+='<tr><td>'+x[0]+'</td><td>'+(x[1]?esc(x[1]):'<span class="cf-sub">none</span>')+'</td><td class="cg-r">'+(x[3]?kb(x[3]):"")+'</td><td class="cg-r">'+(x[2]?'<button type="button" class="cg-link fv-dl" data-p="'+esc(x[2])+'" data-n="'+esc(x[1]||x[4])+'">Download</button>':chip("not stored","warn"))+'</td></tr>'; });
+    h+='</tbody></table><div class="co-actions"><label class="cg-addbtn cf-attach" style="cursor:pointer">Add or replace files<input type="file" accept=".xlsx,.pdf" multiple hidden></label><span class="cf-sub">A revised workbook or PDF replaces the stored one and updates the saved figures and last year\'s wealth.</span></div><div class="co-msg fv-msg"></div></section>';
+    return h;
+  };
+  View.prototype.wireFiles=function(){
+    var self=this; this.main.querySelectorAll(".fv-dl").forEach(function(b){ b.onclick=function(){ self.ctx.download(b.dataset.p).then(function(blob){ var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=b.dataset.n; a.click(); }); }; });
+  };
+  /* ---- print and copy ---- */
+  View.prototype.print=function(){
+    var self=this, r=this.ctx.rec, tp=r.taxpayer||{}, go=function(){ var d=self.weData(); var css='body{font:12px Arial,sans-serif;color:#000;margin:24px}h1{font-size:18px;margin:0}h2{font-size:14px;margin:18px 0 6px;border-bottom:1px solid #000;padding-bottom:2px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:3px 6px;text-align:left}td.r,th.r{text-align:right}.s{font-size:11px;color:#444}';
+      var html='<h1>'+esc(tp.E32||self.ctx.client.name)+'</h1><div class="s">Income tax return, Tax Year 2026 &middot; '+esc(tp.E34||tp.C35||"")+' &middot; '+esc(tp.E35||"")+'</div><h2>Return figures</h2><table><tr><th>Code</th><th>Figure</th><th class="r">Amount (new system)</th><th class="r">IRIS filed</th></tr>'+
+        self.figRows().map(function(x){ return '<tr><td>'+x.code+'</td><td>'+esc(x.label)+'</td><td class="r">'+(x.sys!=null?fmt(x.sys):"")+'</td><td class="r">'+(x.iris!=null?fmt(x.iris):"")+'</td></tr>'; }).join("")+'</table>';
+      if(d){ html+='<h2>Wealth statement</h2><table><tr><th>Description</th><th class="r">30 June 2026</th>'+(d.net.b!=null?'<th class="r">30 June 2025</th>':'')+'</tr>'+d.groups.map(function(g){ return '<tr><td colspan="3"><b>'+esc(g.cat)+'</b></td></tr>'+g.items.map(function(i){ return '<tr><td>'+esc(i.d)+'</td><td class="r">'+fmt(i.a)+'</td>'+(d.net.b!=null?'<td class="r">'+fmt(i.b)+'</td>':'')+'</tr>'; }).join(""); }).join("")+(d.cash?'<tr><td>Cash in hand</td><td class="r">'+fmt(d.cash.a)+'</td>'+(d.net.b!=null?'<td class="r">'+fmt(d.cash.b)+'</td>':'')+'</tr>':'')+'<tr><td><b>Net assets</b></td><td class="r"><b>'+fmt(d.net.a)+'</b></td>'+(d.net.b!=null?'<td class="r"><b>'+fmt(d.net.b)+'</b></td>':'')+'</tr></table>'; }
+      html+='<p class="s">S. Saeed &amp; Co. Tax Consultants &middot; printed '+new Date().toLocaleDateString("en-PK")+'</p>';
+      var fr=document.createElement("iframe"); fr.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0"; document.body.appendChild(fr);
+      fr.contentDocument.open(); fr.contentDocument.write('<!doctype html><html><head><meta charset="utf-8"><title>Return summary</title><style>'+css+'</style></head><body>'+html+'</body></html>'); fr.contentDocument.close();
+      setTimeout(function(){ fr.contentWindow.focus(); fr.contentWindow.print(); setTimeout(function(){ fr.remove(); },2000); },200); };
+    if(this.hasFiles()&&!this.model) this.load().then(go,go); else go();
+  };
+  View.prototype.copy=function(){
+    var self=this, f=this.ctx.rec.files||{}; if(!f.excelPath){ alert("The workbook is not stored for this client, so a copy cannot be made. Add the files first."); return; }
+    if(!confirm("Make a working copy of this return in the client's Tax Computation so you can revise it? The filed return stays as it is.")) return;
+    this.ctx.download(f.excelPath).then(function(b){ self.close(); self.ctx.copy(new File([b],f.excel||"filed-return.xlsx",{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})); });
+  };
+
+  root.CompView={View:View,open:function(ctx){ return new View(ctx); }};
 })(typeof window!=="undefined"?window:this);
 </script>
 <script>
@@ -7408,6 +7599,22 @@ window.compDelete=function(idx){
 function filedKey(i){ return "sc_filed_"+i+"_2026"; }
 function filedGet(i){ try{ return JSON.parse(localStorage.getItem(filedKey(i))||"null"); }catch(e){ return null; } }
 function filedPut(i,rec){ try{ localStorage.setItem(filedKey(i),JSON.stringify(rec)); }catch(e){ alert("Could not save: "+e.message); } }
+function filedStore(idx,file,kind){
+  if(!_sb||!_cloud) return Promise.resolve(null);
+  var path="filed/"+idx+"/2026-"+kind+"-"+Date.now()+(kind==="pdf"?".pdf":".xlsx");
+  return Promise.resolve(_sb.storage.from("notices").upload(path,file,{contentType:file.type||(kind==="pdf"?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),upsert:true})).then(function(r){ if(r&&r.error) throw new Error("Could not store "+file.name+": "+r.error.message); return path; });
+}
+function filedRemove(paths){ if(!_sb||!_cloud||!paths.length) return Promise.resolve(); return Promise.resolve(_sb.storage.from("notices").remove(paths)); }
+function filedDownload(path){
+  if(!_sb||!_cloud) return Promise.reject(new Error("Connect online (the top bar shows Synced) to open the stored files."));
+  return Promise.resolve(_sb.storage.from("notices").download(path)).then(function(r){ if(!r||r.error||!r.data) throw new Error("The stored file could not be downloaded."); return r.data; });
+}
+window.fvOpen=function(idx){
+  var rec=filedGet(idx); if(!rec) return;
+  CompView.open({client:getClient(idx),rec:rec,template:compTemplate,download:filedDownload,
+    attach:function(files){ var chain=Promise.resolve(); files.forEach(function(f){ chain=chain.then(function(){ return _filedPanel.updateFor(idx,f); }); }); return chain.then(function(){ return filedGet(idx); }); },
+    copy:function(file){ compImport(idx,file); },onClose:function(){ if(_filedPanel) _filedPanel.drawSaved(); }});
+};
 function filedDel(i){ try{ localStorage.setItem(filedKey(i),"null"); }catch(e){} }
 var _filingQ="", _filingF="all", _filingView="clients", _filedPanel=null;
 window.renderFiling=function(){
@@ -7425,7 +7632,9 @@ window.renderFiling=function(){
   if(_filingView==="filed"){
     pg.innerHTML='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Filed returns, Tax Year '+COMP_TY+'. Upload the workbooks and IRIS PDFs of returns already submitted.</div></div><div class="page"><div class="cf-views"><button class="cf-view" data-v="clients">Clients</button><button class="cf-view on" data-v="filed">Filed returns '+COMP_TY+'</button></div><div id="filed-host"></div></div>';
     pg.querySelectorAll(".cf-view").forEach(function(b){ b.onclick=function(){ _filingView=b.dataset.v; renderFiling(); }; });
-    _filedPanel=new CompFiled.Panel(document.getElementById("filed-host"),{clients:function(){ return ALL_CLIENTS.map(function(c,i){ return getClient(i); }); },template:compTemplate,get:filedGet,put:filedPut,del:filedDel,by:function(){ return userName; }});
+    _filedPanel=new CompFiled.Panel(document.getElementById("filed-host"),{clients:function(){ return ALL_CLIENTS.map(function(c,i){ return getClient(i); }); },template:compTemplate,get:filedGet,put:filedPut,by:function(){ return userName; },
+      del:function(i){ var r=filedGet(i); var paths=r&&r.files?[r.files.excelPath,r.files.pdfPath].filter(Boolean):[]; if(paths.length) filedRemove(paths); filedDel(i); },
+      store:filedStore,remove:filedRemove,download:filedDownload,openView:function(i){ fvOpen(i); }});
     return;
   }
   var h='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Tax Year '+COMP_TY+'. For each client: bring in last year\'s figures, prepare the return, check it against IRIS, then enter it in IRIS. '+started+' of '+total+' clients started.</div></div><div class="page"><div class="cf-views"><button class="cf-view on" data-v="clients">Clients</button><button class="cf-view" data-v="filed">Filed returns '+COMP_TY+'</button></div>';
