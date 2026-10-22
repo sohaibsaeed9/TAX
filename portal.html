@@ -633,6 +633,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 .cx-tab{padding:6px 11px;font-size:12px}.cx-tools{padding:6px 12px;gap:4px 14px;font-size:12px}.cx-grid{max-height:calc(100vh - 160px)}
 .cx-t{font-size:12px}.cx-t td{height:22px}.cx-t td.cx-l{padding:2px 6px;line-height:1.2}.cx-t td.cx-i input{height:22px;font-size:12px}
 .cx-wrap{gap:12px}.cx-side{font-size:12px}
+.ci-pct{width:100%;text-align:right;font:inherit;font-family:var(--mono);font-size:12px;height:20px;padding:0 5px;border:1px solid var(--gold);border-radius:4px;background:#fffdf7}.ci-ratio td{background:#fffdf7}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1730,12 +1731,20 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     var any=false;
     pg.sections.forEach(function(sec){
       var slots=self.slotsFor(sec.lines), rows="";
-      sec.lines.forEach(function(ln){ rows+=self.lineHtml(ln,slots); });
+      sec.lines.forEach(function(ln){ rows+=self.lineHtml(ln,slots); if(id==="bus"&&ln.c==="3100") rows+=self.ratioRow(slots); });
       if(!rows) return; any=true;
       h+='<div class="ci-sec"><div class="ci-sec-t">'+esc(sec.name)+'</div><table class="ci-t"><thead><tr><th class="ci-code">Code</th><th>Line</th>'+slots.map(function(s){ return '<th class="ci-v">'+esc(s[1])+'</th>'; }).join("")+'<th class="ci-go"></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     });
     if(!any) h+='<div class="ci-empty">Nothing entered here yet. Tick <b>Show empty lines</b> to see every IRIS line, or type a code or name in the search box.</div>';
     return h;
+  };
+  /* gross profit ratio: the Excel sheet works gross profit out as net revenue x this ratio */
+  var BIZ="BUSINESS INCOME ONLY-2026";
+  function pctText(v){ if(typeof v!=="number"||!v) return ""; return String(Math.round(v*1000000)/10000)+"%"; }
+  IrisView.prototype.ratioRow=function(slots){
+    var a=this.addr(BIZ,"C39"); if(!a) return ""; var v=this.wb().get(BIZ,a), cells="";
+    for(var i=0;i<slots.length-1;i++) cells+='<td class="ci-v"></td>';
+    return '<tr class="ci-r ci-ratio"><td class="ci-code">GP %</td><td class="ci-lab">Gross profit ratio (% of net revenue)<span class="ci-pg">Gross profit = net revenue \u00d7 this ratio, as in the Excel sheet</span></td>'+cells+'<td class="ci-v"><input class="ci-pct" data-s="'+BIZ+'" data-a="'+a+'" value="'+esc(pctText(v))+'" placeholder="e.g. 5.8%" aria-label="Gross profit ratio"></td><td class="ci-go"></td></tr>';
   };
   IrisView.prototype.summaryStrip=function(){
     var res=CS.resultsOf(this.wb()), pick={};
@@ -1809,6 +1818,11 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
         var n=raw===""?null:Number(raw.replace(/[(),\s]/g,"")); v=raw===""?null:(isNaN(n)?raw:(/^\(.*\)$/.test(raw)?-n:n));
         self.screen.setValue(inp.dataset.s,inp.dataset.a,v); self.refreshValues(); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); var all=[].slice.call(body.querySelectorAll(".ci-in input[data-a]")), i=all.indexOf(inp); inp.blur(); if(all[i+1]) all[i+1].focus(); } });
+    });
+    body.querySelectorAll(".ci-pct").forEach(function(inp){
+      inp.addEventListener("focus",function(){ inp.select(); });
+      inp.addEventListener("change",function(){ var raw=inp.value.replace(/[%\s,]/g,""), n=raw===""?null:parseFloat(raw); self.screen.setValue(inp.dataset.s,inp.dataset.a,n===null||isNaN(n)?null:n/100); self.refreshValues(); });
+      inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); inp.blur(); } });
     });
     body.querySelectorAll(".ci-gob").forEach(function(b){ b.onclick=function(){ if(self.opts.onGoto) self.opts.onGoto(b.dataset.s,b.dataset.a); }; });
     body.querySelectorAll(".ci-chkin").forEach(function(inp){
@@ -1942,7 +1956,9 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     return this.card("Income from other sources","Profit on debt, royalty, annuity and similar. Add only the lines that apply.",t);
   };
   Guided.prototype.bizHtml=function(){
-    var b='<p class="cg-sub">Business is the largest part of the workbook (trading account, expenses, tax deducted on receipts, depreciation). Enter it in the IRIS-ordered business page, where every line carries its IRIS code.</p><button type="button" class="cg-link" data-go="bus">Open Business in IRIS view</button> <button type="button" class="cg-link" data-gow="BUSINESS INCOME ONLY-2026">Open the business working sheet</button>';
+    var ba=this.A("BUSINESS INCOME ONLY-2026","C39"), bv=ba?this.wb().get("BUSINESS INCOME ONLY-2026",ba):null, pv=typeof bv==="number"&&bv?String(Math.round(bv*1000000)/10000)+"%":"";
+    var ratio=ba?'<div class="cg-grid"><label class="cg-f"><span>Gross profit ratio (% of net revenue). Gross profit = net revenue \u00d7 this ratio, as in the Excel sheet</span><input class="cg-in cg-num cg-pct" data-s="BUSINESS INCOME ONLY-2026" data-a="'+ba+'" data-k="num" value="'+esc(pv)+'" placeholder="e.g. 5.8%"></label></div>':"";
+    var b=ratio+'<p class="cg-sub">Business is the largest part of the workbook (trading account, expenses, tax deducted on receipts, depreciation). Enter it in the IRIS-ordered business page, where every line carries its IRIS code.</p><button type="button" class="cg-link" data-go="bus">Open Business in IRIS view</button> <button type="button" class="cg-link" data-gow="BUSINESS INCOME ONLY-2026">Open the business working sheet</button>';
     return this.card("Business","",b);
   };
   /* tax-deducted catalogue: every IRIS "tax deducted" line with an input cell, from the template's IRIS view */
@@ -2020,7 +2036,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     var self=this;
     body.querySelectorAll("input.cg-in").forEach(function(inp){
       inp.addEventListener("focus",function(){ inp.select(); });
-      inp.addEventListener("change",function(){ var k=inp.dataset.k, v=k==="text"?inp.value:parseNum(inp.value); if(inp.value.trim()==="") v=null;
+      inp.addEventListener("change",function(){ var k=inp.dataset.k, v=k==="text"?inp.value:parseNum(inp.classList.contains("cg-pct")?inp.value.replace("%",""):inp.value); if(inp.classList.contains("cg-pct")&&typeof v==="number") v=v/100; if(inp.value.trim()==="") v=null;
         self.commit(inp.dataset.s,inp.dataset.a,v,true); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); var all=[].slice.call(body.querySelectorAll("input.cg-in")), i=all.indexOf(inp); inp.blur(); if(all[i+1]) all[i+1].focus(); } });
     });
@@ -7092,7 +7108,7 @@ window.compOpen=function(idx,mode){
       Object.keys(model.sheets[s]).forEach(function(a){ var v=model.sheets[s][a].v; if(typeof v==="string"&&_compBoldText[v.trim()]&&!b[a]) L.bold.push(a); }); }); }
     _compIdx=idx; _compState=st;
     var tpl=r[0], hasIris=!!(tpl&&tpl.irisView&&window.CompIris);
-    var first=(st.src==="template"&&!st.opening&&!Object.keys(st.inputs||{}).length)?"open":"guided";
+    var first=(st.src==="template"&&!st.opening&&!Object.keys(st.inputs||{}).filter(function(k){ return k!=="BUSINESS INCOME ONLY-2026!C39"; }).length)?"open":"guided";
     body.innerHTML=hasIris?'<div class="cxo-modes"><button type="button" class="cxo-mode" data-m="open">Opening figures</button><button type="button" class="cxo-mode" data-m="guided">Guided entry</button><button type="button" class="cxo-mode" data-m="iris">IRIS view</button><button type="button" class="cxo-mode" data-m="work">Working (Excel layout)</button></div><div id="cxo-open" hidden></div><div id="cxo-guided" hidden></div><div id="cxo-iris" hidden></div><div id="cxo-work" hidden></div>':'<div id="cxo-work"></div>';
     var workEl=body.querySelector("#cxo-work"), irisEl=body.querySelector("#cxo-iris"), guidedEl=body.querySelector("#cxo-guided"), openEl=body.querySelector("#cxo-open"), modes=body.querySelectorAll(".cxo-mode");
     function setMode(m){ modes.forEach(function(b){ b.classList.toggle("on",b.dataset.m===m); }); if(openEl) openEl.hidden=m!=="open"; if(guidedEl) guidedEl.hidden=m!=="guided"; if(irisEl) irisEl.hidden=m!=="iris"; workEl.hidden=m!=="work"; if(m==="iris"&&_compIris) _compIris.render(); if(m==="guided"&&_compGuided) _compGuided.draw(); }
@@ -7116,7 +7132,7 @@ window.compOpen=function(idx,mode){
 };
 window.compStartBlank=function(idx){
   if(compGet(idx,COMP_TY)&&!confirm("Replace this client's existing Tax Year "+COMP_TY+" computation with a blank one?")) return;
-  compPut(idx,COMP_TY,{src:"template",ty:COMP_TY,ops:[],inputs:{},formulas:{}});
+  compPut(idx,COMP_TY,{src:"template",ty:COMP_TY,ops:[],inputs:{"BUSINESS INCOME ONLY-2026!C39":0},formulas:{}});
   compOpen(idx);
 };
 window.compImport=function(idx,file){
