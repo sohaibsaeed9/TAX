@@ -2076,6 +2076,29 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     return {groups:out,cash:cash,net:net};
   }
 
+  /* taxpayer block on the Computation sheet (rows 32-39): labels checked before reading */
+  var TP_CELLS=["E32","E33","E34","E35","E36","E37","E38","E39","C34","C35","C36","C37","C38","C39"];
+  function compSheetName(model){ return model.order.filter(function(s){ return /^COMPU/i.test(s); })[0]||null; }
+  function taxpayerFromWorkbook(model){
+    var sh=compSheetName(model), m=sh&&model.sheets[sh], out={}; if(!m) return out;
+    var lab=m.D32&&typeof m.D32.v==="string"?m.D32.v:""; if(!/taxpayer name/i.test(lab)) return out;
+    TP_CELLS.forEach(function(a){ var c=m[a]; if(c&&!("f" in c)&&c.v!=null&&clean(c.v)!=="") out[a]=(a==="C39"||typeof c.v==="number")?c.v:String(c.v); });
+    delete out.C36; delete out.C37; if(out.C38) out.C38=clean(out.C38).toUpperCase();
+    return out;
+  }
+  function fmtCnic(r){ var d=String(r||"").replace(/\D/g,""); return d.length===13?d.slice(0,5)+"-"+d.slice(5,12)+"-"+d.slice(12):String(r||""); }
+  function taxpayerFromLines(lines){
+    var out={}, i, t;
+    for(i=0;i<Math.min(lines.length,40);i++){ t=lines[i];
+      var m=/Name:\s*(.+?)\s{2,}Registration No\s*:\s*(\S+)/.exec(t)||/Name:\s*(.+?)\s+Registration No\s*:\s*(\S+)/.exec(t);
+      if(m&&!out.E32){ out.E32=clean(m[1]); var reg=m[2]; if(/^\d{13}$/.test(reg.replace(/\D/g,""))&&reg.replace(/\D/g,"").length===13) out.E34=fmtCnic(reg); else out.C35=reg; }
+      var a=/Address:\s*(.+?)(?:\s{2,}Tax Year|\s*$)/.exec(t);
+      if(a&&!out.E35){ var addr=clean(a[1]); var k=i+1; while(k<lines.length&&/^\s{4,}\S/.test(lines[k])&&!/:/.test(lines[k].slice(0,60))){ addr+=" "+clean(lines[k].replace(/\s{2,}(Period|Medium|Due Date|Tax Year).*$/,"")); k++; } out.E35=clean(addr); }
+      var c=/Contact No:\s*(\+?\d[\d\- ]*\d)/.exec(t); if(c&&!out.E39) out.E39=clean(c[1]);
+    }
+    return out;
+  }
+
   /* ---- source 1: a computation workbook (previous year's Excel, or a stored computation) ---- */
   function extractFromWorkbook(model,cached){
     var sheet=wealthSheetName(model); if(!sheet) throw new Error("This workbook has no wealth statement sheet.");
@@ -2085,7 +2108,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       var d=wb.get(sheet,"A"+r), v=Math.round(val("G"+r)); d=typeof d==="string"?clean(d):"";
       if(d||v) items.push({cat:g.label,key:g.key,desc:d,value:v}); } });
     var cashRow=G.cash, cash=cashRow?Math.round(val("G"+cashRow)):0;
-    return {source:"excel",items:items,cash:cash,net:Math.round(val("G"+G.net)),totals:G.groups.map(function(g){ return {cat:g.label,value:Math.round(val("G"+g.row))}; })};
+    return {source:"excel",taxpayer:taxpayerFromWorkbook(model),items:items,cash:cash,net:Math.round(val("G"+G.net)),totals:G.groups.map(function(g){ return {cat:g.label,value:Math.round(val("G"+g.row))}; })};
   }
 
   /* ---- source 2: IRIS return PDF (lines of text, one per visual row) ---- */
@@ -2126,7 +2149,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     items.forEach(function(it){ out.push({cat:it.cat,code:it.code,desc:it.desc,value:Math.round(it.value)}); });
     totals.forEach(function(t){ if(/^cash in hand/i.test(t.cat)){ cash=Math.round(t.value); return; } if(/^total/i.test(t.cat)||/^net assets/i.test(t.cat)) return; if(!haveSub[t.cat]&&t.value) out.push({cat:t.cat,code:t.code,desc:"",value:Math.round(t.value)}); });
     out.forEach(function(o){ o.key=groupKey(o.cat); });
-    return {source:"pdf",items:out,cash:cash,net:net==null?null:Math.round(net),totals:totals.filter(function(t){ return !/^total|^net assets/i.test(t.cat); }).map(function(t){ return {cat:t.cat,value:Math.round(t.value)}; })};
+    return {source:"pdf",taxpayer:taxpayerFromLines(lines),items:out,cash:cash,net:net==null?null:Math.round(net),totals:totals.filter(function(t){ return !/^total|^net assets/i.test(t.cat); }).map(function(t){ return {cat:t.cat,value:Math.round(t.value)}; })};
   }
   function groupKey(cat){ for(var i=0;i<CATS.length;i++){ if(CATS[i][0].test(cat)) return CATS[i][1]; } return null; }
 
@@ -2176,11 +2199,18 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     var cur2=currentLayout(screen); if(cur2.G.cash){ screen.setValue(sheet,"H"+cur2.G.cash,data.cash||0); }
     return {placed:placed,unplaced:unplaced};
   }
+  function applyTaxpayer(screen,tp,overwrite){
+    var sh=compSheetName(screen.wb.model), n=0; if(!sh||!tp) return 0;
+    Object.keys(tp).forEach(function(a){ var cur=screen.wb.get(sh,a), empty=cur==null||cur===""||cur===0; var raw=screen.wb.model.sheets[sh][a];
+      if(raw&&("f" in raw)&&!screen.isConstFormula(sh,a,raw.f)) return; if(!empty&&!overwrite&&a!=="C38"&&a!=="C34") return; screen.setValue(sh,a,tp[a]); n++; });
+    return n;
+  }
   function netPrev(screen){ var L=currentLayout(screen); return Math.round(num(screen.wb.get(L.sheet,"H"+L.G.net))); }
 
   /* ---- panel (browser) ---- */
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
   function fmt(v){ return root.CompScreen?root.CompScreen.fmt(v,"#,##0"):String(v); }
+  function norm0(s){ return clean(s).toLowerCase().replace(/[^a-z ]/g,""); }
   function Panel(el,screen,opts){ this.el=el; this.screen=screen; this.opts=opts||{}; this.data=null; this.msg=""; this.render(); }
   Panel.prototype.render=function(){
     var self=this, d=this.data, h='<div class="co"><section class="cg-card"><h3>Opening figures from last year</h3><p class="cg-sub">Give the previous year\'s computation workbook (.xlsx) or the filed return (PDF from IRIS). The closing wealth statement in it becomes this year\'s opening statement. You will see the figures and confirm before anything is changed.</p>';
@@ -2191,6 +2221,10 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       d.items.forEach(function(i){ h+='<tr><td>'+esc(i.cat)+'</td><td>'+esc(i.desc||"")+'</td><td class="cg-r">'+fmt(i.value)+'</td></tr>'; });
       h+='<tr class="cg-tot"><td colspan="2">Cash in hand</td><td class="cg-r">'+fmt(d.cash)+'</td></tr></tbody></table>';
       if(d.net!=null) h+='<p class="cg-sub" style="margin-top:10px">Net assets at 30 June in the source: <b>'+fmt(d.net)+'</b></p>';
+      var cn=this.opts.clientName, fn=d.taxpayer&&d.taxpayer.E32;
+      if(cn&&fn){ var A=norm0(cn).split(" "), B=norm0(fn).split(" "), common=A.filter(function(w){ return w.length>2&&B.indexOf(w)>=0; }).length; if(common<Math.min(2,A.length,B.length)) h+='<section class="cg-card" style="border-color:var(--amber);background:var(--amber-soft)"><h3 style="color:var(--amber)">Check the file</h3><p class="cg-sub">This file is for <b>'+esc(fn)+'</b>, but you are working on <b>'+esc(cn)+'</b>. Use it only if it is the right client.</p></section>'; }
+      var tk=Object.keys(d.taxpayer||{}); if(tk.length){ var TPL={E32:"Name",E33:"Father / husband",E34:"CNIC / AOP name",E35:"Address",E39:"Contact",C35:"NTN",C34:"Tax office",C38:"Sex",C39:"Children (tuition)",E36:"Business name",E37:"Business sector",E38:"Business address"};
+        h+='<table class="cg-t" style="margin-top:10px"><thead><tr><th colspan="2">Taxpayer details found (filled in only where empty)</th></tr></thead><tbody>'+tk.filter(function(a){ return TPL[a]; }).map(function(a){ return '<tr><td style="width:180px">'+esc(TPL[a])+'</td><td>'+esc(d.taxpayer[a])+'</td></tr>'; }).join("")+'</tbody></table>'; }
       h+='<div class="co-actions"><button type="button" class="cg-addbtn co-apply">Use as opening figures</button><label class="cg-chk"><input type="checkbox" class="co-copy" checked> Start this year\'s figures the same as last year\'s</label></div></section>';
     }
     this.el.innerHTML=h+'</div>';
@@ -2211,13 +2245,13 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     var d=this.data; if(!d) return; var copy=this.el.querySelector(".co-copy").checked;
     var L=currentLayout(this.screen), anyData=L.G.groups.some(function(g){ for(var r=g.from;r<=g.to;r++) if(!emptyRow(this.screen.wb,L.sheet,r)) return true; return false; },this);
     if(anyData&&!confirm("This computation already has wealth lines. Replace them with the figures from last year?")) return;
-    var res=apply(this.screen,d,{copyToCurrent:copy}), chk=netPrev(this.screen), ok=d.net==null||Math.abs(chk-d.net)<=2;
+    var tpn=applyTaxpayer(this.screen,d.taxpayer,false), res=apply(this.screen,d,{copyToCurrent:copy}), chk=netPrev(this.screen), ok=d.net==null||Math.abs(chk-d.net)<=2;
     var msg=res.placed+" lines placed. Opening net assets now "+fmt(chk)+(d.net!=null?(ok?" (matches the source).":" but the source shows "+fmt(d.net)+". Check the lines below."):".");
     if(res.unplaced.length) msg+=" Not placed: "+res.unplaced.map(function(i){ return (i.desc||i.cat)+" "+fmt(i.value); }).join("; ")+".";
-    this.msg=msg; this.render(); if(this.opts.onApplied) this.opts.onApplied(res,ok);
+    if(tpn) msg+=" "+tpn+" taxpayer detail"+(tpn>1?"s":"")+" filled in."; this.msg=msg; this.render(); if(this.opts.onApplied) this.opts.onApplied(res,ok);
   };
 
-  var api={wealthSheetName:wealthSheetName,wealthGroups:wealthGroups,extractFromWorkbook:extractFromWorkbook,parseIrisLines:parseIrisLines,extractFromPdf:extractFromPdf,apply:apply,netPrev:netPrev,Panel:Panel,pdfLinesFromItems:pdfLinesFromItems};
+  var api={wealthSheetName:wealthSheetName,wealthGroups:wealthGroups,extractFromWorkbook:extractFromWorkbook,parseIrisLines:parseIrisLines,extractFromPdf:extractFromPdf,apply:apply,applyTaxpayer:applyTaxpayer,taxpayerFromWorkbook:taxpayerFromWorkbook,taxpayerFromLines:taxpayerFromLines,netPrev:netPrev,Panel:Panel,pdfLinesFromItems:pdfLinesFromItems};
   if(typeof module!=="undefined") module.exports=api; else root.CompOpening=api;
 })(typeof window!=="undefined"?window:this);
 </script>
@@ -7068,11 +7102,14 @@ window.compOpen=function(idx,mode){
       var s2=document.getElementById("cxo-status"); if(s2) s2.textContent="Saving…";
       clearTimeout(_compSaveT); _compSaveT=setTimeout(compSaveNow,700); }});
     _compScreen.formulaEdits=Object.assign({},st.formulas||{});
+    if(window.CompOpening){ var _cl=getClient(idx), _dg=String(_cl.id||"").replace(/\D/g,""), _tp={};
+      if(_cl.name) _tp.E32=_cl.name; if(_dg.length===13) _tp.E34=_dg.slice(0,5)+"-"+_dg.slice(5,12)+"-"+_dg.slice(12); if(_cl.ntn) _tp.C35=String(_cl.ntn); if(_cl.address) _tp.E35=_cl.address; if(_cl.phone) _tp.E39=_cl.phone;
+      CompOpening.applyTaxpayer(_compScreen,_tp,false); }
     _compIris=null; _compGuided=null;
     if(hasIris){ _compIris=new CompIris.IrisView(irisEl,_compScreen,tpl.irisView,tpl,{check:st.check||{},onCheck:function(c){ _compState.check=c; _compScreen.opts.onChange(); },onGoto:function(sh,a){ setMode("work"); _compScreen.goto(sh,a); }});
       _compGuided=new CompGuided.Guided(guidedEl,_compScreen,tpl,{iris:_compIris,onIris:function(pg){ setMode("iris"); _compIris.page=pg; _compIris.q=""; _compIris.render(); },onWork:function(sh){ setMode("work"); _compScreen.sheet=sh; _compScreen.render(); }});
       if(mode==="check"){ setMode("iris"); _compIris.page="check"; _compIris.render(); }
-      new CompOpening.Panel(openEl,_compScreen,{onApplied:function(res,ok){ _compState.opening={at:new Date().toISOString(),ok:ok}; _compScreen.opts.onChange(); if(_compGuided) _compGuided.draw(); }}); }
+      new CompOpening.Panel(openEl,_compScreen,{clientName:getClient(idx).name,onApplied:function(res,ok){ _compState.opening={at:new Date().toISOString(),ok:ok}; _compScreen.opts.onChange(); if(_compGuided) _compGuided.draw(); }}); }
     document.getElementById("cxo-status").textContent=st.updated?"Last saved "+new Date(st.updated).toLocaleString("en-PK",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
     if(!st.summary){ compSaveNow(); }
   }).catch(function(e){ body.innerHTML='<div class="cp-empty">'+escHtml(e.message||String(e))+'</div>'; document.getElementById("cxo-status").textContent=""; });
