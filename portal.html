@@ -2546,7 +2546,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
 (function(root){
   "use strict";
   var CS=root.CompScreen, CI=root.CompIris, O=root.CompOpening, F=root.CompFiled;
-  var TABS=[["sum","Summary"],["iris","IRIS view"],["work","Working (Excel layout)"],["we","Wealth"],["cmp","Compare with IRIS"],["files","Files"]];
+  var TABS=[["sum","Summary"],["iris","IRIS view"],["work","Working (Excel layout)"],["we","Wealth and reconciliation"],["cmp","Compare with IRIS"],["files","Files"]];
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
   function num(v){ return typeof v==="number"&&isFinite(v)?v:0; }
   function fmt(v){ return CS.fmt(v,"#,##0"); }
@@ -2560,6 +2560,31 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     new MutationObserver(f).observe(el,{childList:true,subtree:true}); f();
   }
 
+  /* wealth statement and reconciliation of net assets, from any workbook (a filed return or a computation) */
+  function wealthReportHtml(wb,model,tpl){
+    var sh=O.wealthSheetName(model), G=O.wealthGroups(model,sh), h="", i;
+    function v(a){ return num(wb.get(sh,a)); }
+    if(G.cash) h+='<section class="cg-card"><h3>Cash in hand</h3><table class="cg-t"><thead><tr><th></th><th class="cg-r">This year</th><th class="cg-r">Last year</th></tr></thead><tbody><tr><td>Cash at 30 June</td><td class="cg-r">'+fmt(v("G"+G.cash))+'</td><td class="cg-r">'+fmt(v("H"+G.cash))+'</td></tr></tbody></table></section>';
+    G.groups.forEach(function(g){ var rows="", any=false;
+      for(var r=g.from;r<=g.to;r++){ var d=wb.get(sh,"A"+r), a=v("G"+r), b=v("H"+r); if((typeof d==="string"&&clean(d))||a||b){ any=true; rows+='<tr><td>'+esc(typeof d==="string"?clean(d):"")+'</td><td class="cg-r">'+fmt(a)+'</td><td class="cg-r">'+fmt(b)+'</td><td class="cg-r">'+fmt(a-b)+'</td></tr>'; } }
+      if(any) h+='<section class="cg-card"><h3>'+esc(g.label)+'</h3><table class="cg-t"><thead><tr><th>Description</th><th class="cg-r">This year</th><th class="cg-r">Last year</th><th class="cg-r">Change</th></tr></thead><tbody>'+rows+'<tr class="cg-tot"><td>Total</td><td class="cg-r">'+fmt(v("G"+g.row))+'</td><td class="cg-r">'+fmt(v("H"+g.row))+'</td><td class="cg-r">'+fmt(v("G"+g.row)-v("H"+g.row))+'</td></tr></tbody></table></section>'; });
+    h+='<section class="cg-card"><table class="cg-t"><tbody><tr class="cg-tot"><td>Net assets</td><td class="cg-r">'+fmt(v("G"+G.net))+'</td><td class="cg-r">'+fmt(v("H"+G.net))+'</td><td class="cg-r">'+fmt(v("G"+G.net)-v("H"+G.net))+'</td></tr></tbody></table></section>';
+    /* reconciliation: the lines of the IRIS wealth page that belong to it, with the workbook's figures */
+    var pg=(tpl.irisView.pages||[]).filter(function(p){ return p.id==="wealth"; })[0], al=root.CompAlign.makeAligner(tpl,model);
+    if(pg) pg.sections.forEach(function(sec){ if(!/^Reconciliation/i.test(sec.name)) return; var rows="";
+      sec.lines.forEach(function(ln){ var c=(ln.cells||[]).filter(function(x){ return x[2]==="c"||x[2]==="i"; })[0]||(ln.cells||[])[0]; if(!c) return; var a=al.resolve(c[0],c[1]); if(!a) return; var val=wb.get(c[0],a); if(typeof val!=="number") return;
+        var key=/^70(3001|3002|3003|3000)$|^7049$|^7099$/.test(ln.c); if(!val&&!key) return; rows+='<tr'+(key?' class="cg-tot"':'')+'><td class="cg-code">'+esc(ln.c)+'</td><td>'+esc(clean(ln.l))+'</td><td class="cg-r">'+fmt(val)+'</td></tr>'; });
+      if(rows) h+='<section class="cg-card"><h3>'+esc(sec.name.replace(/^Reconciliation > /,"Reconciliation: ").replace(/^Reconciliation of Net Assets$/,"Reconciliation of net assets"))+'</h3><table class="cg-t"><tbody>'+rows+'</tbody></table></section>'; });
+    return h;
+  }
+  /* wealth from the saved list of lines only (no workbook stored): closing figures by section */
+  function itemsReportHtml(w){
+    if(!w||!w.items) return '<div class="cp-empty">No wealth statement is saved for this client.</div>';
+    var by={}, order=[]; w.items.forEach(function(i){ if(!by[i.cat]){ by[i.cat]=[]; order.push(i.cat); } by[i.cat].push(i); });
+    var h='<section class="cg-card"><h3>Cash in hand</h3><table class="cg-t"><tbody><tr><td>Cash at 30 June</td><td class="cg-r">'+fmt(w.cash||0)+'</td></tr></tbody></table></section>';
+    order.forEach(function(c){ var t=0; h+='<section class="cg-card"><h3>'+esc(c)+'</h3><table class="cg-t"><tbody>'+by[c].map(function(i){ t+=i.value; return '<tr><td>'+esc(i.desc||"")+'</td><td class="cg-r">'+fmt(i.value)+'</td></tr>'; }).join("")+'<tr class="cg-tot"><td>Total</td><td class="cg-r">'+fmt(t)+'</td></tr></tbody></table></section>'; });
+    return h+'<section class="cg-card"><table class="cg-t"><tbody><tr class="cg-tot"><td>Net assets</td><td class="cg-r">'+fmt(w.net||0)+'</td></tr></tbody></table><p class="cg-sub" style="margin-top:6px">Last year\'s figures and the reconciliation need the Excel workbook. Add it under Return Filing, Filed returns.</p></section>';
+  }
   function View(ctx){ this.ctx=ctx; this.tab="sum"; this.model=null; this.loading=null; this.build(); this.show("sum"); }
   View.prototype.build=function(){
     var self=this, c=this.ctx, o=document.getElementById("fv-overlay");
@@ -2657,6 +2682,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     return {groups:order.map(function(c){ return by[c]; }),cash:{a:w.cash,b:null},net:{a:w.net,b:null}};
   };
   View.prototype.weHtml=function(){
+    if(this.model&&this.screen) return wealthReportHtml(this.screen.wb,this.model,this.tpl);
     var d=this.weData(); if(!d) return '<div class="cp-empty">No wealth statement was found in this return.</div>';
     var hasPrev=d.net.b!=null, h='';
     if(d.cash) h+='<section class="cg-card"><h3>Cash in hand</h3><table class="cg-t"><tbody><tr><td>Cash at 30 June</td><td class="cg-r">'+fmt(d.cash.a)+'</td>'+(hasPrev?'<td class="cg-r">'+fmt(d.cash.b)+'</td>':'')+'</tr></tbody></table></section>';
@@ -2696,7 +2722,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     this.ctx.download(f.excelPath).then(function(b){ self.close(); self.ctx.copy(new File([b],f.excel||"filed-return.xlsx",{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})); });
   };
 
-  root.CompView={View:View,open:function(ctx){ return new View(ctx); }};
+  root.CompView={wealthReportHtml:wealthReportHtml,itemsReportHtml:itemsReportHtml,View:View,open:function(ctx){ return new View(ctx); }};
 })(typeof window!=="undefined"?window:this);
 </script>
 <script>
@@ -5988,6 +6014,8 @@ function renderProfileTab(){
     } else { html += '<div class="cp-empty">No communications logged.</div>'; }
   } else if(profileTab === "computation"){
     html += compProfileHtml(idx);
+  } else if(profileTab === "wealth"){
+    html += '<div id="cp-wealth"><div class="cp-empty">Loading…</div></div>'; setTimeout(function(){ compWealthLoad(idx); },0);
   } else if(profileTab === "advisories"){
     var clientAdvs = ADVISORIES.filter(function(a){ return a.clientIdx === idx; });
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
@@ -7599,6 +7627,11 @@ window.compDelete=function(idx){
 function filedKey(i){ return "sc_filed_"+i+"_2026"; }
 function filedGet(i){ try{ return JSON.parse(localStorage.getItem(filedKey(i))||"null"); }catch(e){ return null; } }
 function filedPut(i,rec){ try{ localStorage.setItem(filedKey(i),JSON.stringify(rec)); }catch(e){ alert("Could not save: "+e.message); } }
+function filedCtx(){
+  return {clients:function(){ return ALL_CLIENTS.map(function(c,i){ return getClient(i); }); },template:compTemplate,get:filedGet,put:filedPut,by:function(){ return userName; },
+    del:function(i){ var r=filedGet(i); var paths=r&&r.files?[r.files.excelPath,r.files.pdfPath].filter(Boolean):[]; if(paths.length) filedRemove(paths); filedDel(i); },
+    store:filedStore,remove:filedRemove,download:filedDownload,openView:function(i){ fvOpen(i); }};
+}
 function filedStore(idx,file,kind){
   if(!_sb||!_cloud) return Promise.resolve(null);
   var path="filed/"+idx+"/2026-"+kind+"-"+Date.now()+(kind==="pdf"?".pdf":".xlsx");
@@ -7612,8 +7645,8 @@ function filedDownload(path){
 window.fvOpen=function(idx){
   var rec=filedGet(idx); if(!rec) return;
   CompView.open({client:getClient(idx),rec:rec,template:compTemplate,download:filedDownload,
-    attach:function(files){ var chain=Promise.resolve(); files.forEach(function(f){ chain=chain.then(function(){ return _filedPanel.updateFor(idx,f); }); }); return chain.then(function(){ return filedGet(idx); }); },
-    copy:function(file){ compImport(idx,file); },onClose:function(){ if(_filedPanel) _filedPanel.drawSaved(); }});
+    attach:function(files){ var chain=Promise.resolve(); files.forEach(function(f){ chain=chain.then(function(){ var P=_filedPanel||(_filedPanel=new CompFiled.Panel(document.createElement("div"),filedCtx())); return P.updateFor(idx,f); }); }); return chain.then(function(){ return filedGet(idx); }); },
+    copy:function(file){ compImport(idx,file); },onClose:function(){ if(_filedPanel&&document.getElementById('filed-host')) _filedPanel.drawSaved(); if(profileIdx!==null&&(profileTab==='computation'||profileTab==='wealth')) renderProfileTab(); }});
 };
 function filedDel(i){ try{ localStorage.setItem(filedKey(i),"null"); }catch(e){} }
 var _filingQ="", _filingF="all", _filingView="clients", _filedPanel=null;
@@ -7632,9 +7665,7 @@ window.renderFiling=function(){
   if(_filingView==="filed"){
     pg.innerHTML='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Filed returns, Tax Year '+COMP_TY+'. Upload the workbooks and IRIS PDFs of returns already submitted.</div></div><div class="page"><div class="cf-views"><button class="cf-view" data-v="clients">Clients</button><button class="cf-view on" data-v="filed">Filed returns '+COMP_TY+'</button></div><div id="filed-host"></div></div>';
     pg.querySelectorAll(".cf-view").forEach(function(b){ b.onclick=function(){ _filingView=b.dataset.v; renderFiling(); }; });
-    _filedPanel=new CompFiled.Panel(document.getElementById("filed-host"),{clients:function(){ return ALL_CLIENTS.map(function(c,i){ return getClient(i); }); },template:compTemplate,get:filedGet,put:filedPut,by:function(){ return userName; },
-      del:function(i){ var r=filedGet(i); var paths=r&&r.files?[r.files.excelPath,r.files.pdfPath].filter(Boolean):[]; if(paths.length) filedRemove(paths); filedDel(i); },
-      store:filedStore,remove:filedRemove,download:filedDownload,openView:function(i){ fvOpen(i); }});
+    _filedPanel=new CompFiled.Panel(document.getElementById("filed-host"),filedCtx());
     return;
   }
   var h='<div class="page-header"><div class="page-title">Return Filing</div><div class="page-sub">Tax Year '+COMP_TY+'. For each client: bring in last year\'s figures, prepare the return, check it against IRIS, then enter it in IRIS. '+started+' of '+total+' clients started.</div></div><div class="page"><div class="cf-views"><button class="cf-view on" data-v="clients">Clients</button><button class="cf-view" data-v="filed">Filed returns '+COMP_TY+'</button></div>';
@@ -7656,14 +7687,52 @@ function compProfileHtml(idx){
   if(st) h+='<button class="task-del-btn" onclick="compDelete('+idx+')">'+ico("trash")+'Delete</button>';
   h+='</div></div><div id="cp-comp-msg" style="font-size:13px;color:var(--blue);margin-bottom:8px;"></div>';
   if(st&&st.fixChanged&&st.fixChanged.length) h+='<div style="font-size:12.5px;color:var(--amber);background:var(--amber-soft);border-radius:8px;padding:8px 12px;margin-bottom:10px;">Corrections (TY2026 v2) changed these results compared with the Excel file: '+escHtml(st.fixChanged.join("; "))+'.</div>';
-  if(!st){ h+='<div class="cp-empty">No computation for Tax Year '+COMP_TY+' yet. Import the client\'s Excel workbook, or start from the blank template.</div>'; return h; }
+  var fr=filedGet(idx);
+  if(!st){ if(fr) return h+filedCardHtml(idx,fr);
+    h+='<div class="cp-empty">No computation and no filed return for Tax Year '+COMP_TY+' on file for this client.<br>Start a return from the blank template, import the client\'s Excel workbook, or upload the filed return under Return Filing.</div><div style="text-align:center;margin-top:10px;"><button class="btn-sec" onclick="closeProfile();showPage(\'filing\');_filingView=\'filed\';renderFiling();">Upload the filed return</button></div>'; return h; }
   var s=st.summary||{};
   var groups=[["Income",["Total income","Income under normal tax","Taxable income"]],["Tax",["Normal income tax","Final / minimum tax","Tax paid / deducted","Admitted tax u/s 137(1)","CVT payable","Workers Welfare Fund","Refundable"]],["Wealth",["Net assets this year","Net assets last year","Increase in net assets","Personal expenses"]]];
   h+='<div class="cp-info-grid">';
   groups.forEach(function(g){ g[1].forEach(function(k){ var v=s[k]; h+='<div class="cp-info-item"><div class="cp-info-label">'+escHtml(k)+'</div><div class="cp-info-val mono">'+(v==null?"—":CompScreen.fmt(v,"#,##0"))+'</div></div>'; }); });
   h+='</div>';
+  if(fr) h+=filedCardHtml(idx,fr);
   return h;
 }
+function filedCardHtml(idx,fr){
+  var f=fr.systemFigs||fr.iris||{}, ck=fr.check, files=fr.files||{};
+  var cells=[["Total income","9000"],["Taxable income","9100"],["Tax chargeable","9200"],["Tax paid / deducted","9201"],["Refund","9210"],["Net assets","703001"]];
+  var h='<div style="margin-top:18px;"><div class="cp-section-title" style="margin:0 0 4px;">Filed return, Tax Year '+COMP_TY+'</div><div style="font-size:12.5px;color:var(--ink-3);margin-bottom:10px;">From Return Filing, saved '+new Date(fr.saved).toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"})+(fr.by?" by "+escHtml(fr.by):"")+(ck?(ck.ok===ck.total?" · agrees with the IRIS return":" · "+ck.ok+" of "+ck.total+" figures agree with IRIS"):(fr.pdfOnly?" · from the IRIS PDF":" · no IRIS PDF to compare"))+(files.excelPath?" · Excel stored":" · Excel not stored")+'</div><div class="cp-info-grid">';
+  cells.forEach(function(c){ var v=f[c[1]]; h+='<div class="cp-info-item"><div class="cp-info-label">'+c[0]+'</div><div class="cp-info-val mono">'+(v==null?"—":CompScreen.fmt(v,"#,##0"))+'</div></div>'; });
+  return h+'</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button class="btn" onclick="fvOpen('+idx+')">'+ico("file")+'View filed return</button><button class="btn-sec" onclick="renderProfileTabTo(\'wealth\')">Wealth and reconciliation</button></div></div>';
+}
+window.renderProfileTabTo=function(t){ profileTab=t; document.querySelectorAll("#cp-tabs .cp-tab").forEach(function(x){ x.classList.toggle("on",x.getAttribute("data-cptab")===t); }); renderProfileTab(); };
+/* wealth statement and reconciliation, in the client profile: from the current computation, or the filed return */
+var _wealthSrc={};
+function compLoadWb(idx){
+  var st=compGet(idx,COMP_TY);
+  return Promise.all([compTemplate(),compBaseModel(st)]).then(function(r){
+    var model=r[1]; if(!model.fixes) model.fixes=CompFixes.apply(model);
+    var w=new CompEngine.Workbook(model); (st.ops||[]).forEach(function(op){ if(op.op==="ins") w.insertRow(op.sheet,op.at); });
+    Object.keys(st.formulas||{}).forEach(function(k){ var p=k.split("!"); model.sheets[p[0]][p[1]]={f:st.formulas[k]}; }); w.setInputs(st.inputs||{});
+    return CompView.wealthReportHtml(w,model,r[0]); });
+}
+function filedWealthHtml(idx){
+  var fr=filedGet(idx); if(!fr) return Promise.resolve('<div class="cp-empty">No filed return is saved for this client.</div>');
+  if(!(fr.files&&fr.files.excelPath)) return Promise.resolve(CompView.itemsReportHtml(fr.wealth));
+  return Promise.all([compTemplate(),filedDownload(fr.files.excelPath)]).then(function(r){ return r[1].arrayBuffer().then(function(buf){
+    var cv=CompImport.convert(XLSX,new Uint8Array(buf)); return CompView.wealthReportHtml(new CompEngine.Workbook(cv.model),cv.model,r[0]); }); });
+}
+window.compWealthLoad=function(idx){
+  var host=document.getElementById("cp-wealth"); if(!host) return;
+  var st=compGet(idx,COMP_TY), fr=filedGet(idx);
+  if(!st&&!fr){ host.innerHTML='<div class="cp-empty">No computation and no filed return for Tax Year '+COMP_TY+' on file for this client, so there is no wealth statement to show yet.</div>'; return; }
+  var src=_wealthSrc[idx]||(st?"comp":"filed"); if(src==="comp"&&!st) src="filed"; if(src==="filed"&&!fr) src="comp";
+  var tabs='<div class="cf-views">'+(st?'<button class="cf-view'+(src==="comp"?" on":"")+'" data-s="comp">Current computation</button>':'')+(fr?'<button class="cf-view'+(src==="filed"?" on":"")+'" data-s="filed">Filed return '+COMP_TY+'</button>':'')+'</div>';
+  host.innerHTML=tabs+'<div id="cp-wealth-body" class="fv-main"><div class="cp-empty">Loading…</div></div>';
+  host.querySelectorAll(".cf-view").forEach(function(b){ b.onclick=function(){ _wealthSrc[idx]=b.dataset.s; compWealthLoad(idx); }; });
+  (src==="comp"?compLoadWb(idx):filedWealthHtml(idx)).then(function(html){ var b=document.getElementById("cp-wealth-body"); if(b&&profileTab==="wealth") b.innerHTML=html||'<div class="cp-empty">Nothing to show.</div>'; })
+    .catch(function(e){ var b=document.getElementById("cp-wealth-body"); if(b) b.innerHTML='<div class="cp-empty">'+escHtml(e.message||String(e))+'</div>'; });
+};
 
 /* ── CLOUD SYNC (Supabase): browser data <-> shared online database ── */
 var SUPA_URL="https://rscvtbhzygqnyjzgxmyh.supabase.co", SUPA_KEY="sb_publishable_EpqMmgUo5pObHDvcC24EMw_2FpX8Ttc";
@@ -8575,6 +8644,7 @@ Separate professional charges shall apply in the event of any tax proceeding / l
     <div class="cp-tabs" id="cp-tabs">
       <div class="cp-tab on" data-cptab="info">Info</div>
       <div class="cp-tab" data-cptab="computation">Tax Computation</div>
+      <div class="cp-tab" data-cptab="wealth">Wealth</div>
       <div class="cp-tab" data-cptab="iris">IRIS Payments</div>
       <div class="cp-tab" data-cptab="tasks">Tasks</div>
       <div class="cp-tab" data-cptab="notices">Notices</div>
