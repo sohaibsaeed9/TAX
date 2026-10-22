@@ -6233,7 +6233,7 @@ function compPut(idx,ty,st){ st.updated=new Date().toISOString(); st.by=userName
 function compTemplate(){
   if(_compTplText) return Promise.resolve(JSON.parse(_compTplText));
   if(!_dataKey) return Promise.reject(new Error("Please sign in again."));
-  return fetch("comp/ty"+COMP_TY+".enc.json",{cache:"no-cache"}).then(function(r){ if(!r.ok) throw new Error("The computation template could not be loaded."); return r.json(); })
+  return (window.__COMP_TPL ? Promise.resolve(window.__COMP_TPL) : fetch("comp/ty"+COMP_TY+".enc.json",{cache:"no-cache"}).then(function(r){ if(!r.ok) throw new Error("The computation template could not be loaded."); return r.json(); }))
     .then(function(e){ return crypto.subtle.decrypt({name:"AES-GCM",iv:_b64(e.iv)},_dataKey,_b64(e.ct)).then(function(buf){
       return e.gz ? new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text() : new TextDecoder().decode(buf); }); })
     .then(function(t){ _compTplText=t; return JSON.parse(_compTplText); });
