@@ -818,6 +818,8 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     <div class="sitem hide" id="tab-tasks" data-page="tasks"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span>Task Manager</span></div>
     <div class="sitem hide" id="tab-notices" data-page="notices"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg><span>Notice Tracker</span></div>
     <div class="sitem hide" id="tab-filing" data-page="filing"><svg class="ic" aria-hidden="true"><use href="#i-edit"/></svg><span>Return Filing</span></div>
+    <div class="sitem hide" id="tab-irisnotices" data-page="irisnotices"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg><span>IRIS Notices</span></div>
+    <div class="sitem hide" id="tab-irissync" data-page="irissync"><svg class="ic" aria-hidden="true"><use href="#i-tool"/></svg><span>IRIS Sync</span></div>
     <div class="sitem hide" id="tab-returns" data-page="returns"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg><span>Return Register</span></div>
     <div class="sitem hide" id="tab-iris" data-page="iris"><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg><span>IRIS Payments</span></div>
     <div class="sitem hide" id="tab-secp" data-page="secp"><svg class="ic" aria-hidden="true"><use href="#i-building"/></svg><span>SECP Filing</span></div>
@@ -843,6 +845,8 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     <div id="pg-iris" class="pg"></div>
     <div id="pg-notices" class="pg"></div>
     <div id="pg-filing" class="pg"></div>
+    <div id="pg-irisnotices" class="pg"></div>
+    <div id="pg-irissync" class="pg"></div>
     <div id="pg-returns" class="pg"></div>
     <div id="pg-fees" class="pg"></div>
     <div id="pg-invoices" class="pg"></div>
@@ -2845,9 +2849,9 @@ var VAULT = {"v":1,"iter":600000,"data":{"iv":"wwh1g1echm0+y9Jo","ct":"NIPAQRs6I
 var USERS = {};
 Object.keys(VAULT.users).forEach(function(k){ var v=VAULT.users[k]; USERS[k]={ role:v.role, name:v.name, needsApproval:!!v.needsApproval, email:v.email||"" }; });
 var PERMS = {
-  admin:    { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1 },
-  reviewer: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:0, invoices:0, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1 },
-  staff:    { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, filing:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0, secp:0 }
+  admin:    { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1, irisnotices:1, irissync:1 },
+  reviewer: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:0, invoices:0, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1, irisnotices:1, irissync:0 },
+  staff:    { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, filing:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0, secp:0, irisnotices:0, irissync:0 }
 };
 
 /* ════════════════════════════════
@@ -2963,6 +2967,8 @@ function showToast(msg){
 ════════════════════════════════ */
 var MAX_ATT=5, LOCK_MS=300000, IDLE_MS=600000, IDLE_S=30;
 var att=0, lockUntil=0, role=null, userName=null, userKey=null, sessStart=null;
+/* read-only views of private state, for the IRIS module (iris-module.js) */
+try{ Object.defineProperty(window,"role",{get:function(){ return role; }}); }catch(e){}
 var idleT=null, idleC=null, idleSecs=IDLE_S;
 var notes=[];
 var selTaxType=null, selSubType=null;
@@ -3046,7 +3052,7 @@ function unlockVault(u,p){
 function loginOK(u,usr){
   role=usr.role; userName=usr.name; userKey=u; sessStart=Date.now();
   var p=PERMS[role];
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","filing","fees","invoices","comms","tools","library","exttools","advisories","secp"].forEach(function(k){
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","filing","irisnotices","irissync","fees","invoices","comms","tools","library","exttools","advisories","secp"].forEach(function(k){
     var el=$("tab-"+k); if(el) el.classList.toggle("hide",!p[k]);
   });
   buildPages(p);
@@ -3073,7 +3079,7 @@ function doLogout(){
   $("lpass").value=""; $("luser").value="";
   $("lbtn").textContent="Sign In →"; $("lbtn").disabled=false;
   att=0; updateDots(); hideErr();
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","fees","invoices","comms","tools","library","advisories","secp"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","filing","irisnotices","irissync","fees","invoices","comms","tools","library","advisories","secp"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
 }
 
 /* ════════════════════════════════
@@ -3104,6 +3110,8 @@ window.showPage = function showPage(id){
   $("pg-"+id).classList.add("on");
   $("tab-"+id).classList.add("on");
   if(id==="filing"&&window.renderFiling) renderFiling();
+  if(id==="irisnotices"&&window.IRIS) IRIS.noticesPage($("pg-irisnotices"));
+  if(id==="irissync"&&window.IRIS) IRIS.syncPage($("pg-irissync"));
   resetIdle();
 }
 
@@ -5872,6 +5880,7 @@ function renderProfileTab(){
   var c = getClient(profileIdx);
   var idx = profileIdx;
   var html = "";
+  if(profileTab === "correspondence"){ if(window.IRIS) IRIS.clientTab(body, c); return; }
 
   if(profileTab === "info"){
     html += '<div class="cp-info-grid">';
@@ -7165,7 +7174,7 @@ function addExportBar(id){
 /* ── DISPLAY-ONLY UI HELPERS (no data / permission logic) ── */
 function ico(n){ return '<svg class="ic" aria-hidden="true"><use href="#i-'+n+'"/></svg>'; }
 window.ico=ico;
-var PAGE_GROUP={dashboard:"Main",clients:"Main",calculator:"Main",deadlines:"Compliance",tasks:"Compliance",notices:"Compliance",returns:"Compliance",filing:"Compliance",iris:"Compliance",secp:"Compliance",fees:"Billing",invoices:"Billing",comms:"Resources",advisories:"Resources",library:"Resources",tools:"Resources"};
+var PAGE_GROUP={dashboard:"Main",clients:"Main",calculator:"Main",deadlines:"Compliance",tasks:"Compliance",notices:"Compliance",returns:"Compliance",filing:"Compliance",irisnotices:"Compliance",irissync:"Compliance",iris:"Compliance",secp:"Compliance",fees:"Billing",invoices:"Billing",comms:"Resources",advisories:"Resources",library:"Resources",tools:"Resources"};
 function uiRefreshShell(id){
   var tab=document.getElementById("tab-"+id), crumb=document.getElementById("sbar-page");
   if(tab&&crumb) crumb.textContent=tab.textContent.trim();
@@ -7738,6 +7747,7 @@ window.compWealthLoad=function(idx){
 var SUPA_URL="https://rscvtbhzygqnyjzgxmyh.supabase.co", SUPA_KEY="sb_publishable_EpqMmgUo5pObHDvcC24EMw_2FpX8Ttc";
 var CLOUD_SKIP={sc_anthropic_key:1};
 var _sb=null, _cloud=false, _cloudEmail="", _applyingRemote=false, _pushT={}, _pushing=0;
+try{ Object.defineProperty(window,"_sb",{get:function(){ return _sb; }}); Object.defineProperty(window,"_cloud",{get:function(){ return _cloud; }}); Object.defineProperty(window,"_cloudEmail",{get:function(){ return _cloudEmail; }}); }catch(e){}
 function _cloudKey(k){ return !!k && k.indexOf("sc_")===0 && !CLOUD_SKIP[k]; }
 function cloudStatus(t,title){ var el=document.getElementById("cloud-status"); if(el){ el.textContent=t; el.title=title||""; } }
 (function(){
@@ -8648,6 +8658,7 @@ Separate professional charges shall apply in the event of any tax proceeding / l
       <div class="cp-tab" data-cptab="iris">IRIS Payments</div>
       <div class="cp-tab" data-cptab="tasks">Tasks</div>
       <div class="cp-tab" data-cptab="notices">Notices</div>
+      <div class="cp-tab" data-cptab="correspondence">IRIS Correspondence</div>
       <div class="cp-tab" data-cptab="returns">Returns</div>
       <div class="cp-tab" data-cptab="fees">Fees</div>
       <div class="cp-tab" data-cptab="invoices">Invoices</div>
@@ -9866,5 +9877,6 @@ window.secpPrint = function(){
   </div>
 </div>
 
+<script src="iris-module.js?v=20261023"></script>
 </body>
 </html>
