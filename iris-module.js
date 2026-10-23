@@ -9,8 +9,9 @@
 (function () {
   "use strict";
   var SECTIONS = ["Inbox", "Outbox", "Completed Tasks"];          // Draft is never offered
-  var STATUS = [["new","New"],["in_progress","In progress"],["reply_drafted","Reply drafted"],
-                ["submitted","Submitted"],["closed","Closed"],["archived","Archived"],["not_ours","Not our client"]];
+  var STATUS = [["new","New"],["in_progress","Drafting"],["reply_drafted","Draft ready"],["in_review","In review"],
+                ["submitted","Filed"],["closed","Closed"],["archived","Archived"],["not_ours","Not our client"]];
+  var STAGES = ["new","in_progress","reply_drafted","in_review","submitted","closed"];     // the progress strip
   var STATUS_L = {}; STATUS.forEach(function (s) { STATUS_L[s[0]] = s[1]; });
   var HIGH = /^(122|121|138|182|161|137|124)\b/;                   // demands / orders / recovery first
 
@@ -43,6 +44,7 @@
     + ".ir-pill.hi{background:#f6e3e1;color:#9c3a32}.ir-pill.due{background:#fbefd9;color:#8a5a0b}.ir-pill.od{background:#9c3a32;color:#fff}"
     + ".ir-in{height:34px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;background:var(--card);color:var(--ink)}"
     + ".ir-sm{height:30px!important;font-size:12px!important;padding:0 10px!important}"
+    + ".ir-row>select.ir-in,.ir-row>input.ir-in,.ir-row>label>select.ir-in,.ir-row>label>input.ir-in{width:auto}"
     + ".ir-muted{color:var(--ink-3);font-size:12.5px}.ir-scroll{max-height:62vh;overflow:auto;border:1px solid var(--line);border-radius:10px}"
     + ".ir-modal{position:fixed;inset:0;background:rgba(10,20,36,.45);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:40px 16px}"
     + ".ir-modal>div{background:var(--card);border-radius:12px;max-width:900px;width:100%;max-height:85vh;overflow:auto;padding:20px 22px}"
@@ -248,7 +250,7 @@
     var all = [], from = 0, size = 1000;
     function page() {
       return Promise.resolve(sb().from("iris_notices")
-        .select("id,section,tab,task,law_section,client_name,reg_no,period,tax_year,due_date,pdf_path,pdf_ok,archived,iris_status,status,client_key,notes,internal_deadline,demand_amount,due_date_history,first_seen,last_seen")
+        .select("id,section,tab,task,law_section,client_name,reg_no,period,tax_year,due_date,pdf_path,pdf_ok,archived,iris_status,status,client_key,notes,internal_deadline,demand_amount,due_date_history,first_seen,last_seen,kind,source,forum,order_date,reference,received_date,officer,draft,history,updated_by")
         .order("due_date", {ascending: false, nullsFirst: false}).range(from, from + size - 1)).then(function (r) {
           if (r.error) throw r.error;
           all = all.concat(r.data || []);
@@ -273,12 +275,12 @@
     var moved = (n.due_date_history || []).length ? ' <span class="ir-pill due" title="IRIS changed the due date">date moved</span>' : "";
     return '<tr data-id="' + esc(n.id) + '">'
       + (showClient ? '<td><b>' + esc(n.client_name || "—") + '</b><div class="ir-muted">' + esc(n.reg_no || "") + (m ? ' · <a href="#" data-prof="' + m.idx + '">profile</a>' : ' · <a href="#" data-link="' + esc(digits(n.reg_no)) + '" style="color:var(--amber)">link client</a>') + '</div></td>' : "")
-      + '<td>' + (hi ? '<span class="ir-pill hi">' + esc(n.law_section || "") + '</span> ' : "") + esc(n.task) + '<div class="ir-muted">' + esc(n.section) + ' › ' + esc(n.tab) + '</div></td>'
+      + '<td>' + (n.kind === "appeal" ? '<span class="ir-pill due">Appeal</span> ' : "") + (hi ? '<span class="ir-pill hi">' + esc(n.law_section || "") + '</span> ' : "") + esc(n.task) + '<div class="ir-muted">' + esc(n.section) + ' › ' + esc(n.tab) + '</div></td>'
       + '<td>TY ' + esc(n.tax_year || "") + '<div class="ir-muted">' + esc(n.period || "") + '</div></td>'
       + '<td>' + fmtDate(n.due_date) + moved + '<div>' + dueBadge(n) + '</div></td>'
       + '<td><select class="ir-in ir-sm" data-st>' + STATUS.map(function (s) { return '<option value="' + s[0] + '"' + (n.status === s[0] ? " selected" : "") + ">" + s[1] + "</option>"; }).join("") + '</select></td>'
       + '<td style="white-space:nowrap">' + (n.pdf_ok ? '<button class="btn-sec ir-sm" data-pdf>PDF</button> ' : '<span class="ir-muted">' + (n.archived ? "archived" : "no PDF") + '</span> ')
-      + '<button class="btn-sec ir-sm" data-txt>Text</button></td></tr>';
+      + '<button class="btn-sec ir-sm" data-txt>Text</button> <button class="btn-sec ir-sm" data-open>Open</button></td></tr>';
   }
 
   function wireRows(root, list) {
@@ -305,6 +307,8 @@
           modal(esc(n.client_name) + " — " + esc(n.task), "<pre>" + esc((r.data && r.data.full_text) || "No text captured for this notice.") + "</pre>");
         });
       };
+      var op = tr.querySelector("[data-open]");
+      if (op) op.onclick = function () { detailDialog(n, function () { if (window.IRIS._refresh) window.IRIS._refresh(); }); };
       var pr = tr.querySelector("[data-prof]");
       if (pr) pr.onclick = function (e) { e.preventDefault(); if (window.openProfile) window.openProfile(+pr.dataset.prof); };
       var lk = tr.querySelector("[data-link]");
@@ -337,6 +341,206 @@
     document.body.appendChild(m); return m;
   }
 
+
+  /* ══════════════════════════════════════════════════════════════════════
+     APPEAL LIMITATION — days from service of the order. Edit here or with "Edit limitation days".
+     Confirm every period against the law in force before relying on it.
+     ══════════════════════════════════════════════════════════════════════ */
+  var LIMITS = [["cira_127","CIR(Appeals) — s.127 Income Tax Ordinance",30],["atir_131","ATIR — s.131 Income Tax Ordinance",60],
+                ["hc_133","High Court reference — s.133 Income Tax Ordinance",90],["cira_45b","CIR(Appeals) — s.45B Sales Tax Act",30],
+                ["atir_46","ATIR — s.46 Sales Tax Act",60],["manual","Other forum (enter the last date yourself)",null]];
+  function limits() {
+    var saved = {}; try { saved = JSON.parse(localStorage.getItem("sc_limitation") || "{}") || {}; } catch (e) {}
+    return LIMITS.map(function (l) { return [l[0], l[1], saved[l[0]] != null ? +saved[l[0]] : l[2]]; });
+  }
+  function limitDays(key) { var f = limits().filter(function (l) { return l[0] === key; })[0]; return f ? f[2] : null; }
+  function limitLabel(key) { var f = LIMITS.filter(function (l) { return l[0] === key; })[0]; return f ? f[1] : (key || ""); }
+  function addDays(iso, n) { var d = new Date(iso + "T00:00:00"); if (isNaN(d)) return ""; d.setDate(d.getDate() + n); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function dayName(iso) { var d = new Date(iso + "T00:00:00"); return isNaN(d) ? "" : ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][d.getDay()]; }
+  function limitDialog() {
+    var rows = limits().filter(function (l) { return l[2] != null; }).map(function (l) { return '<label class="ir-row" style="justify-content:space-between;margin-bottom:8px"><span>' + esc(l[1]) + '</span><input class="ir-in lim-in" data-k="' + l[0] + '" type="number" min="1" value="' + l[2] + '" style="width:80px"></label>'; }).join("");
+    var m = modal("Appeal limitation days", '<p class="ir-muted">Days counted from the date the order was served. These are set from memory of the law; <b>confirm each one against the law in force</b> before relying on it.</p>' + rows + '<div style="margin-top:12px"><button class="btn" id="lim-ok">Save</button></div>');
+    m.querySelector("#lim-ok").onclick = function () { var o = {}; m.querySelectorAll(".lim-in").forEach(function (i) { var v = +i.value; if (v > 0) o[i.dataset.k] = v; }); try { localStorage.setItem("sc_limitation", JSON.stringify(o)); } catch (e) {} m.remove(); };
+  }
+
+  /* ── helpers shared by the add and detail dialogs ── */
+  function clientOptions() { return (window.ALL_CLIENTS || []).map(function (c, i) { return c ? '<option value="' + esc(c.name) + '"></option>' : ""; }).join(""); }
+  function clientByName(name) { var list = window.ALL_CLIENTS || [], u = String(name || "").trim().toUpperCase(); for (var i = 0; i < list.length; i++) if (list[i] && String(list[i].name).toUpperCase() === u) return {idx: i, client: list[i]}; return null; }
+  function newId() { return "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function iso(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? v : null; }
+  function whoAmI() { return window._cloudEmail || ""; }
+
+  /* ── add a notice or an appeal ── */
+  function addDialog(done) {
+    var forumOpts = limits().map(function (l) { return '<option value="' + l[0] + '">' + esc(l[1]) + (l[2] != null ? " (" + l[2] + " days)" : "") + "</option>"; }).join("");
+    var m = modal("Add a notice or an appeal",
+      '<div class="ir-row" style="gap:10px;align-items:flex-end;margin-bottom:10px"><label>What is it? <select class="ir-in" id="ad-kind"><option value="notice">Notice received</option><option value="appeal">Appeal (order to appeal against)</option></select></label>'
+      + '<label class="btn-sec ir-sm" style="cursor:pointer;display:inline-flex;align-items:center;padding:0 12px">Fill from a notice file (PDF or photo)<input id="ad-file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none"></label><span class="ir-muted" id="ad-st"></span></div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">'
+      + '<label>Client<input class="ir-in" id="ad-client" list="ad-clients" style="width:100%" placeholder="Start typing the client name"></label><datalist id="ad-clients">' + clientOptions() + '</datalist>'
+      + '<label>Section / type<input class="ir-in" id="ad-task" list="ad-types" style="width:100%" placeholder="e.g. 122(9), 177, 182"></label><datalist id="ad-types"><option value="122(9) amendment"></option><option value="122(5A) amendment"></option><option value="177 audit"></option><option value="176 inquiry"></option><option value="137 recovery"></option><option value="161 / 205 default"></option><option value="182 penalty"></option><option value="Show cause"></option></datalist>'
+      + '<label>Reference / barcode<input class="ir-in" id="ad-ref" style="width:100%"></label>'
+      + '<label>Tax year<input class="ir-in" id="ad-year" style="width:100%" placeholder="e.g. 2024"></label>'
+      + '<label id="ad-recv-w">Date received<input class="ir-in" id="ad-recv" type="date" style="width:100%"></label>'
+      + '<label id="ad-due-w">Reply / hearing date<input class="ir-in" id="ad-due" type="date" style="width:100%"></label>'
+      + '<label>Amount demanded (Rs)<input class="ir-in" id="ad-amt" type="number" min="0" style="width:100%"></label></div>'
+      + '<div id="ad-appeal" style="display:none;margin-top:10px;border:1px solid var(--line-2);border-radius:8px;padding:10px 12px"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">'
+      + '<label>Appeal to<select class="ir-in" id="ad-forum" style="width:100%">' + forumOpts + '</select></label>'
+      + '<label>Order served on<input class="ir-in" id="ad-order" type="date" style="width:100%"></label>'
+      + '<label>Last date to appeal<input class="ir-in" id="ad-last" type="date" style="width:100%"></label></div>'
+      + '<div class="ir-muted" id="ad-lim" style="margin-top:8px"></div></div>'
+      + '<label style="display:block;margin-top:10px">Notes<textarea class="ir-in" id="ad-notes" rows="2" style="width:100%;height:auto;padding:8px"></textarea></label>'
+      + '<div class="ir-row" style="margin-top:12px"><button class="btn" id="ad-save">Save</button><span class="ir-muted" id="ad-msg"></span></div>');
+    var $ = function (id) { return m.querySelector("#" + id); }, file = null;
+    function setKind() {
+      var ap = $("ad-kind").value === "appeal";
+      $("ad-appeal").style.display = ap ? "" : "none"; $("ad-due-w").style.display = ap ? "none" : ""; $("ad-recv-w").firstChild.nodeValue = ap ? "Order date" : "Date received";
+      calc();
+    }
+    function calc() {
+      var days = limitDays($("ad-forum").value), od = $("ad-order").value, out = "";
+      if ($("ad-kind").value !== "appeal") { $("ad-lim").textContent = ""; return; }
+      if (days != null && od) { var last = addDays(od, days); $("ad-last").value = last; var wd = dayName(last); out = days + " days from service → " + fmtDate(last) + " (" + wd + ")." + (wd === "Sunday" || wd === "Saturday" ? " That is a weekend: confirm whether the next working day applies." : ""); }
+      else if (days == null) out = "Enter the last date yourself for this forum.";
+      $("ad-lim").textContent = out + " Confirm the period against the law in force.";
+    }
+    $("ad-kind").onchange = setKind; $("ad-forum").onchange = calc; $("ad-order").onchange = calc;
+    $("ad-file").onchange = function () {
+      file = this.files[0]; if (!file) return;
+      if (!window.ntExtractRecord) { $("ad-st").textContent = "Not available."; return; }
+      $("ad-st").textContent = "Reading…";
+      window.ntExtractRecord(file, function (t) { $("ad-st").textContent = t; }).then(function (r) {
+        $("ad-client").value = r.client || ""; $("ad-task").value = r.section || ""; $("ad-ref").value = r.ref || ""; $("ad-year").value = r.year || "";
+        $("ad-recv").value = r.received || ""; $("ad-due").value = r.deadline || ""; $("ad-amt").value = r.amount || ""; $("ad-notes").value = r.notes || "";
+        m._officer = r.officer || null; $("ad-st").textContent = "Filled in. Check it, then save.";
+      }).catch(function (e) { $("ad-st").textContent = e.message || String(e); });
+    };
+    $("ad-save").onclick = function () {
+      var kind = $("ad-kind").value, name = $("ad-client").value.trim(), cl = clientByName(name);
+      if (!name) { $("ad-msg").textContent = "Choose the client."; return; }
+      var task = $("ad-task").value.trim() || (kind === "appeal" ? "Appeal" : "Notice");
+      var due = kind === "appeal" ? iso($("ad-last").value) : iso($("ad-due").value);
+      if (kind === "appeal" && !due) { $("ad-msg").textContent = "Enter the order date (or the last date to appeal)."; return; }
+      var id = newId(), row = {id: id, source: "manual", kind: kind, section: "Manual", tab: kind === "appeal" ? "APPEALS" : "MANUAL", task: task,
+        law_section: (task.match(/^[0-9A-Za-z()\/ ]+?(?= |$)/) || [""])[0], client_name: cl ? cl.client.name : name,
+        reg_no: cl ? (digits(cl.client.id) || digits(cl.client.ntn) || null) : null, tax_year: $("ad-year").value.trim() || null,
+        due_date: due, received_date: iso($("ad-recv").value), reference: $("ad-ref").value.trim() || null, demand_amount: +$("ad-amt").value || null,
+        notes: $("ad-notes").value.trim() || null, status: "new", iris_status: "unchanged", officer: m._officer || null,
+        forum: kind === "appeal" ? $("ad-forum").value : null, order_date: kind === "appeal" ? iso($("ad-order").value) : null,
+        first_seen: new Date().toISOString().slice(0, 10), last_seen: new Date().toISOString().slice(0, 10), pdf_ok: false,
+        history: [{on: new Date().toISOString(), what: "created", by: whoAmI()}], updated_by: whoAmI()};
+      $("ad-save").disabled = true; $("ad-msg").textContent = "Saving…";
+      var up = file ? Promise.resolve(sb().storage.from("notices").upload("notices/" + id + "/" + file.name.replace(/[^\w.\-]+/g, "_"), file, {contentType: file.type, upsert: true})).then(function (r) { if (r && !r.error) { row.pdf_path = r.data.path; row.pdf_ok = file.type === "application/pdf"; } }).catch(function () {}) : Promise.resolve();
+      up.then(function () { return sb().from("iris_notices").insert(row); }).then(function (r) {
+        if (r && r.error) { $("ad-save").disabled = false; $("ad-msg").textContent = r.error.message; return; }
+        m.remove(); LINKS = null; if (done) done();
+      });
+    };
+    setKind();
+  }
+
+  /* ── one notice in full: stages, fields, history, draft reply ── */
+  function detailDialog(n, done) {
+    var lim = n.kind === "appeal";
+    function strip() {
+      var cur = STAGES.indexOf(n.status);
+      return '<div class="ir-row" style="gap:6px;margin:6px 0 12px">' + STAGES.map(function (s, i) {
+        var on = i === cur, past = cur > -1 && i < cur;
+        return '<button class="ir-pill dt-stage" data-s="' + s + '" style="cursor:pointer;border:0;padding:5px 11px;' + (on ? "background:var(--navy-700);color:#fff" : past ? "background:#e5f0e9;color:#2e7d4f" : "") + '">' + esc(STATUS_L[s]) + "</button>";
+      }).join("") + (cur < 0 ? '<span class="ir-pill">' + esc(STATUS_L[n.status] || n.status) + "</span>" : "") + "</div>";
+    }
+    function hist() {
+      var h = (n.history || []).slice().reverse().map(function (e) {
+        var t = new Date(e.on).toLocaleString("en-PK", {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"});
+        return '<div class="ir-muted">' + esc(t) + " — " + (e.what === "created" ? "added" : "stage " + esc(STATUS_L[e.from] || e.from) + " → " + esc(STATUS_L[e.to] || e.to)) + (e.by ? " (" + esc(e.by) + ")" : "") + "</div>";
+      }).join("");
+      var dd = (n.due_date_history || []).map(function (e) { return '<div class="ir-muted">IRIS moved the due date ' + esc(fmtDate(e.from)) + " → " + esc(fmtDate(e.to)) + " (" + esc(fmtDate(e.changed_on)) + ")</div>"; }).join("");
+      return h + dd || '<div class="ir-muted">No changes yet.</div>';
+    }
+    var body = '<div class="ir-muted">' + esc(n.client_name || "") + " · " + esc(n.reg_no || "") + " · " + (n.source === "manual" ? "added by hand" : "from IRIS") + (n.reference ? " · ref " + esc(n.reference) : "") + "</div>"
+      + '<div id="dt-strip">' + strip() + "</div>"
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">'
+      + '<label>' + (lim ? "Last date to appeal" : "Due date") + '<input class="ir-in" id="dt-due" type="date" value="' + esc(n.due_date || "") + '" style="width:100%"></label>'
+      + '<label>Our internal deadline<input class="ir-in" id="dt-int" type="date" value="' + esc(n.internal_deadline || "") + '" style="width:100%"></label>'
+      + '<label>Amount (Rs)<input class="ir-in" id="dt-amt" type="number" value="' + esc(n.demand_amount || "") + '" style="width:100%"></label>'
+      + (lim ? '<label>Appeal to<input class="ir-in" value="' + esc(limitLabel(n.forum)) + '" disabled style="width:100%"></label><label>Order served on<input class="ir-in" value="' + esc(n.order_date ? fmtDate(n.order_date) : "") + '" disabled style="width:100%"></label>' : "") + "</div>"
+      + '<label style="display:block;margin-top:10px">Notes<textarea class="ir-in" id="dt-notes" rows="3" style="width:100%;height:auto;padding:8px">' + esc(n.notes || "") + "</textarea></label>"
+      + '<div class="ir-row" style="margin-top:12px;gap:8px"><button class="btn" id="dt-save">Save</button>'
+      + (n.pdf_ok ? '<button class="btn-sec" id="dt-pdf">Open file</button>' : "")
+      + '<button class="btn-sec" id="dt-draft">' + (n.draft ? "Edit reply draft" : "Draft reply") + "</button>"
+      + (n.source === "manual" && window.role === "admin" ? '<button class="btn-sec" id="dt-del" style="margin-left:auto">Delete</button>' : "") + '<span class="ir-muted" id="dt-msg"></span></div>'
+      + '<h3 style="margin:16px 0 6px;font-family:var(--serif)">History</h3><div id="dt-hist">' + hist() + "</div>";
+    var m = modal(esc(n.task) + (n.tax_year ? " — TY " + esc(n.tax_year) : ""), body), $ = function (id) { return m.querySelector("#" + id); };
+    function setStage(s) {
+      sb().from("iris_notices").update({status: s, updated_by: whoAmI()}).eq("id", n.id).then(function (r) {
+        if (r && r.error) { $("dt-msg").textContent = r.error.message; return; }
+        n.history = (n.history || []).concat([{on: new Date().toISOString(), what: "stage", from: n.status, to: s, by: whoAmI()}]); n.status = s;
+        $("dt-strip").innerHTML = strip(); wireStrip(); $("dt-hist").innerHTML = hist(); if (done) done();
+      });
+    }
+    function wireStrip() { m.querySelectorAll(".dt-stage").forEach(function (b) { b.onclick = function () { setStage(b.dataset.s); }; }); }
+    wireStrip();
+    $("dt-save").onclick = function () {
+      var u = {due_date: iso($("dt-due").value), internal_deadline: iso($("dt-int").value), demand_amount: +$("dt-amt").value || null, notes: $("dt-notes").value.trim() || null, updated_by: whoAmI()};
+      sb().from("iris_notices").update(u).eq("id", n.id).then(function (r) { if (r && r.error) { $("dt-msg").textContent = r.error.message; return; } Object.assign(n, u); $("dt-msg").textContent = "Saved."; if (done) done(); });
+    };
+    if ($("dt-pdf")) $("dt-pdf").onclick = function () {
+      var w = window.open("", "_blank");
+      sb().storage.from("notices").createSignedUrl(n.pdf_path, 600).then(function (r) { if (r.error) { w.close(); alert(r.error.message); } else w.location = r.data.signedUrl; });
+    };
+    if ($("dt-del")) $("dt-del").onclick = function () {
+      if (!confirm("Delete this " + (lim ? "appeal" : "notice") + "? This cannot be undone.")) return;
+      sb().from("iris_notices").delete().eq("id", n.id).then(function (r) { if (r && r.error) { alert(r.error.message); return; } m.remove(); if (done) done(); });
+    };
+    $("dt-draft").onclick = function () {
+      if (!window.ntDraftFor) { alert("Reply drafting is not available in this version of the portal."); return; }
+      $("dt-msg").textContent = "Opening…";
+      Promise.resolve(sb().from("iris_notices").select("full_text").eq("id", n.id).single()).then(function (r) {
+        var mm = matchClient(n.reg_no), txt = (r && r.data && r.data.full_text) || "";
+        var obj = {id: n.id, client: n.client_name, clientIdx: mm ? mm.idx : -1, regNo: n.reg_no, year: n.tax_year, section: n.law_section || n.task, ref: n.reference,
+          received: n.received_date, deadline: n.due_date, amount: n.demand_amount || 0, type: "other",
+          notes: ((n.notes || "") + (txt ? "\nNotice text:\n" + txt.slice(0, 4000) : "")).trim(), officer: n.officer || {}, draft: n.draft || null,
+          file: n.pdf_path ? {path: n.pdf_path, name: String(n.pdf_path).split("/").pop(), type: "application/pdf"} : null};
+        $("dt-msg").textContent = "";
+        window.ntDraftFor(obj, function () {
+          var u = {draft: obj.draft, updated_by: whoAmI()}; if (n.status === "new" || n.status === "in_progress") u.status = "reply_drafted";
+          sb().from("iris_notices").update(u).eq("id", n.id).then(function (r2) {
+            if (r2 && r2.error) { alert("The draft could not be saved: " + r2.error.message); return; }
+            if (u.status && u.status !== n.status) { n.history = (n.history || []).concat([{on: new Date().toISOString(), what: "stage", from: n.status, to: u.status, by: whoAmI()}]); n.status = u.status; $("dt-strip").innerHTML = strip(); wireStrip(); $("dt-hist").innerHTML = hist(); }
+            n.draft = obj.draft; if (done) done();
+          });
+        });
+      });
+    };
+  }
+
+  /* ── one-time move of the old Notice Tracker list into this table ── */
+  var NT_TYPES = {amendment: "122 amendment", audit: "177 audit", recovery: "137 recovery", penalty: "182 penalty", show_cause: "Show cause", inquiry: "176 inquiry", other: "Other"};
+  function oldNotices() { try { return JSON.parse(localStorage.getItem("sc_notices") || "[]") || []; } catch (e) { return []; } }
+  function migrationBanner(box, done) {
+    var old = oldNotices();
+    if (!box || localStorage.getItem("sc_notices_migrated") || !old.length || window.role !== "admin") return;
+    box.innerHTML = '<div class="ir-pill due" style="padding:6px 12px">The old Notice Tracker has ' + old.length + ' notice' + (old.length === 1 ? "" : "s") + ' that are not in this list yet. <button class="btn-sec ir-sm" id="mg-go" style="margin-left:8px">Move them here</button> <span id="mg-msg"></span></div>';
+    box.querySelector("#mg-go").onclick = function () {
+      var btn = this; btn.disabled = true; box.querySelector("#mg-msg").textContent = "Moving…";
+      var rows = old.map(function (o) {
+        var cl = o.clientIdx >= 0 && window.ALL_CLIENTS ? window.ALL_CLIENTS[o.clientIdx] : (clientByName(o.client) || {}).client;
+        var task = (o.section ? o.section : NT_TYPES[o.type] || "Notice");
+        return {id: "m" + o.id, source: "manual", kind: "notice", section: "Manual", tab: "MANUAL", task: task, law_section: o.section || null,
+          client_name: o.client || (cl && cl.name) || "Unknown", reg_no: digits(o.regNo) || (cl ? digits(cl.id) || digits(cl.ntn) : "") || null, tax_year: o.year || null,
+          due_date: iso(o.deadline), received_date: iso(o.received), reference: o.ref || null, demand_amount: o.amount || null, notes: o.notes || null,
+          status: o.status === "resolved" ? "closed" : (o.draft ? "reply_drafted" : "new"), iris_status: "unchanged", officer: o.officer || null, draft: o.draft || null,
+          pdf_path: o.file && o.file.path || null, pdf_ok: !!(o.file && o.file.path && /pdf/i.test(o.file.type || "")), first_seen: iso(o.received), last_seen: iso(o.received),
+          history: [{on: new Date().toISOString(), what: "created", by: whoAmI()}], updated_by: whoAmI()};
+      });
+      Promise.resolve(sb().from("iris_notices").upsert(rows)).then(function (r) {
+        if (r && r.error) { btn.disabled = false; box.querySelector("#mg-msg").textContent = r.error.message; return; }
+        try { localStorage.setItem("sc_notices_migrated", new Date().toISOString()); } catch (e) {}
+        box.innerHTML = '<div class="ir-muted">Moved ' + rows.length + ' notices. The old list is kept as a backup in this browser.</div>'; if (done) done();
+      });
+    };
+  }
+
   function noticesPage(el) {
     if (!online()) return offlineMsg(el);
     el.innerHTML = '<div class="page-header" data-group="Correspondence"><div class="page-title">IRIS Notices</div><div class="page-sub" id="ir-n-sub">Loading…</div></div>'
@@ -347,13 +551,17 @@
       + '<select class="ir-in" id="ir-f-st"><option value="open">Open (not closed/archived)</option><option value="">All statuses</option>' + STATUS.map(function (s) { return '<option value="' + s[0] + '">' + s[1] + "</option>"; }).join("") + '</select>'
       + '<select class="ir-in" id="ir-f-due"><option value="">Any due date</option><option value="od">Overdue</option><option value="7">Due in 7 days</option><option value="30">Due in 30 days</option></select>'
       + '<select class="ir-in" id="ir-f-map"><option value="">All clients</option><option value="un">Unmatched only</option></select>'
-      + '<button class="btn-sec ir-sm" id="ir-f-r">Refresh</button></div></div>'
+      + '<select class="ir-in" id="ir-f-kind"><option value="">Notices and appeals</option><option value="notice">Notices only</option><option value="appeal">Appeals only</option></select>'
+      + '<button class="btn ir-sm" id="ir-add">+ Add notice / appeal</button><button class="btn-sec ir-sm" id="ir-lim">Edit limitation days</button>'
+      + '<button class="btn-sec ir-sm" id="ir-f-r">Refresh</button></div><div id="ir-mig" style="margin-top:10px"></div></div>'
       + '<div class="ir-scroll"><table class="ir-t"><thead><tr><th>Client</th><th>Notice</th><th>Year</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="ir-n-body"></tbody></table></div></div>';
     var data = [];
     function render() {
+      var kindv = q(el, "#ir-f-kind").value;
       var qv = q(el, "#ir-f-q").value.toLowerCase().trim(), sec = q(el, "#ir-f-sec").value, tab = q(el, "#ir-f-tab").value,
           stv = q(el, "#ir-f-st").value, due = q(el, "#ir-f-due").value, map = q(el, "#ir-f-map").value;
       var list = data.filter(function (n) {
+        if (kindv && (n.kind || "notice") !== kindv) return false;
         if (sec && n.section !== sec) return false;
         if (tab && n.tab !== tab) return false;
         if (stv === "open" && ["closed","archived","not_ours"].indexOf(n.status) > -1) return false;
@@ -375,7 +583,7 @@
       wireRows(el, shown);
       var od = data.filter(function (n) { var d = daysTo(n.due_date); return d !== null && d < 0 && ["closed","archived","not_ours","submitted"].indexOf(n.status) < 0; }).length;
       var un = data.filter(function (n) { return !n.archived && !matchClient(n.reg_no); }).length;
-      q(el, "#ir-n-sub").textContent = data.length + " notices from IRIS · " + list.length + " shown" + (list.length > 500 ? " (first 500)" : "") + " · " + od + " overdue · " + un + " unmatched";
+      q(el, "#ir-n-sub").textContent = data.length + " notices and appeals · " + list.length + " shown" + (list.length > 500 ? " (first 500)" : "") + " · " + od + " overdue · " + un + " unmatched";
     }
     function load(force) {
       loadNotices(force).then(function (d) {
@@ -385,8 +593,11 @@
         render();
       }).catch(function (e) { q(el, "#ir-n-sub").textContent = "Could not load: " + (e.message || e); });
     }
-    ["#ir-f-q","#ir-f-sec","#ir-f-tab","#ir-f-st","#ir-f-due","#ir-f-map"].forEach(function (s) { q(el, s).oninput = render; q(el, s).onchange = render; });
+    ["#ir-f-q","#ir-f-sec","#ir-f-tab","#ir-f-st","#ir-f-due","#ir-f-map","#ir-f-kind"].forEach(function (s) { q(el, s).oninput = render; q(el, s).onchange = render; });
     q(el, "#ir-f-r").onclick = function () { load(true); };
+    q(el, "#ir-add").onclick = function () { addDialog(function () { load(true); }); };
+    q(el, "#ir-lim").onclick = limitDialog;
+    migrationBanner(q(el, "#ir-mig"), function () { load(true); });
     window.IRIS._refresh = function () { load(true); };
     load(false);
   }
