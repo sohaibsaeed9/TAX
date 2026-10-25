@@ -85,7 +85,9 @@
       + '<div class="page-header" data-group="Automation"><div class="page-title">IRIS Sync</div>'
       + '<div class="page-sub">Pull notices from IRIS on the office computer. Pick what to run, watch it live, stop any time.</div></div>'
       + '<div class="ir-wrap">'
-      + '<div class="ir-card"><div class="ir-row" id="ir-runner">Checking runner…</div></div>'
+      + '<div class="ir-card"><div class="ir-row" id="ir-runner">Checking runner…</div>'
+      + '<div class="ir-row" style="margin-top:14px"><button class="btn" id="ir-all">Update everything now</button>'
+      + '<span class="ir-muted" id="ir-all-msg">Checks Inbox, Outbox and Completed Tasks for new notices (quick scan).</span></div></div>'
       + '<div class="ir-card"><h3>What to run</h3><div id="ir-sel"></div>'
       + '<div class="ir-row" style="margin-top:10px">'
       + '<label>Mode <select class="ir-in" id="ir-mode">'
@@ -106,17 +108,44 @@
     var runner = null, current = null;
     q(el, "#ir-mode").onchange = function () { q(el, "#ir-pt-w").style.display = this.value === "test" ? "" : "none"; };
 
+    function runnerOnline() { return !!(runner && runner.last_heartbeat && (Date.now() - new Date(runner.last_heartbeat)) / 1000 <= 120); }
+    /* asks Windows to start the runner on THIS computer (works on the office PC once the link handler is installed) */
+    function launchRunner() { var a = document.createElement("a"); a.href = "iris-runner://start"; a.style.display = "none"; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 500); }
+    function startHint() {
+      return '<div class="ir-muted" style="flex-basis:100%;margin-top:6px"><a href="#" id="ir-start" class="btn-sec ir-sm" style="display:inline-flex;align-items:center;padding:0 12px;text-decoration:none">Start the runner on this computer</a> '
+        + 'Works on the office PC only. The first time, Chrome asks to open IRIS Runner: tick <b>Always allow</b> and press Open.</div>';
+    }
     function renderRunner() {
       var box = q(el, "#ir-runner");
-      if (!runner) { box.innerHTML = '<span class="ir-dot ir-bad"></span><b>No runner set up yet.</b>&nbsp;<span class="ir-muted">Install it on the office PC (see SETUP).</span>'; return; }
+      if (!runner) { box.innerHTML = '<span class="ir-dot ir-bad"></span><b>No runner set up yet.</b>&nbsp;<span class="ir-muted">Install it on the office PC (see SETUP).</span>' + startHint(); wireStart(); return; }
       var age = (Date.now() - new Date(runner.last_heartbeat)) / 1000;
       var cls = age > 120 ? "ir-bad" : runner.iris_logged_in === false ? "ir-warn" : "ir-ok";
       var txt = age > 120 ? "Offline — the runner computer is off or asleep"
               : runner.iris_logged_in === false ? "IRIS login needed — log in on " + esc(runner.machine)
               : runner.current_job ? "Working on job #" + runner.current_job : "Online and ready";
-      box.innerHTML = '<span class="ir-dot ' + cls + '"></span><b>' + txt + '</b>&nbsp;<span class="ir-muted">· ' + esc(runner.runner_id) + ' · ' + esc(runner.machine || "") + ' · last seen ' + ago(runner.last_heartbeat) + '</span>';
+      box.innerHTML = '<span class="ir-dot ' + cls + '"></span><b>' + txt + '</b>&nbsp;<span class="ir-muted">· ' + esc(runner.runner_id) + ' · ' + esc(runner.machine || "") + ' · last seen ' + ago(runner.last_heartbeat) + '</span>'
+        + (age > 120 ? startHint() : runner.iris_logged_in === false ? '<div class="ir-muted" style="flex-basis:100%;margin-top:6px">Switch to the Chrome window on the office PC and log in to IRIS. The run carries on by itself.</div>' : "");
+      wireStart();
+    }
+    function wireStart() {
+      var b = q(el, "#ir-start"); if (!b) return;
+      b.onclick = function (e) { e.preventDefault(); launchRunner(); b.textContent = "Starting… the light turns green in about a minute"; };
     }
 
+    var lastTabs = "";
+    function applyRunner(row) {
+      runner = row; renderRunner();
+      var j = JSON.stringify((row && row.tab_counts) || {});
+      if (j === lastTabs) return;
+      var keep = {};                                    // remember what is ticked, then redraw the tab lists
+      el.querySelectorAll(".ir-s").forEach(function (x) { keep["s|" + x.dataset.s] = x.checked; });
+      el.querySelectorAll(".ir-all").forEach(function (x) { keep["a|" + x.dataset.s] = x.checked; });
+      el.querySelectorAll(".ir-t").forEach(function (x) { keep["t|" + x.dataset.s + "|" + x.dataset.t] = x.checked; });
+      renderSelection(); lastTabs = j;
+      el.querySelectorAll(".ir-s").forEach(function (x) { if (("s|" + x.dataset.s) in keep) x.checked = keep["s|" + x.dataset.s]; });
+      el.querySelectorAll(".ir-all").forEach(function (x) { var k = "a|" + x.dataset.s; if (k in keep) { x.checked = keep[k]; x.onchange(); } });
+      el.querySelectorAll(".ir-t").forEach(function (x) { var k = "t|" + x.dataset.s + "|" + x.dataset.t; if (k in keep && !x.disabled) x.checked = keep[k]; });
+    }
     function renderSelection() {
       var tc = (runner && runner.tab_counts) || {};
       var h = "";
@@ -217,17 +246,34 @@
     };
     q(el, "#ir-stop").onclick = function () {
       if (!current) return;
+      if (current.status === "queued") {          // nobody has started it yet: cancel it outright
+        var id = current.id;
+        sb().from("iris_jobs").update({status: "stopped", stop_requested: true, finished_at: new Date().toISOString()}).eq("id", id).then(function () { current = null; renderCurrent(); renderHistory(); });
+        return;
+      }
       sb().from("iris_jobs").update({stop_requested: true}).eq("id", current.id).then(function () { current.stop_requested = true; renderCurrent(); });
+    };
+    q(el, "#ir-all").onclick = function () {
+      if (window.role !== "admin") { alert("Only the admin can start IRIS runs."); return; }
+      if (current) { alert("A run is already queued or running."); return; }
+      var btn = this, msg = q(el, "#ir-all-msg"); btn.disabled = true;
+      var row = {created_by: window._cloudEmail || "", mode: "quick", selection: {"Inbox": ["*"], "Outbox": ["*"], "Completed Tasks": ["*"]}};
+      Promise.resolve(sb().from("iris_jobs").insert(row).select()).then(function (r) {
+        btn.disabled = false;
+        if (r.error) { msg.textContent = "Could not start: " + r.error.message; return; }
+        current = r.data[0]; q(el, "#ir-log").innerHTML = ""; renderCurrent(); renderHistory();
+        if (!runnerOnline()) { launchRunner(); msg.textContent = "Update queued. Starting the runner on this computer; if IRIS asks for a login, switch to the Chrome window it opens."; }
+        else msg.textContent = "Update started. If IRIS asks for a login, switch to the Chrome window on the office PC.";
+      });
     };
 
     // initial load + live updates
     Promise.resolve(sb().from("iris_runner").select("*").order("last_heartbeat", {ascending: false}).limit(1)).then(function (r) {
-      runner = (r.data || [])[0] || null; renderRunner(); renderSelection();
+      applyRunner((r.data || [])[0] || null);
     });
     renderHistory();
     syncSubs.push(sb().channel("ir-runner").on("postgres_changes", {event: "*", schema: "public", table: "iris_runner"}, function (ev) {
-      var hadTabs = runner && runner.tab_counts && Object.keys(runner.tab_counts).length;
-      runner = ev.new; renderRunner(); if (!hadTabs) renderSelection();
+      applyRunner(ev.new);
     }).subscribe());
     syncSubs.push(sb().channel("ir-jobs").on("postgres_changes", {event: "*", schema: "public", table: "iris_jobs"}, function (ev) {
       if (current && ev.new && ev.new.id === current.id) { current = ev.new; renderCurrent(); if (["done","failed","stopped"].indexOf(current.status) > -1) renderHistory(); }
@@ -236,7 +282,10 @@
     syncSubs.push(sb().channel("ir-log").on("postgres_changes", {event: "INSERT", schema: "public", table: "iris_job_log"}, function (ev) {
       if (current && ev.new.job_id === current.id) addLog([ev.new]);
     }).subscribe());
-    var t = setInterval(function () { if (!document.body.contains(el.firstChild)) { clearInterval(t); return; } renderRunner(); }, 30000);
+    var t = setInterval(function () {                 // re-read the runner row now and then, in case a live update was missed
+      if (!document.body.contains(el.firstChild)) { clearInterval(t); return; }
+      Promise.resolve(sb().from("iris_runner").select("*").order("last_heartbeat", {ascending: false}).limit(1)).then(function (r) { applyRunner((r.data || [])[0] || null); });
+    }, window.IRIS && window.IRIS._pollMs || 30000);
   }
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -412,6 +461,23 @@
     }).catch(function (e) { el.innerHTML = '<div class="task-empty">Could not load: ' + esc(e.message || e) + "</div>"; });
   }
 
-  window.IRIS = {syncPage: syncPage, noticesPage: noticesPage, clientTab: clientTab, matchClient: matchClient,
+  /* The filed income tax returns that IRIS Sync downloaded (Completed Tasks > DECLARATION, s.114, one tax year), each matched to a client */
+  function returns(ty) {
+    return loadNotices(true).then(function (all) {
+      var out = [];
+      all.forEach(function (n) {
+        if (n.section !== "Completed Tasks" || String(n.tab || "").toUpperCase() !== "DECLARATION") return;
+        if (!/^\s*114/.test(n.law_section || n.task || "")) return;
+        if (String(n.tax_year || "") !== String(ty)) return;
+        if (!n.pdf_ok || !n.pdf_path) return;
+        var m = matchClient(n.reg_no);
+        out.push({id: n.id, reg_no: n.reg_no, name: n.client_name, path: n.pdf_path, idx: m ? m.idx : -1, seen: n.first_seen || ""});
+      });
+      out.sort(function (a, b) { return String(a.seen).localeCompare(String(b.seen)); });   // newest last, so it wins when a client has two
+      return out;
+    });
+  }
+
+  window.IRIS = {returns: returns, syncPage: syncPage, noticesPage: noticesPage, clientTab: clientTab, matchClient: matchClient,
                  reload: function () { NCACHE = null; LINKS = null; }};
 })();
