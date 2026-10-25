@@ -132,6 +132,20 @@
       b.onclick = function (e) { e.preventDefault(); launchRunner(); b.textContent = "Starting… the light turns green in about a minute"; };
     }
 
+    var lastTabs = "";
+    function applyRunner(row) {
+      runner = row; renderRunner();
+      var j = JSON.stringify((row && row.tab_counts) || {});
+      if (j === lastTabs) return;
+      var keep = {};                                    // remember what is ticked, then redraw the tab lists
+      el.querySelectorAll(".ir-s").forEach(function (x) { keep["s|" + x.dataset.s] = x.checked; });
+      el.querySelectorAll(".ir-all").forEach(function (x) { keep["a|" + x.dataset.s] = x.checked; });
+      el.querySelectorAll(".ir-t").forEach(function (x) { keep["t|" + x.dataset.s + "|" + x.dataset.t] = x.checked; });
+      renderSelection(); lastTabs = j;
+      el.querySelectorAll(".ir-s").forEach(function (x) { if (("s|" + x.dataset.s) in keep) x.checked = keep["s|" + x.dataset.s]; });
+      el.querySelectorAll(".ir-all").forEach(function (x) { var k = "a|" + x.dataset.s; if (k in keep) { x.checked = keep[k]; x.onchange(); } });
+      el.querySelectorAll(".ir-t").forEach(function (x) { var k = "t|" + x.dataset.s + "|" + x.dataset.t; if (k in keep && !x.disabled) x.checked = keep[k]; });
+    }
     function renderSelection() {
       var tc = (runner && runner.tab_counts) || {};
       var h = "";
@@ -255,12 +269,11 @@
 
     // initial load + live updates
     Promise.resolve(sb().from("iris_runner").select("*").order("last_heartbeat", {ascending: false}).limit(1)).then(function (r) {
-      runner = (r.data || [])[0] || null; renderRunner(); renderSelection();
+      applyRunner((r.data || [])[0] || null);
     });
     renderHistory();
     syncSubs.push(sb().channel("ir-runner").on("postgres_changes", {event: "*", schema: "public", table: "iris_runner"}, function (ev) {
-      var hadTabs = runner && runner.tab_counts && Object.keys(runner.tab_counts).length;
-      runner = ev.new; renderRunner(); if (!hadTabs) renderSelection();
+      applyRunner(ev.new);
     }).subscribe());
     syncSubs.push(sb().channel("ir-jobs").on("postgres_changes", {event: "*", schema: "public", table: "iris_jobs"}, function (ev) {
       if (current && ev.new && ev.new.id === current.id) { current = ev.new; renderCurrent(); if (["done","failed","stopped"].indexOf(current.status) > -1) renderHistory(); }
@@ -269,7 +282,10 @@
     syncSubs.push(sb().channel("ir-log").on("postgres_changes", {event: "INSERT", schema: "public", table: "iris_job_log"}, function (ev) {
       if (current && ev.new.job_id === current.id) addLog([ev.new]);
     }).subscribe());
-    var t = setInterval(function () { if (!document.body.contains(el.firstChild)) { clearInterval(t); return; } renderRunner(); }, 30000);
+    var t = setInterval(function () {                 // re-read the runner row now and then, in case a live update was missed
+      if (!document.body.contains(el.firstChild)) { clearInterval(t); return; }
+      Promise.resolve(sb().from("iris_runner").select("*").order("last_heartbeat", {ascending: false}).limit(1)).then(function (r) { applyRunner((r.data || [])[0] || null); });
+    }, window.IRIS && window.IRIS._pollMs || 30000);
   }
 
   /* ══════════════════════════════════════════════════════════════════════
