@@ -461,6 +461,23 @@
     }).catch(function (e) { el.innerHTML = '<div class="task-empty">Could not load: ' + esc(e.message || e) + "</div>"; });
   }
 
-  window.IRIS = {syncPage: syncPage, noticesPage: noticesPage, clientTab: clientTab, matchClient: matchClient,
+  /* The filed income tax returns that IRIS Sync downloaded (Completed Tasks > DECLARATION, s.114, one tax year), each matched to a client */
+  function returns(ty) {
+    return loadNotices(true).then(function (all) {
+      var out = [];
+      all.forEach(function (n) {
+        if (n.section !== "Completed Tasks" || String(n.tab || "").toUpperCase() !== "DECLARATION") return;
+        if (!/^\s*114/.test(n.law_section || n.task || "")) return;
+        if (String(n.tax_year || "") !== String(ty)) return;
+        if (!n.pdf_ok || !n.pdf_path) return;
+        var m = matchClient(n.reg_no);
+        out.push({id: n.id, reg_no: n.reg_no, name: n.client_name, path: n.pdf_path, idx: m ? m.idx : -1, seen: n.first_seen || ""});
+      });
+      out.sort(function (a, b) { return String(a.seen).localeCompare(String(b.seen)); });   // newest last, so it wins when a client has two
+      return out;
+    });
+  }
+
+  window.IRIS = {returns: returns, syncPage: syncPage, noticesPage: noticesPage, clientTab: clientTab, matchClient: matchClient,
                  reload: function () { NCACHE = null; LINKS = null; }};
 })();
