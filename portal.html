@@ -2956,7 +2956,7 @@ function reloadLsKey(key){
       renderClients&&renderClients();
     }
     else if(key==="sc_notices"){ NOTICES=JSON.parse(localStorage.getItem(key)||"[]"); }
-    else if(key==="sc_returns"){ RETURNS=JSON.parse(localStorage.getItem(key)||"[]"); }
+    else if(key==="sc_returns"){ RETURNS=JSON.parse(localStorage.getItem(key)||"[]"); typeof renderClients==="function"&&renderClients(); }
     else if(key==="sc_comms"){ COMMS=JSON.parse(localStorage.getItem(key)||"[]"); }
     else if(key==="sc_iris"){ IRIS_DATA=JSON.parse(localStorage.getItem(key)||"{}"); }
     else if(key==="sc_advisories"){ ADVISORIES=JSON.parse(localStorage.getItem(key)||"[]"); }
@@ -4760,7 +4760,7 @@ function seedReturns2026(){
     RETURNS.push({id:2026000000+k,client:nm,year:"2026",type:"income",date:r[4],status:"filed"});
   });
 }
-function saveReturns(desc){ guardedSave("sc_returns", JSON.stringify(RETURNS), desc||"Updated returns", function(){ try{ localStorage.setItem("sc_returns",JSON.stringify(RETURNS)); }catch(e){} }); }
+function saveReturns(desc){ guardedSave("sc_returns", JSON.stringify(RETURNS), desc||"Updated returns", function(){ try{ localStorage.setItem("sc_returns",JSON.stringify(RETURNS)); }catch(e){} }); typeof renderClients==="function"&&renderClients(); }
 window.deleteReturn = function(id){ RETURNS=RETURNS.filter(function(r){ return r.id!==id; }); saveReturns(); renderReturns(); };
 
 function wireReturns(){
