@@ -4635,8 +4635,7 @@ function openTagPrintWindow(tagsHtml, title){
     + '<style>'
     + '@page{margin:8mm;size:A4;}'
     + 'body{margin:0;padding:0;font-family:"Times New Roman",Times,serif;}'
-    + '.file-tag{width:172.5mm;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;border-bottom:none;page-break-inside:avoid;box-sizing:border-box;overflow:hidden;}'
-    + '.file-tag:last-child{border-bottom:1.5px solid #000;}'
+    + '.file-tag{width:172.5mm;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;margin-bottom:5mm;page-break-inside:avoid;box-sizing:border-box;overflow:hidden;}'
     + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;}'
     + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
     + '.tag-name,.tag-year{font-weight:700;white-space:nowrap;display:block;font-family:"Times New Roman",Times,serif;}'
@@ -7174,8 +7173,9 @@ window.exportPageExcel=function(id){
   var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,d.title.slice(0,31));
   XLSX.writeFile(wb,d.title.replace(/[^A-Za-z0-9]+/g,"_")+"_"+_stamp()+".xlsx");
 };
-window.printPage=function(id){
+function _doPrint(id,keep){
   var d=EXPORTERS[id](); if(!d.rows.length){ alert("Nothing to print on this page yet."); return; }
+  if(keep){ d={title:d.title,cols:keep.map(function(i){return d.cols[i];}),rows:d.rows.map(function(r){return keep.map(function(i){return r[i];});})}; }
   var num=function(v){ return typeof v==="number"; };
   var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+escHtml(d.title)+'</title><style>'
     +'@page{size:A4 landscape;margin:12mm;}body{font-family:Arial,sans-serif;color:#000;background:#fff;margin:0;}'
@@ -7189,6 +7189,30 @@ window.printPage=function(id){
     +'</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>';
   var w=window.open("","_blank"); if(!w){ alert("Please allow pop-ups to print."); return; }
   w.document.write(h); w.document.close();
+}
+window.printPage=function(id){
+  var d=EXPORTERS[id](); if(!d.rows.length){ alert("Nothing to print on this page yet."); return; }
+  var key="sc_printcols_"+id, saved=null; try{ saved=JSON.parse(localStorage.getItem(key)||"null"); }catch(e){}
+  var old=document.getElementById("pc-dlg"); if(old) old.remove();
+  var o=document.createElement("div"); o.id="pc-dlg";
+  o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;";
+  var box='<div style="background:#fff;color:#1a2744;border-radius:10px;padding:18px 20px;max-width:380px;width:100%;max-height:90vh;overflow:auto;font-family:inherit;">'
+   +'<div style="font-weight:700;font-size:15px;margin-bottom:4px;">Columns to print</div><div style="font-size:12px;color:#555;margin-bottom:10px;">Tick what you want on the printout. Your choice is remembered.</div>'
+   +'<div style="display:flex;gap:8px;margin-bottom:8px;"><button type="button" data-a="all" style="font-size:12px;padding:4px 10px;cursor:pointer;">Select all</button><button type="button" data-a="none" style="font-size:12px;padding:4px 10px;cursor:pointer;">Clear all</button></div>'
+   +d.cols.map(function(c,i){ var on=saved?saved.indexOf(c)>-1:true; return '<label style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer;"><input type="checkbox" class="pc-ck" value="'+i+'"'+(on?' checked':'')+'>'+escHtml(c)+'</label>'; }).join("")
+   +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;"><button type="button" data-a="cancel" style="padding:7px 14px;cursor:pointer;">Cancel</button><button type="button" data-a="go" style="padding:7px 16px;background:#1a2744;color:#fff;border:0;border-radius:6px;font-weight:600;cursor:pointer;">Print</button></div></div>';
+  o.innerHTML=box; document.body.appendChild(o);
+  o.addEventListener("click",function(e){
+    var a=e.target.getAttribute&&e.target.getAttribute("data-a");
+    if(e.target===o||a==="cancel"){ o.remove(); return; }
+    if(a==="all"||a==="none"){ o.querySelectorAll(".pc-ck").forEach(function(x){ x.checked=(a==="all"); }); return; }
+    if(a==="go"){
+      var keep=[].slice.call(o.querySelectorAll(".pc-ck")).filter(function(x){return x.checked;}).map(function(x){return +x.value;});
+      if(!keep.length){ alert("Tick at least one column."); return; }
+      try{ localStorage.setItem(key,JSON.stringify(keep.map(function(i){return d.cols[i];}))); }catch(e2){}
+      o.remove(); _doPrint(id,keep);
+    }
+  });
 };
 function addExportBar(id){
   if(!EXPORTERS[id]) return;
