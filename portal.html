@@ -4195,6 +4195,19 @@ var EXTRA_CLIENTS = [];
 try{ EXTRA_CLIENTS = JSON.parse(localStorage.getItem("sc_extra_clients")||"[]"); }catch(e){}
 window.ALL_CLIENTS = ALL_CLIENTS;
 var FILED26={};
+// 2026 filed status for client index i: an uploaded filed return, or a 2026 income-tax
+// record in the Return Register with the same client name. Returns [[..., date]] or null.
+function _nrm(s){ return String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim(); }
+function f26Of(i){
+  if(FILED26[i]) return FILED26[i];
+  var c=ALL_CLIENTS[i]; if(!c) return null;
+  var nm=_nrm(c.name);
+  for(var k=0;k<RETURNS.length;k++){
+    var r=RETURNS[k];
+    if(String(r.year)==="2026" && r.type==="income" && r.status==="filed" && _nrm(r.client)===nm) return [[null,null,null,null,r.date||""]];
+  }
+  return null;
+}
 // Runs once the vault is unlocked: extra clients get indices >= base length
 function initClientData(){
   for(var i=0;i<EXTRA_CLIENTS.length;i++){ if(EXTRA_CLIENTS[i]) ALL_CLIENTS.push(EXTRA_CLIENTS[i]); }
@@ -4385,7 +4398,7 @@ function renderClients(){
     if(cs.archived) nArch++;
     if(!!cs.archived!==curArch) continue;
     nView++;
-    if(FILED26[si]) nF26++;
+    if(f26Of(si)) nF26++;
     var sc2=getStatusClass(cs.status);
     if(sc2==="ACTIVE") nActive++;
     else if(sc2==="INACTIVE") nInactive++;
@@ -4411,8 +4424,8 @@ function renderClients(){
     var sc=getStatusClass(c.status);
     if(!!c.archived!==curArch) continue;
     if(curFilter!=="ALL" && sc!==curFilter) continue;
-    if(curF26==="F26" && !FILED26[i]) continue;
-    if(curF26==="P26" && FILED26[i]) continue;
+    if(curF26==="F26" && !f26Of(i)) continue;
+    if(curF26==="P26" && f26Of(i)) continue;
     if(q){
       var nm=c.name.toLowerCase().indexOf(q)>-1;
       var id=(c.id||"").toLowerCase().indexOf(q)>-1;
@@ -4433,7 +4446,7 @@ function renderClients(){
     var waBtn = (phoneWA||phone)
       ? "<button onclick=\"openWAPanel("+idx+")\" style=\"background:#25d366;border:none;color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;\"><svg class=ic aria-hidden=true><use href=#i-chat /></svg>Msg</button>"
       : "<button onclick=\"openEditPanel("+idx+")\" style=\"background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;\">+ Add</button>";
-    var f26=FILED26[idx];
+    var f26=f26Of(idx);
     var f26Html=f26?"<span class=\"sbadge ACTIVE\" title=\"Filed "+escHtml(f26[0][4])+"\">Filed "+escHtml(new Date(f26[0][4]+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"short"}))+"</span>":"<span class=\"sbadge BLANK\">Pending</span>";
     html+="<div class=\"client-row\" style=\"grid-template-columns:32px 60px 1fr 140px 100px 100px 80px 80px 65px;\">";
     html+="<div><input type=\"checkbox\" class=\"tag-select-cb\" data-idx=\""+idx+"\" onchange=\"updateBatchPrintBtn()\"></div>";
@@ -7136,10 +7149,10 @@ var EXPORTERS={
       var c=getClient(i), sc=getStatusClass(c.status);
       if(!!c.archived!==curArch) continue;
       if(curFilter!=="ALL" && sc!==curFilter) continue;
-      if(curF26==="F26" && !FILED26[i]) continue;
-      if(curF26==="P26" && FILED26[i]) continue;
+      if(curF26==="F26" && !f26Of(i)) continue;
+      if(curF26==="P26" && f26Of(i)) continue;
       if(q && !_has(c,q,["name","id","sr","newFile","phone"])) continue;
-      rows.push([c.sr||"",c.newFile||"",c.name,c.ntn||"",c.id||"",getStatusLabel(c.status),FILED26[i]?"Filed":"Pending",FILED26[i]?_fd(FILED26[i][0][4]):"",c.phone||"",c.email||"",c.address||""]);
+      rows.push([c.sr||"",c.newFile||"",c.name,c.ntn||"",c.id||"",getStatusLabel(c.status),f26Of(i)?"Filed":"Pending",f26Of(i)?_fd(f26Of(i)[0][4]):"",c.phone||"",c.email||"",c.address||""]);
     }
     return {title:curArch?"Archived Clients":"Client Index",cols:["SR No.","File No.","Name","NTN","ID / Reg. No.","Status","TY2026","TY2026 Filed On","Phone","Email","Address"],rows:rows};
   },
