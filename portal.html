@@ -4195,6 +4195,9 @@ var EXTRA_CLIENTS = [];
 try{ EXTRA_CLIENTS = JSON.parse(localStorage.getItem("sc_extra_clients")||"[]"); }catch(e){}
 window.ALL_CLIENTS = ALL_CLIENTS;
 var FILED26={};
+var curType="ALL";
+// Private limited companies carry "PRIVATE LIMITED", "(PVT) LTD" or similar in the name
+function isCompany(name){ return /(PRIVATE|PVT)\b.*\b(LIMITED|LTD)\b/i.test(String(name||"")); }
 // 2026 filed status for client index i: an uploaded filed return, or a 2026 income-tax
 // record in the Return Register with the same client name. Returns [[..., date]] or null.
 function _nrm(s){ return String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim(); }
@@ -4350,6 +4353,7 @@ function wireClients(){
       b.parentElement.querySelectorAll(".fbtn").forEach(function(x){ x.classList.remove("active-filter"); });
       b.classList.add("active-filter");
       if(b.hasAttribute("data-f26")) curF26 = b.getAttribute("data-f26");
+      else if(b.hasAttribute("data-type")) curType = b.getAttribute("data-type");
       else curFilter = b.getAttribute("data-filter");
       renderClients();
     });
@@ -4361,7 +4365,7 @@ function wireClients(){
     impBtn.addEventListener("click", function(){ impInput.click(); });
     impInput.addEventListener("change", function(e){ importExcel(e.target.files[0]); });
   }
-  curSearch=""; curFilter="ALL"; curF26="ALL"; curArch=false;
+  curSearch=""; curFilter="ALL"; curF26="ALL"; curType="ALL"; curArch=false;
   // Show Add Client button for admin only
   var addBtn = $("add-client-btn");
   if(addBtn) addBtn.style.display = (role === "admin") ? "inline-block" : "none";
@@ -4426,6 +4430,8 @@ function renderClients(){
     if(curFilter!=="ALL" && sc!==curFilter) continue;
     if(curF26==="F26" && !f26Of(i)) continue;
     if(curF26==="P26" && f26Of(i)) continue;
+    if(curType==="IND" && isCompany(c.name)) continue;
+    if(curType==="CO" && !isCompany(c.name)) continue;
     if(q){
       var nm=c.name.toLowerCase().indexOf(q)>-1;
       var id=(c.id||"").toLowerCase().indexOf(q)>-1;
@@ -7151,6 +7157,8 @@ var EXPORTERS={
       if(curFilter!=="ALL" && sc!==curFilter) continue;
       if(curF26==="F26" && !f26Of(i)) continue;
       if(curF26==="P26" && f26Of(i)) continue;
+      if(curType==="IND" && isCompany(c.name)) continue;
+      if(curType==="CO" && !isCompany(c.name)) continue;
       if(q && !_has(c,q,["name","id","sr","newFile","phone"])) continue;
       rows.push([c.sr||"",c.newFile||"",c.name,c.ntn||"",c.id||"",getStatusLabel(c.status),f26Of(i)?"Filed":"Pending",f26Of(i)?_fd(f26Of(i)[0][4]):"",c.phone||"",c.email||"",c.address||""]);
     }
@@ -8178,6 +8186,11 @@ window.advInsertTable = function(){
       <button class="fbtn active-filter" data-f26="ALL">All Returns</button>
       <button class="fbtn" data-f26="F26">2026 Filed</button>
       <button class="fbtn" data-f26="P26">2026 Pending</button>
+    </div>
+    <div class="filter-btns" aria-label="Client type">
+      <button class="fbtn active-filter" data-type="ALL">All Types</button>
+      <button class="fbtn" data-type="IND">Individuals</button>
+      <button class="fbtn" data-type="CO">Companies (Pvt Ltd)</button>
     </div>
   </div>
   <div class="client-count" id="client-count">Showing all 473 clients</div>
