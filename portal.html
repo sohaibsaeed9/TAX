@@ -228,6 +228,35 @@ button .ic,.btn .ic{width:16px;height:16px;}
 .fbr-link-label{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px;}
 .fbr-link-url{font-family:var(--mono);font-size:12px;color:var(--ink-3);}
 .dash-pins{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.dt-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;box-shadow:var(--shadow);margin-bottom:16px;}
+.dt-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.dt-h b{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--ink);}
+.dt-h span{font-size:12.5px;color:var(--ink-3);}
+.dt-due{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--line-2);color:var(--ink-2);}
+.dt-due.red{background:#9c3a32;color:#fff}.dt-due.amb{background:#fbefd9;color:#8a5a0b}
+.dt-pipe{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:6px 0 4px;}
+.dt-step{border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;background:var(--card);text-align:left;font:inherit;color:inherit;}
+.dt-step:hover{border-color:var(--gold)}.dt-step.on{border-color:var(--navy-700);box-shadow:0 0 0 1px var(--navy-700) inset}
+.dt-step i{display:block;font-style:normal;font-size:11.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.dt-step em{display:block;font-style:normal;font-family:var(--serif);font-size:26px;font-weight:600;line-height:1.2;color:var(--ink)}
+.dt-step.done em{color:var(--green)}.dt-step.ready em{color:var(--navy-700)}.dt-step.cold em{color:#9c3a32}
+.dt-bar{height:6px;border-radius:99px;background:var(--line-2);overflow:hidden;margin:8px 0 2px}.dt-bar>div{height:100%;background:var(--green)}
+.dt-list{margin-top:10px;border-top:1px solid var(--line-2);max-height:340px;overflow:auto}
+.dt-row{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--line-2);font-size:13px}
+.dt-row .nm{flex:1;min-width:0;font-weight:500;cursor:pointer}.dt-row .nm:hover{text-decoration:underline}
+.dt-row .mt{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.dt-row button{font-size:11.5px;padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:var(--ink)}
+.dt-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.dt-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:6px}
+.dt-kpi{border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer;background:var(--card);text-align:left;font:inherit;color:inherit}
+.dt-kpi:hover{border-color:var(--gold)}.dt-kpi i{display:block;font-style:normal;font-size:11.5px;color:var(--ink-3)}
+.dt-kpi em{display:block;font-style:normal;font-size:20px;font-weight:700;color:var(--ink)}.dt-kpi.bad em{color:#9c3a32}.dt-kpi.ok em{color:var(--green)}
+.dt-strip{display:flex;flex-wrap:wrap;gap:8px}
+.dt-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12.5px;background:var(--card);cursor:pointer;color:var(--ink)}
+.dt-dot{width:9px;height:9px;border-radius:50%;background:var(--ink-3)}.dt-dot.g{background:#2e7d4f}.dt-dot.y{background:#c9962b}.dt-dot.r{background:#9c3a32}
+.dt-empty{font-size:13px;color:var(--ink-3);padding:8px 0}
+.dt-tabs{display:flex;gap:6px;margin-bottom:10px}.dt-tabs button{font-size:12.5px;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:var(--ink-2)}
+.dt-tabs button.on{background:var(--navy-700);border-color:var(--navy-700);color:#fff}
 .dash-pin-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;box-shadow:var(--shadow);}
 .dash-pin-title{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:0;text-transform:none;color:var(--ink);padding-bottom:10px;margin-bottom:6px;border-bottom:1px solid var(--line-2);}
 .dash-pin-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-2);font-size:13px;}
@@ -454,6 +483,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   .main{padding:20px 16px 48px;}
   .page-title{font-size:30px;}
   .dash-pins{grid-template-columns:1fr;}
+  .dt-2{grid-template-columns:1fr}.dt-2>*{min-width:0}.dt-pipe{grid-template-columns:repeat(2,minmax(0,1fr))}.dt-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .login-wrap{grid-template-columns:1fr;}
   .login-left{padding:28px 24px 32px;}
   .ll-head{font-size:30px;}
@@ -864,42 +894,8 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     <div class="page-title"><span id="dash-greet">Good morning</span>, <span id="dash-username" style="color:var(--gold);font-style:italic;"></span></div>
     <div class="page-sub">Here is your daily briefing &mdash; <span id="dash-date"></span></div>
   </div>
+  <div id="dash-today"></div>
   <div id="dash-pins-area"></div>
-  <div class="dash-grid">
-    <div class="dash-stat">
-      <div class="dash-stat-label">Current Time</div>
-      <div class="dash-stat-val gold" id="dash-clock"></div>
-    </div>
-    <div class="dash-stat">
-      <div class="dash-stat-label">Next FBR Deadline</div>
-      <div class="dash-stat-val" id="dash-deadline" style="font-size:16px;"></div>
-    </div>
-    <div class="dash-stat">
-      <div class="dash-stat-label">Days Remaining</div>
-      <div class="dash-stat-val gold" id="dash-days"></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">FBR Quick Links</div>
-    <div class="fbr-links">
-      <a class="fbr-link" href="https://www.fbr.gov.pk" target="_blank">
-        <div class="fbr-link-label">FBR Portal</div>
-        <div class="fbr-link-url">fbr.gov.pk &#8599;</div>
-      </a>
-      <a class="fbr-link" href="https://iris.fbr.gov.pk" target="_blank">
-        <div class="fbr-link-label">IRIS FBR</div>
-        <div class="fbr-link-url">iris.fbr.gov.pk &#8599;</div>
-      </a>
-      <a class="fbr-link" href="https://atl.fbr.gov.pk" target="_blank">
-        <div class="fbr-link-label">ATL Checker</div>
-        <div class="fbr-link-url">atl.fbr.gov.pk &#8599;</div>
-      </a>
-      <a class="fbr-link" href="https://e.fbr.gov.pk" target="_blank">
-        <div class="fbr-link-label">e-Payment</div>
-        <div class="fbr-link-url">e.fbr.gov.pk &#8599;</div>
-      </a>
-    </div>
-  </div>
   <!-- PENDING CHANGES (admin only) -->
   <div id="pending-card" class="card" style="margin-bottom:20px;display:none;border-left:4px solid #b8923a">
     <div class="card-title" style="display:flex;align-items:center;gap:10px">
@@ -943,6 +939,28 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       <button class="btn-sec restore-only" onclick="this.parentNode.querySelector('input[type=file]').click()"><svg class=ic aria-hidden=true><use href=#i-upload /></svg>Restore from backup</button>
       <input type="file" accept=".json" style="display:none" onchange="restorePortalData(this.files[0]); this.value='';">
       <span class="backup-last" style="font-size:12px;color:var(--ink-3);"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">FBR Quick Links</div>
+    <div class="fbr-links">
+      <a class="fbr-link" href="https://www.fbr.gov.pk" target="_blank">
+        <div class="fbr-link-label">FBR Portal</div>
+        <div class="fbr-link-url">fbr.gov.pk &#8599;</div>
+      </a>
+      <a class="fbr-link" href="https://iris.fbr.gov.pk" target="_blank">
+        <div class="fbr-link-label">IRIS FBR</div>
+        <div class="fbr-link-url">iris.fbr.gov.pk &#8599;</div>
+      </a>
+      <a class="fbr-link" href="https://atl.fbr.gov.pk" target="_blank">
+        <div class="fbr-link-label">ATL Checker</div>
+        <div class="fbr-link-url">atl.fbr.gov.pk &#8599;</div>
+      </a>
+      <a class="fbr-link" href="https://e.fbr.gov.pk" target="_blank">
+        <div class="fbr-link-label">e-Payment</div>
+        <div class="fbr-link-url">e.fbr.gov.pk &#8599;</div>
+      </a>
     </div>
   </div>
 
@@ -3144,6 +3162,7 @@ window.showPage = function showPage(id){
   if(id==="filing"&&window.renderFiling) renderFiling();
   if(id==="irisnotices"&&window.IRIS) IRIS.noticesPage($("pg-irisnotices"));
   if(id==="irissync"&&window.IRIS) IRIS.syncPage($("pg-irissync"));
+  if(id==="dashboard"&&window.renderDashToday){ _dtLoad._at=0; _dtLoad._busy=false; renderDashToday(); }
   resetIdle();
 }
 
@@ -3169,14 +3188,14 @@ function startDash(){
   var n=new Date();
   var du=$("dash-username"); if(du) du.textContent=userName;
   var dd=$("dash-date"); if(dd) dd.textContent=DAYS[n.getDay()]+", "+n.getDate()+" "+MONTHS[n.getMonth()]+" "+n.getFullYear();
-  updateDashClock();
-  setInterval(updateDashClock,1000);
+  renderDashToday();
   // Build pins after short delay to ensure DOM ready
   setTimeout(function(){ if(window.updateDashPins) window.updateDashPins(); }, 200);
   // Show pending-changes card for admin only
   var pc = document.getElementById("pending-card");
   if(pc){ pc.style.display = (role==="admin") ? "block" : "none"; }
   if(role==="admin"){ renderPendingPanel(); updatePendingBadge(); }
+  _dtLoad._at=0; _dtLoad._busy=false;  // opening the Dashboard refreshes live counts
   // Next deadline
   var now=new Date(); now.setHours(0,0,0,0);
   var yr=now.getFullYear();
@@ -3189,6 +3208,152 @@ function startDash(){
   var dl=$("dash-deadline"); if(dl) dl.textContent=upcoming.name+" — "+upcoming.dt.getDate()+" "+MONTHS[upcoming.dt.getMonth()];
   var dy=$("dash-days"); if(dy) dy.textContent=upcoming.diff===0?"Today!":upcoming.diff+" days";
 }
+
+
+/* ════════════════════════════════
+   DASHBOARD: WHAT NEEDS ME TODAY
+   Filing tracker (individuals 31 Oct, companies 31 Dec), IRIS notice risk,
+   things to fix, who to chase, team and system.
+════════════════════════════════ */
+var DT_DUE={IND:"2026-10-31",CO:"2026-12-31"};
+var _dtGroup=null, _dtStep=null, _dtNotices=null, _dtRunner=null, _dtNoticeTab="soon";
+function _dtDays(iso){ var a=new Date(); a.setHours(0,0,0,0); var b=new Date(String(iso).slice(0,10)+"T00:00:00"); return Math.round((b-a)/86400000); }
+function _dtFmt(iso){ if(!iso) return ""; var d=new Date(String(iso).slice(0,10)+"T00:00:00"); return isNaN(d)?"":d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]; }
+function _dtDueChip(days){ var cls=days<0?"red":days<=7?"red":days<=21?"amb":""; return '<span class="dt-due '+cls+'">'+(days<0?(-days)+" days overdue":days===0?"due today":days+" days left")+'</span>'; }
+// Stage of a client's TY2026 return
+function _dtStage(i){
+  if(f26Of(i)) return "filed";
+  var st=compGet(i,COMP_TY); if(!st) return "none";
+  var sm=st.summary||{};
+  if(st.check&&Object.keys(st.check).length) return "checked";
+  if(sm["Total income"]) return "prepared";
+  return "started";
+}
+var DT_STEPS=[["none","Not started","cold"],["started","Started",""],["prepared","Prepared, not checked",""],["checked","Checked, ready to file","ready"],["filed","Filed","done"]];
+function _dtCollect(){
+  var g={IND:{none:[],started:[],prepared:[],checked:[],filed:[]},CO:{none:[],started:[],prepared:[],checked:[],filed:[]}};
+  for(var i=0;i<ALL_CLIENTS.length;i++){
+    var c=getClient(i); if(!c||c.archived) continue;
+    g[isCompany(c.name)?"CO":"IND"][_dtStage(i)].push(i);
+  }
+  return g;
+}
+function _dtLastContact(name){
+  var nm=_nrm(name), best="";
+  (COMMS||[]).forEach(function(m){ if(_nrm(m.client)===nm && String(m.date||"")>best) best=String(m.date||""); });
+  return best;
+}
+function _dtClientRow(i,meta){
+  var c=getClient(i), st=_dtStage(i), btn;
+  if(st==="none") btn='<button onclick="compStartBlank('+i+')">Start return</button>';
+  else if(st==="filed") btn='<button onclick="openProfile('+i+')">Profile</button>';
+  else btn='<button onclick="compOpen('+i+',\'open\')">Open</button>';
+  var wa=(c.phoneWA||c.phone)?'<button onclick="openWAPanel('+i+')">WhatsApp</button>':'';
+  return '<div class="dt-row"><span class="nm" onclick="openProfile('+i+')">'+escHtml(c.name)+'</span><span class="mt">'+(meta||"")+'</span>'+wa+btn+'</div>';
+}
+function _dtFilingCard(key,label,g){
+  var d=g[key], total=0, filed=d.filed.length; DT_STEPS.forEach(function(s){ total+=d[s[0]].length; });
+  var days=_dtDays(DT_DUE[key]), left=total-filed;
+  var h='<div class="dt-card"><div class="dt-h"><b>'+label+' &middot; due '+_dtFmt(DT_DUE[key])+' '+_dtDueChip(days)+'</b><span>'+filed+' of '+total+' filed &middot; <b style="font-size:13px;font-family:inherit;color:'+(left?"#9c3a32":"var(--green)")+'">'+left+' still to file</b></span></div>';
+  h+='<div class="dt-bar"><div style="width:'+(total?Math.round(filed*100/total):0)+'%"></div></div>';
+  h+='<div class="dt-pipe">'+DT_STEPS.map(function(s){ var on=_dtGroup===key&&_dtStep===s[0]; return '<button class="dt-step '+s[2]+(on?" on":"")+'" onclick="dtPick(\''+key+'\',\''+s[0]+'\')"><i>'+s[1]+'</i><em>'+d[s[0]].length+'</em></button>'; }).join("")+'</div>';
+  if(_dtGroup===key&&_dtStep){
+    var list=d[_dtStep].slice().sort(function(a,b){ return String(getClient(a).name).localeCompare(getClient(b).name); });
+    h+='<div class="dt-list">'+(list.length?list.map(function(i){
+      var lc=_dtStep==="filed"?"":_dtLastContact(getClient(i).name);
+      return _dtClientRow(i,_dtStep==="filed"?"":(lc?"last contact "+_dtFmt(lc):"no contact logged"));
+    }).join(""):'<div class="dt-empty">No clients at this stage.</div>')+'</div>';
+  }
+  return h+'</div>';
+}
+window.dtPick=function(g,s){ if(_dtGroup===g&&_dtStep===s){ _dtGroup=_dtStep=null; } else { _dtGroup=g; _dtStep=s; } renderDashToday(); };
+window.dtNoticeTab=function(t){ _dtNoticeTab=t; renderDashToday(); };
+window.dtOpenClients=function(f26,type){
+  showPage("clients");
+  setTimeout(function(){
+    document.querySelectorAll('#pg-clients .fbtn[data-f26="'+f26+'"],#pg-clients .fbtn[data-type="'+type+'"]').forEach(function(b){ b.click(); });
+  },60);
+};
+function _dtNoticeCard(){
+  var h='<div class="dt-card"><div class="dt-h"><b>IRIS notices that need action</b><span><a href="#" onclick="showPage(\'irisnotices\');return false;">Open IRIS Notices &rarr;</a></span></div>';
+  if(!_sb||!_cloud){ return h+'<div class="dt-empty">Connect online (top bar shows Synced) to see IRIS notices.</div></div>'; }
+  if(_dtNotices===null){ return h+'<div class="dt-empty">Loading notices&hellip;</div></div>'; }
+  var HI=/^(122|121|138|182|161|137|124)\b/, open=_dtNotices.filter(function(n){ return !n.archived && ["closed","archived","not_ours","submitted","filed"].indexOf(n.status)<0; });
+  var soon=open.filter(function(n){ return n.due_date && _dtDays(n.due_date)>=0 && _dtDays(n.due_date)<=7; }).sort(function(a,b){ return String(a.due_date).localeCompare(b.due_date); });
+  var over=open.filter(function(n){ return n.due_date && _dtDays(n.due_date)<0 && (n.status||"new")==="new" && _dtDays(n.due_date)>=-365; }).sort(function(a,b){ return String(b.due_date).localeCompare(a.due_date); });
+  var hi=open.filter(function(n){ return HI.test(n.law_section||n.task||"") && (!n.due_date||_dtDays(n.due_date)>=-365); }).sort(function(a,b){ return String(a.due_date||"9").localeCompare(String(b.due_date||"9")); });
+  var unl=open.filter(function(n){ return window.IRIS&&IRIS.matchClient&&!IRIS.matchClient(n.reg_no); });
+  var tabs=[["soon","Due in 7 days",soon],["over","Overdue, untouched (last 12 months)",over],["hi","High-risk sections",hi],["unl","Not linked to a client",unl]];
+  h+='<div class="dt-kpis">'+tabs.map(function(t){ return '<button class="dt-kpi'+(t[2].length&&t[0]!=="soon"?" bad":"")+'" onclick="dtNoticeTab(\''+t[0]+'\')" style="'+(_dtNoticeTab===t[0]?"border-color:var(--navy-700);box-shadow:0 0 0 1px var(--navy-700) inset":"")+'"><i>'+t[1]+'</i><em>'+t[2].length+'</em></button>'; }).join("")+'</div>';
+  var cur=tabs.filter(function(t){ return t[0]===_dtNoticeTab; })[0][2];
+  h+='<div class="dt-list">'+(cur.length?cur.slice(0,60).map(function(n){
+    var m=window.IRIS&&IRIS.matchClient?IRIS.matchClient(n.reg_no):null, d=n.due_date?_dtDays(n.due_date):null;
+    var sec=n.law_section||"", isHi=HI.test(sec||n.task||"");
+    return '<div class="dt-row"><span class="nm" '+(m?'onclick="openProfile('+m.idx+')"':'onclick="showPage(\'irisnotices\')"')+'>'+escHtml(n.client_name||n.reg_no||"—")+'<div class="mt" style="font-weight:400;white-space:normal">'+(isHi?'<span class="dt-due red" style="margin-right:6px">'+escHtml(sec)+'</span>':'')+escHtml(String(n.task||"").slice(0,90))+(n.tax_year?' &middot; TY '+escHtml(n.tax_year):'')+'</div></span><span class="mt">'+(d===null?"no due date":_dtFmt(n.due_date)+" "+_dtDueChip(d))+'</span></div>';
+  }).join("")+(cur.length>60?'<div class="dt-empty">and '+(cur.length-60)+' more in IRIS Notices.</div>':''):'<div class="dt-empty">Nothing here.</div>')+'</div>';
+  return h+'</div>';
+}
+function _dtFixCard(g){
+  var mism=[], nopdf=[];
+  for(var i=0;i<ALL_CLIENTS.length;i++){
+    var c=getClient(i); if(!c||c.archived) continue;
+    var r=filedGet(i);
+    if(r&&r.check&&r.check.total&&r.check.ok<r.check.total) mism.push([i,r.check.ok+" of "+r.check.total+" figures match IRIS"]);
+    if(f26Of(i)&&!(r&&r.files&&(r.files.pdfPath||r.files.irisPath))) nopdf.push([i,"filed, no IRIS return PDF stored"]);
+  }
+  var tab=_dtFixTab||"mism", sets=[["mism","Excel differs from IRIS",mism],["nopdf","Filed, no return PDF",nopdf]];
+  var h='<div class="dt-card"><div class="dt-h"><b>Things to fix</b><span>From Filed returns 2026</span></div><div class="dt-kpis">'
+    +sets.map(function(t){ return '<button class="dt-kpi'+(t[2].length?" bad":" ok")+'" onclick="dtFixTab(\''+t[0]+'\')" style="'+(tab===t[0]?"border-color:var(--navy-700);box-shadow:0 0 0 1px var(--navy-700) inset":"")+'"><i>'+t[1]+'</i><em>'+t[2].length+'</em></button>'; }).join("")+'</div>';
+  var cur=sets.filter(function(t){ return t[0]===tab; })[0][2];
+  h+='<div class="dt-list">'+(cur.length?cur.map(function(x){ var c=getClient(x[0]); return '<div class="dt-row"><span class="nm" onclick="openProfile('+x[0]+')">'+escHtml(c.name)+'</span><span class="mt">'+x[1]+'</span>'+(filedGet(x[0])?'<button onclick="fvOpen('+x[0]+')">View return</button>':'')+'</div>'; }).join(""):'<div class="dt-empty">Nothing to fix.</div>')+'</div>';
+  return h+'</div>';
+}
+var _dtFixTab="mism"; window.dtFixTab=function(t){ _dtFixTab=t; renderDashToday(); };
+function _dtChaseCard(g){
+  var key=_dtDays(DT_DUE.IND)>=0?"IND":"CO", pool=g[key].none.concat(g[key].started), cut=new Date(Date.now()-14*86400000).toISOString().slice(0,10);
+  var list=pool.filter(function(i){ var c=getClient(i); if(String(c.status||"").toUpperCase().indexOf("INACTIVE")>-1) return false; var lc=_dtLastContact(c.name); return !lc||lc<cut; })
+    .sort(function(a,b){ return String(getClient(a).name).localeCompare(getClient(b).name); });
+  var h='<div class="dt-card"><div class="dt-h"><b>Who to chase</b><span>'+(key==="IND"?"Individuals":"Companies")+' not started or just started, no contact logged in 14 days</span></div>';
+  h+='<div class="dt-list">'+(list.length?list.slice(0,80).map(function(i){ var lc=_dtLastContact(getClient(i).name); return _dtClientRow(i,lc?"last contact "+_dtFmt(lc):"never contacted"); }).join("")+(list.length>80?'<div class="dt-empty">and '+(list.length-80)+' more.</div>':''):'<div class="dt-empty">Everyone has been contacted in the last 14 days.</div>')+'</div>';
+  h+='<div class="dt-empty" style="padding-top:8px">Log calls and messages in the Communication Log so this list stays accurate.</div>';
+  return h+'</div>';
+}
+function _dtStripCard(g){
+  var chips=[];
+  if(role==="admin"){ var pend=0; try{ pend=(typeof PENDING!=="undefined"?PENDING:JSON.parse(localStorage.getItem("sc_pending")||"[]")).length; }catch(e){} chips.push('<span class="dt-chip" onclick="document.getElementById(\'pending-card\').scrollIntoView({behavior:\'smooth\'})"><span class="dt-dot '+(pend?"y":"g")+'"></span>'+pend+' change'+(pend===1?"":"s")+' waiting for approval</span>'); }
+  var waitChk=g.IND.prepared.length+g.CO.prepared.length;
+  chips.push('<span class="dt-chip" onclick="dtPick(\'IND\',\'prepared\')"><span class="dt-dot '+(waitChk?"y":"g")+'"></span>'+waitChk+' computation'+(waitChk===1?"":"s")+' waiting to be checked</span>');
+  var rn=_dtRunner, light="r", txt="IRIS runner offline";
+  if(!_sb||!_cloud){ light=""; txt="IRIS runner: connect online to check"; }
+  else if(_dtRunner===null){ light=""; txt="IRIS runner: checking"; }
+  else if(rn&&rn.last_heartbeat&&(Date.now()-new Date(rn.last_heartbeat).getTime())<120000){ light=rn.iris_logged_in===false?"y":"g"; txt=rn.iris_logged_in===false?"IRIS runner on, IRIS login needed":"IRIS runner online"; }
+  var last=rn&&rn.last_heartbeat?" (last seen "+new Date(rn.last_heartbeat).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+")":"";
+  chips.push('<span class="dt-chip" onclick="showPage(\'irissync\')"><span class="dt-dot '+light+'"></span>'+txt+(light==="r"?last:"")+'</span>');
+  var lb=""; try{ lb=localStorage.getItem("sc_last_backup_at")||""; }catch(e){}
+  var bd=lb?Math.floor((Date.now()-new Date(lb).getTime())/86400000):null;
+  chips.push('<span class="dt-chip" onclick="backupPortalData()"><span class="dt-dot '+(bd===null||bd>7?"r":"g")+'"></span>'+(bd===null?"No backup recorded on this computer":"Last backup "+(bd===0?"today":bd+" day"+(bd===1?"":"s")+" ago"))+' &middot; back up now</span>');
+  return '<div class="dt-card"><div class="dt-h"><b>Team and system</b></div><div class="dt-strip">'+chips.join("")+'</div></div>';
+}
+function _dtLoad(){
+  if(!_sb||!_cloud||_dtLoad._busy) return; _dtLoad._busy=true;
+  Promise.all([
+    Promise.resolve(_sb.from("iris_notices").select("id,reg_no,client_name,law_section,task,tax_year,due_date,status,archived").limit(5000)).then(function(r){ _dtNotices=(r&&r.data)||[]; }).catch(function(){ _dtNotices=[]; }),
+    role==="admin"||role==="reviewer"?Promise.resolve(_sb.from("iris_runner").select("*").order("last_heartbeat",{ascending:false}).limit(1)).then(function(r){ _dtRunner=((r&&r.data)||[])[0]||false; }).catch(function(){ _dtRunner=false; }):Promise.resolve()
+  ]).then(function(){ _dtLoad._busy=false; _dtLoad._at=Date.now(); renderDashToday(true); });
+}
+window.renderDashToday=function(fromLoad){
+  var el=document.getElementById("dash-today"); if(!el) return;
+  if(!fromLoad&&(!_dtLoad._at||Date.now()-_dtLoad._at>60000)) _dtLoad();
+  var g=_dtCollect(), h="";
+  var indFirst=_dtDays(DT_DUE.IND)>=0;
+  var cards=[_dtFilingCard("IND","Individuals &amp; AOPs, TY2026",g),_dtFilingCard("CO","Companies (Pvt Ltd), TY2026",g)];
+  if(!indFirst) cards.reverse();
+  h+=cards.join("");
+  h+=_dtNoticeCard();
+  h+='<div class="dt-2"><div>'+_dtChaseCard(g)+'</div><div>'+_dtFixCard(g)+'</div></div>';
+  h+=_dtStripCard(g);
+  el.innerHTML=h;
+};
 
 function updateDashClock(){
   var c=$("dash-clock"); if(!c) return;
@@ -4160,7 +4325,6 @@ window.buildDashPins = function(){
   pinsHTML += '</div>';
 
   // IRIS Payments Pin
-  pinsHTML += buildIrisDashPin();
 
   return pinsHTML;
 }
@@ -7293,7 +7457,9 @@ function _downloadBackup(label){
 window.backupPortalData=function(){
   var inv=0; try{ inv=JSON.parse(localStorage.getItem("sc_invoices")||"[]").length; }catch(e){}
   _downloadBackup("backup").then(function(n){
+    try{ localStorage.setItem("sc_last_backup_at",new Date().toISOString()); }catch(e){}
     document.querySelectorAll(".backup-last").forEach(function(el){ el.textContent="Backup downloaded ("+n+" data sets, "+inv+" invoices)."; });
+    if(window.renderDashToday) renderDashToday();
   }).catch(function(e){ alert("Backup failed: "+e.message); });
 };
 /* ── AI NOTICE INTAKE & REPLY DRAFTING ── */
