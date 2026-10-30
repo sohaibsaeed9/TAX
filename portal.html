@@ -4416,7 +4416,7 @@ window.openEditPanel = function openEditPanel(idx){
   var pp = $("edit-phone"); if(pp) pp.value = c.phone||"";
   var ep = $("edit-email"); if(ep) ep.value = c.email||"";
   var ap = $("edit-address"); if(ap) ap.value = c.address||"";
-  var np2 = $("edit-ntn"); if(np2){ np2.value = c.ntn||""; np2.readOnly = true; np2.style.background="#f3f4f6"; }
+  var np2 = $("edit-ntn"); if(np2){ np2.value = c.ntn||""; np2.readOnly = false; np2.style.background=""; }
   var ip = $("edit-client-idx"); if(ip) ip.textContent = idx;
   var panel = $("client-edit-panel"); if(panel) panel.style.display="block";
   var saveBtn = $("edit-save-btn");
@@ -4504,7 +4504,9 @@ window.saveClientEdit = function saveClientEdit(idx){
   var phone   = ($("edit-phone")||{}).value||"";
   var email   = ($("edit-email")||{}).value||"";
   var address = ($("edit-address")||{}).value||"";
+  var ntn     = (($("edit-ntn")||{}).value||"").trim();
   if(!CLIENT_OVERRIDES[idx]) CLIENT_OVERRIDES[idx] = {};
+  CLIENT_OVERRIDES[idx].ntn     = ntn;
   CLIENT_OVERRIDES[idx].phone   = phone;
   CLIENT_OVERRIDES[idx].email   = email;
   CLIENT_OVERRIDES[idx].address = address;
