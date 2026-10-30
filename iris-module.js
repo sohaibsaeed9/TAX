@@ -64,10 +64,15 @@
     if (LINKS && LINKS[d]) {
       for (var j = 0; j < list.length; j++) if (list[j] && clientKey(list[j]) === LINKS[d]) return {idx: j, client: list[j], why: "linked"};
     }
-    for (var i = 0; i < list.length; i++) {
-      var c = list[i]; if (!c) continue;
+    var i, c;
+    for (i = 0; i < list.length; i++) {                                   // exact CNIC or full NTN
+      c = list[i]; if (!c) continue;
       if (digits(c.id) === d || digits(c.ntn) === d) return {idx: i, client: c, why: "auto"};
-      if (d.length >= 7 && d.length <= 8 && (digits(c.ntn).slice(0, 7) === d.slice(0, 7))) return {idx: i, client: c, why: "ntn"};
+    }
+    if (d.length >= 7 && d.length <= 8) {                                  // 7-digit NTN prefix: only when it is unique, else do not guess
+      var hit = -1, n = 0;
+      for (i = 0; i < list.length; i++) { c = list[i]; if (c && digits(c.ntn).slice(0, 7) === d.slice(0, 7)) { hit = i; if (++n > 1) break; } }
+      if (n === 1) return {idx: hit, client: list[hit], why: "ntn"};
     }
     return null;
   }
