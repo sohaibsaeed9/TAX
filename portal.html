@@ -3172,6 +3172,7 @@ window.showPage = function showPage(id){
   $("pg-"+id).classList.add("on");
   $("tab-"+id).classList.add("on");
   if(id==="filing"&&window.renderFiling) renderFiling();
+  if(id==="notices") renderNotices();
   if(id==="irisnotices"&&window.IRIS) IRIS.noticesPage($("pg-irisnotices"));
   if(id==="irissync"&&window.IRIS) IRIS.syncPage($("pg-irissync"));
   if(id==="dashboard"&&window.renderDashToday){ _dtLoad._at=0; _dtLoad._busy=false; renderDashToday(); }
@@ -4901,6 +4902,11 @@ function addNotice(){
 
 function renderNotices(){
   var list=$("notice-list"); if(!list) return;
+  if(localStorage.getItem("sc_notices_migrated")){
+    var pgn=$("pg-notices"); if(pgn) pgn.querySelectorAll(".task-add-card").forEach(function(c){ c.style.display="none"; });
+    list.innerHTML='<div class="task-empty">These notices now live in <b>IRIS Notices</b>, one list for IRIS notices, notices you add by hand, and appeals.<br><button class="btn" style="margin-top:12px" onclick="showPage(\'irisnotices\')">Open IRIS Notices</button><div style="margin-top:10px;font-size:12px;color:var(--ink-3);">The old list ('+NOTICES.length+' notices) is kept as a backup in this browser.</div></div>';
+    return;
+  }
   var now=new Date(); now.setHours(0,0,0,0);
   var TYPE_L={amendment:"Amendment (122)",audit:"Audit (177)",recovery:"Recovery (137)",penalty:"Penalty (182)",show_cause:"Show Cause",inquiry:"Inquiry (176)",other:"Other"};
   var filtered=NOTICES.filter(function(n){
@@ -7548,14 +7554,15 @@ function matchClient(x){
 }
 function isoOrEmpty(s){ return /^\d{4}-\d{2}-\d{2}$/.test(String(s||""))?s:""; }
 
-window.ntUploadNotice=function(file){
-  if(!file) return;
-  if(!/^(application\/pdf|image\/(png|jpeg|webp|gif))$/.test(file.type)){ alert("Please choose a PDF or a photo (JPG/PNG) of the notice."); return; }
-  if(file.size>25*1024*1024){ alert("That file is larger than 25 MB. Please upload a smaller scan."); return; }
-  var st=_ntq("nt-ai-progress"); var say=function(t){ if(st){ st.hidden=!t; st.textContent=t||""; } };
+/* read a notice (PDF or photo) with the AI and return the filled-in record, without saving it anywhere */
+window.ntExtractRecord=function(file,say){
+  say=say||function(){};
+  if(!file) return Promise.reject(new Error("No file."));
+  if(!/^(application\/pdf|image\/(png|jpeg|webp|gif))$/.test(file.type)) return Promise.reject(new Error("Please choose a PDF or a photo (JPG/PNG) of the notice."));
+  if(file.size>25*1024*1024) return Promise.reject(new Error("That file is larger than 25 MB. Please upload a smaller scan."));
   var id=Date.now(), f={name:file.name,type:file.type};
-  say("Reading the notice…");
-  readFileB64(file).then(function(b64){
+  say("Reading the notice\u2026");
+  return readFileB64(file).then(function(b64){
     f.b64=b64;
     return aiCall({max_tokens:4000,output_config:{effort:"medium",format:{type:"json_schema",schema:EXTRACT_SCHEMA}},
       messages:[{role:"user",content:[fileBlock(f),{type:"text",text:"This is a notice from Pakistan's FBR / Inland Revenue (or SECP / a provincial revenue authority). Extract the fields exactly as printed. Leave a field empty when it is not in the notice; never guess."}]}]});
@@ -7567,8 +7574,15 @@ window.ntUploadNotice=function(file){
       section:x.section||"",regNo:x.ntn||x.registration_no||x.cnic||"",
       officer:{name:x.officer_name||"",designation:x.officer_designation||"",unit:x.officer_unit||"",rto:x.rto_city||""},
       file:null,draft:null,aiExtracted:true};
-    _ntFiles[id]=f;
-    say("Saving the notice file…");
+    _ntFiles[id]=f; return rec;
+  });
+};
+window.ntUploadNotice=function(file){
+  if(!file) return;
+  var st=_ntq("nt-ai-progress"); var say=function(t){ if(st){ st.hidden=!t; st.textContent=t||""; } };
+  window.ntExtractRecord(file,say).then(function(rec){
+    var id=rec.id, idx=rec.clientIdx;
+    say("Saving the notice file\u2026");
     var up=(_sb&&_cloud)?Promise.resolve(_sb.storage.from("notices").upload("notices/"+id+"/"+file.name.replace(/[^\w.\-]+/g,"_"),file,{contentType:file.type,upsert:true})).then(function(r){
       if(r&&!r.error) rec.file={path:r.data.path,name:file.name,type:file.type};
       return !(r&&r.error);
@@ -7676,13 +7690,22 @@ function ntRead(){
 }
 window.ntOpenDraft=function(id){
   var n=NOTICES.find(function(x){ return x.id===id; }); if(!n) return;
+  ntShowDraft(n);
+};
+/* used by the IRIS Notices page: draft a reply for a row of the notices table. persist(desc) saves n.draft back to it */
+window.ntDraftFor=function(n,persist){ n.__persist=persist; ntShowDraft(n); };
+function ntPersist(desc){
+  if(_ntCur&&_ntCur.__persist){ _ntCur.__persist(desc); return; }
+  saveNotices(desc); renderNotices();
+}
+function ntShowDraft(n){
   _ntCur=n; var m=ntModal(); m.style.display="block";
   document.getElementById("ndm-title").textContent=n.client+(n.year?" — TY "+n.year:"");
   document.getElementById("ndm-type").textContent="Reply draft";
   document.getElementById("ndm-status").textContent=n.draft?"Saved draft loaded.":"No draft yet. Add instructions if you like, then click Draft with AI.";
   document.getElementById("ndm-extra").value=(n.draft&&n.draft.instructions)||"";
   ntFill(n.draft||{salutation:"Dear Sir,",addressee:[n.officer&&n.officer.name?n.officer.name.toUpperCase():"",n.officer&&n.officer.designation||"",n.officer&&n.officer.unit||"",n.officer&&n.officer.rto?"Regional Tax Office, "+n.officer.rto:""].filter(Boolean)});
-};
+}
 window.ntCloseDraft=function(){ var m=document.getElementById("nt-draft-modal"); if(m) m.style.display="none"; };
 window.ntGenerate=function(){
   if(!_ntCur) return;
@@ -7691,14 +7714,14 @@ window.ntGenerate=function(){
   var extra=document.getElementById("ndm-extra").value.trim();
   ntDraftNow(_ntCur,extra).then(function(d){
     d.instructions=extra; _ntCur.draft=d; ntFill(d);
-    saveNotices("Drafted reply for "+_ntCur.client); renderNotices();
+    ntPersist("Drafted reply for "+_ntCur.client);
     st.textContent="Draft ready and saved. Review it, especially the items under 'Check before filing'.";
   }).catch(function(e){ st.textContent=""; alert(e.message||String(e)); }).then(function(){ btn.disabled=false; });
 };
 window.ntSaveDraft=function(){
   if(!_ntCur) return;
   var d=ntRead(); d.instructions=document.getElementById("ndm-extra").value.trim();
-  _ntCur.draft=d; saveNotices("Edited reply draft for "+_ntCur.client); renderNotices();
+  _ntCur.draft=d; ntPersist("Edited reply draft for "+_ntCur.client);
   document.getElementById("ndm-status").textContent="Draft saved.";
 };
 
