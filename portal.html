@@ -2563,7 +2563,8 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
   /* Take the return PDFs IRIS Sync downloaded: read them, attach each to its client (creating a PDF-only record when there is no workbook yet) and compare with the workbook where there is one.
      only = a client index to do just that client. Returns a promise of {done, noMatch, noReturns}. */
   Panel.prototype.pullFromIris=function(only){
-    var self=this, ctx=this.ctx, by=ctx.by(), res={done:0,created:0,compared:0,differ:[],noMatch:[],failed:0}; this.busy=true;
+    var self=this, ctx=this.ctx, by=ctx.by(), res={done:0,created:0,compared:0,differ:[],noMatch:[],failed:0,rerouted:[],mismatch:[],cleaned:0}; this.busy=true;
+    function clearWrong(i,path){ var ow=ctx.get(i); if(!ow||!ow.files||ow.files.irisPath!==path) return; ow=Object.assign({},ow); ow.files=Object.assign({},ow.files); delete ow.files.irisPath; ow.iris=null; ow.check=null; delete ow.irisNoticeId; delete ow.irisAt; if(ow.pdfOnly&&!ow.files.excelPath&&!ow.files.pdfPath&&!ow.files.excel&&!ow.files.pdf) ctx.del(i); else ctx.put(i,ow); res.cleaned++; }
     this.msg="Looking for returns in IRIS Sync\u2026"; this.render();
     return Promise.resolve(ctx.irisReturns()).then(function(list){
       var latest={}; list.forEach(function(it){ if(it.idx<0){ res.noMatch.push(it.name||it.reg_no); return; } latest[it.idx]=it; });   // one per client, the newest
@@ -2572,19 +2573,30 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
       var chain=Promise.resolve();
       todo.forEach(function(idx,k){ chain=chain.then(function(){
         self.msg="Reading return "+(k+1)+" of "+todo.length+"\u2026"; self.render();
-        var it=latest[idx];
+        var it=latest[idx], clients=ctx.clients();
         return Promise.resolve(ctx.download(it.path)).then(function(blob){ return blob.arrayBuffer(); }).then(function(buf){ return root.CompOpening.readPdfLines(buf); }).then(function(lines){
           var r=parseIrisReturn(lines); if(r.taxYear&&r.taxYear!=="2026") throw new Error("not 2026"); var w=null; try{ w=root.CompOpening.parseIrisLines(lines); }catch(e){}
-          var old=ctx.get(idx), rec=old?Object.assign({},old):{saved:new Date().toISOString(),by:by,files:{excel:null,pdf:null},taxpayer:r.taxpayer,excelFigs:null,systemFigs:null,iris:null,check:null,wealth:w,pdfOnly:true};
+          /* The CNIC/NTN printed on the return itself decides whose return it is - not the IRIS task's reg_no, which can be matched to the wrong client. */
+          var idHits=matchClient(r.taxpayer,clients).filter(function(h){ return h.why!=="name"; });
+          var hasPdfId=(digits(r.taxpayer.E34).length===13)||(digits(r.taxpayer.C35).length>=6);
+          var tgt=idx;
+          if(hasPdfId){
+            if(idHits.length===1) tgt=idHits[0].idx;
+            else if(idHits.length===0){ clearWrong(idx,it.path); res.noMatch.push((r.taxpayer.E32||r.taxpayer.E34||r.taxpayer.C35||it.reg_no||"?")); return; }
+            else { clearWrong(idx,it.path); res.mismatch.push((r.taxpayer.E32||it.reg_no||"?")); return; }
+          }
+          if(only!=null&&tgt!==only){ clearWrong(idx,it.path); res.mismatch.push((clients[tgt]&&clients[tgt].name)||r.taxpayer.E32||it.reg_no||"?"); return; }
+          if(tgt!==idx){ clearWrong(idx,it.path); res.rerouted.push(((clients[idx]&&clients[idx].name)||"?")+" \u2192 "+((clients[tgt]&&clients[tgt].name)||"?")); }
+          var old=ctx.get(tgt), rec=old?Object.assign({},old):{saved:new Date().toISOString(),by:by,files:{excel:null,pdf:null},taxpayer:r.taxpayer,excelFigs:null,systemFigs:null,iris:null,check:null,wealth:w,pdfOnly:true};
           rec.files=Object.assign({},rec.files); rec.files.irisPath=it.path; rec.irisNoticeId=it.id; rec.irisAt=new Date().toISOString();
-          if(r.haveReturn){ rec.iris=r.figs; if(rec.systemFigs){ var c=compare(rec.systemFigs,r.figs); rec.check={ok:c.ok,total:c.total}; res.compared++; if(c.ok<c.total) res.differ.push(ctx.clients()[idx].name); } }
+          if(r.haveReturn){ rec.iris=r.figs; if(rec.systemFigs){ var c=compare(rec.systemFigs,r.figs); rec.check={ok:c.ok,total:c.total}; res.compared++; if(c.ok<c.total) res.differ.push(clients[tgt].name); } }
           if(!rec.wealth&&w) rec.wealth=w; if((!rec.taxpayer||!rec.taxpayer.E32)&&r.taxpayer) rec.taxpayer=r.taxpayer;
-          if(!old) res.created++; ctx.put(idx,rec); res.done++;
+          if(!old) res.created++; ctx.put(tgt,rec); res.done++;
         }).catch(function(e){ res.failed++; });
       }); });
       return chain.then(function(){ return res; });
     }).then(function(r){
-      if(r.done||r.failed||r.noMatch.length){ self.msg=r.done+" return"+(r.done===1?"":"s")+" matched from IRIS Sync"+(r.created?" ("+r.created+" new "+(r.created===1?"record":"records")+")":"")+(r.compared?", "+r.compared+" compared with the workbook"+(r.differ.length?", "+r.differ.length+" differ: "+r.differ.slice(0,5).join(", ")+(r.differ.length>5?"\u2026":""):", all agree"):"")+"."+(r.failed?" "+r.failed+" could not be read.":"")+(r.noMatch.length?" "+r.noMatch.length+" not matched to a client (link them under IRIS Notices): "+r.noMatch.slice(0,4).join(", ")+(r.noMatch.length>4?"\u2026":"")+".":""); }
+      if(r.done||r.failed||r.noMatch.length||r.mismatch.length||r.rerouted.length||r.cleaned){ self.msg=r.done+" return"+(r.done===1?"":"s")+" matched from IRIS Sync"+(r.created?" ("+r.created+" new "+(r.created===1?"record":"records")+")":"")+(r.compared?", "+r.compared+" compared with the workbook"+(r.differ.length?", "+r.differ.length+" differ: "+r.differ.slice(0,5).join(", ")+(r.differ.length>5?"\u2026":""):", all agree"):"")+"."+(r.rerouted.length?" "+r.rerouted.length+" re-matched to the correct client by the CNIC/NTN on the return: "+r.rerouted.slice(0,4).join("; ")+(r.rerouted.length>4?"\u2026":"")+".":"")+(r.cleaned?" "+r.cleaned+" wrongly attached return"+(r.cleaned===1?"":"s")+" removed.":"")+(r.failed?" "+r.failed+" could not be read.":"")+(r.mismatch.length?" "+r.mismatch.length+" left out - the return's taxpayer did not match: "+r.mismatch.slice(0,4).join(", ")+(r.mismatch.length>4?"\u2026":"")+".":"")+(r.noMatch.length?" "+r.noMatch.length+" not matched to a client (link them under IRIS Notices): "+r.noMatch.slice(0,4).join(", ")+(r.noMatch.length>4?"\u2026":"")+".":""); }
       self.busy=false; self.render(); return r;
     }).catch(function(e){ self.busy=false; self.msg=e.message||String(e); self.render(); return res; });
   };
