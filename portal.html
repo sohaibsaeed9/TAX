@@ -4411,7 +4411,8 @@ window.openEditPanel = function openEditPanel(idx){
   var np = $("edit-client-name"); if(np) np.textContent = c.name;
   // show/hide name row (only for add)
   var nameRow = $("edit-name-row"); if(nameRow) nameRow.style.display = "none";
-  var srRow = $("edit-sr-row"); if(srRow) srRow.style.display = "none";
+  var srRow = $("edit-sr-row"); if(srRow) srRow.style.display = "block";
+  var esr0 = $("edit-sr"); if(esr0) esr0.value = c.sr||"";
   var ntnRow = $("edit-ntn-row"); if(ntnRow) ntnRow.style.display = "block";
   var pp = $("edit-phone"); if(pp) pp.value = c.phone||"";
   var ep = $("edit-email"); if(ep) ep.value = c.email||"";
@@ -4464,7 +4465,7 @@ window.openAddClientPanel = function(){
   var h = $("edit-panel-heading"); if(h) h.textContent = "Add New Client";
   var np = $("edit-client-name"); if(np) np.textContent = "";
   var nameRow = $("edit-name-row"); if(nameRow) nameRow.style.display = "block";
-  var srRow = $("edit-sr-row"); if(srRow) srRow.style.display = "block";
+  var srRow = $("edit-sr-row"); if(srRow) srRow.style.display = "none";
   var ntnRow = $("edit-ntn-row"); if(ntnRow) ntnRow.style.display = "block";
   var en = $("edit-new-name"); if(en) en.value = "";
   var entn = $("edit-ntn"); if(entn){ entn.value = ""; entn.readOnly = false; entn.style.background=""; }
@@ -4505,7 +4506,9 @@ window.saveClientEdit = function saveClientEdit(idx){
   var email   = ($("edit-email")||{}).value||"";
   var address = ($("edit-address")||{}).value||"";
   var ntn     = (($("edit-ntn")||{}).value||"").trim();
+  var sr      = (($("edit-sr")||{}).value||"").trim();
   if(!CLIENT_OVERRIDES[idx]) CLIENT_OVERRIDES[idx] = {};
+  CLIENT_OVERRIDES[idx].sr      = sr;
   CLIENT_OVERRIDES[idx].ntn     = ntn;
   CLIENT_OVERRIDES[idx].phone   = phone;
   CLIENT_OVERRIDES[idx].email   = email;
@@ -8426,6 +8429,9 @@ window.advInsertTable = function(){
       </div>
     </div>
     <!-- Shared fields -->
+    <div id="edit-sr-row" style="display:none;">
+      <div class="task-field" style="margin-bottom:12px;"><label>SR No. / File No.</label><input type="text" id="edit-sr" placeholder="e.g. 223"></div>
+    </div>
     <div id="edit-ntn-row" style="display:block;">
       <div class="task-field" style="margin-bottom:12px;"><label>NTN</label><input type="text" id="edit-ntn" placeholder="NTN number" readonly style="background:var(--line-2);"></div>
     </div>
