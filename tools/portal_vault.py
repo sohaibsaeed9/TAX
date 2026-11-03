@@ -25,12 +25,22 @@ DAY-TO-DAY:
   python3 tools/portal_vault.py rmuser  --user sohaib --target staff3
 
 Keep any extracted clients.json OUT of the repo and delete it when done.
-Needs: pip install cryptography
+Needs: pip install pycryptodome   (or: pip install cryptography)
 """
 import argparse, base64, datetime, getpass, glob, json, os, re, subprocess, sys, urllib.request, urllib.error
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
+import hashlib
+try:
+    from Crypto.Cipher import AES as _AES          # pip install pycryptodome  (preferred)
+
+    class AESGCM:
+        """AES-256-GCM with the tag appended to the ciphertext (same format as WebCrypto)."""
+        def __init__(self, key): self.key = key
+        def encrypt(self, iv, data, aad=None):
+            c = _AES.new(self.key, _AES.MODE_GCM, nonce=iv); ct, tag = c.encrypt_and_digest(data); return ct + tag
+        def decrypt(self, iv, data, aad=None):
+            c = _AES.new(self.key, _AES.MODE_GCM, nonce=iv); return c.decrypt_and_verify(data[:-16], data[-16:])
+except ImportError:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM   # pip install cryptography
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 RAW = "https://raw.githubusercontent.com/sohaibsaeed9/TAX/main/"
@@ -48,7 +58,7 @@ unb64 = base64.b64decode
 
 # ── crypto ────────────────────────────────────────────────────────────────
 def kek(password, salt, it):
-    return PBKDF2HMAC(hashes.SHA256(), 32, salt, it).derive(password.encode())
+    return hashlib.pbkdf2_hmac("sha256", password.encode(), salt, it, 32)
 
 def wrap(dk, password):
     salt, iv = os.urandom(16), os.urandom(12)
