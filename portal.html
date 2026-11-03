@@ -2991,6 +2991,7 @@ function reloadLsKey(key){
     else if(key==="sc_returns"){ RETURNS=JSON.parse(localStorage.getItem(key)||"[]"); typeof renderClients==="function"&&renderClients(); }
     else if(key==="sc_st_clients"){ ST_CLIENTS=JSON.parse(localStorage.getItem(key)||"[]"); typeof renderSalesTax==="function"&&renderSalesTax(); }
     else if(key==="sc_st_status"){ ST_STATUS=JSON.parse(localStorage.getItem(key)||"{}"); typeof renderSalesTax==="function"&&renderSalesTax(); }
+    else if(key==="sc_fbr_profiles"){ FBR_PROFILES=JSON.parse(localStorage.getItem(key)||"{}"); }
     else if(key==="sc_comms"){ COMMS=JSON.parse(localStorage.getItem(key)||"[]"); }
     else if(key==="sc_iris"){ IRIS_DATA=JSON.parse(localStorage.getItem(key)||"{}"); }
     else if(key==="sc_advisories"){ ADVISORIES=JSON.parse(localStorage.getItem(key)||"[]"); }
@@ -6125,6 +6126,7 @@ function renderProfileTab(){
   var idx = profileIdx;
   var html = "";
   if(profileTab === "correspondence"){ if(window.IRIS) IRIS.clientTab(body, c); return; }
+  if(profileTab === "fbrprofile"){ body.innerHTML=fbrProfileHtml(idx); return; }
 
   if(profileTab === "info"){
     html += '<div class="cp-info-grid">';
@@ -7428,6 +7430,100 @@ window.renderSalesTax=function(){
 };
 
 /* ════════════════════════════════
+   FBR TAXPAYER PROFILES (from the Profile Checker extension's Excel)
+════════════════════════════════ */
+var FBR_PROFILES={}; try{ FBR_PROFILES=JSON.parse(localStorage.getItem("sc_fbr_profiles")||"{}"); }catch(e){ FBR_PROFILES={}; }
+function saveFbrProfiles(desc){ guardedSave("sc_fbr_profiles",JSON.stringify(FBR_PROFILES),desc||"Updated FBR profiles",function(){ try{ localStorage.setItem("sc_fbr_profiles",JSON.stringify(FBR_PROFILES)); }catch(e){} }); }
+function _fdig(x){ return String(x==null?"":x).replace(/\D/g,""); }
+function fbrKeyOf(c){ return _fdig(c&&c.id)||_fdig(c&&c.ntn); }
+function fbrFor(idx){ var c=getClient(idx); if(!c) return null; return FBR_PROFILES[fbrKeyOf(c)]||FBR_PROFILES[_fdig(c.ntn)]||FBR_PROFILES[_fdig(c.id)]||null; }
+// match an FBR input id (CNIC/NTN digits) to a client index, by exact id or ntn
+function fbrMatch(idDigits){ if(!idDigits) return -1; for(var i=0;i<ALL_CLIENTS.length;i++){ var c=getClient(i); if(!c) continue; if(_fdig(c.id)===idDigits||_fdig(c.ntn)===idDigits) return i; } return -1; }
+function fbrProfileHtml(idx){
+  var p=fbrFor(idx); var c=getClient(idx);
+  if(!p) return '<div class="cp-empty" style="padding:40px;">No FBR profile imported for this client yet.<br><br>Run the FBR Taxpayer Profile Checker extension on IRIS, download its Excel, then on the Client Index press <b>Import FBR Profiles</b> and choose that file.</div>';
+  function row(l,v){ return v?'<div class="cp-info-item"><div class="cp-info-label">'+escHtml(l)+'</div><div class="cp-info-val">'+escHtml(v)+'</div></div>':''; }
+  var stReg=/yes/i.test(p.salesTaxRegistered||"");
+  var active=/active/i.test(p.registrationStatus||"")&&!/in.?active/i.test(p.registrationStatus||"");
+  var h='<div style="padding:4px 2px 14px;">';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">';
+  h+='<span class="cf-chip '+(active?"ok":"")+'">'+escHtml(p.registrationStatus||"Status unknown")+'</span>';
+  h+='<span class="cf-chip '+(stReg?"ok":"")+'" style="'+(stReg?"":"background:var(--line-2);color:var(--ink-3)")+'">Sales Tax: '+escHtml(p.salesTaxRegistered||"—")+'</span>';
+  if(p.taxOffice) h+='<span class="cf-chip">'+escHtml(p.taxOffice)+'</span>';
+  h+='</div>';
+  h+='<div class="cp-info-grid">';
+  h+=row("Name (FBR)",p.name)+row("Registration No",p.registrationNo)+row("Reference No",p.referenceNo)+row("PP / Reg / Inc No",p.ppRegIncNo)+row("Category",p.category)+row("Registered on",p.registeredOn)+row("Tax office",p.taxOffice)+row("Email (FBR)",p.email)+row("Cell (FBR)",p.cell)+row("Address (FBR)",p.address);
+  h+='</div>';
+  if(p.businesses&&p.businesses.length){
+    h+='<div style="font-family:var(--serif);font-size:16px;font-weight:600;margin:16px 0 8px;">Businesses / branches</div>';
+    h+='<div class="client-table-wrap"><div class="client-table-header" style="grid-template-columns:1fr 1.3fr 1.4fr;"><div>Name</div><div>Address</div><div>Principal activity</div></div>';
+    p.businesses.forEach(function(b){ h+='<div class="client-row" style="grid-template-columns:1fr 1.3fr 1.4fr;"><div class="client-name" style="font-weight:500;">'+escHtml(b.name||"—")+'</div><div style="font-size:12.5px;color:var(--ink-2);">'+escHtml(b.address||"—")+'</div><div style="font-size:12.5px;color:var(--ink-2);">'+escHtml(b.activity||"—")+'</div></div>'; });
+    h+='</div>';
+  }
+  if(p.importedAt) h+='<div style="font-size:12px;color:var(--ink-3);margin-top:12px;">Imported '+escHtml(_fd(p.importedAt.slice(0,10)))+(p.by?" by "+escHtml(p.by):"")+'.</div>';
+  return h+'</div>';
+}
+// ── parse the extension's Excel and import ──
+window.fbrImport=function(file){
+  if(!file) return;
+  if(typeof XLSX==="undefined"){ alert("Excel library not loaded. Check your internet connection and reload."); return; }
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var wb=XLSX.read(ev.target.result,{type:"array"});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var data=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      if(data.length<2){ alert("That file looks empty."); return; }
+      var H=data[0].map(function(x){ return String(x||"").toLowerCase().trim(); });
+      function col(){ for(var a=0;a<arguments.length;a++){ var want=arguments[a]; for(var i=0;i<H.length;i++){ if(H[i].indexOf(want)>-1) return i; } } return -1; }
+      var cId=col("input id","registration no","cnic","ntn"), cType=col("type"), cName=col("name"), cCat=col("category"),
+          cReg=col("registration no"), cRef=col("reference no"), cPP=col("pp"), cST=col("sales tax"), cEmail=col("email"),
+          cCell=col("cell"), cAddr=col("address"), cRon=col("registered on"), cTax=col("tax office"), cStat=col("registration status"),
+          cBName=col("business / branch name","branch name"), cBAddr=col("business / branch address","branch address"), cBAct=col("principal activity","activity");
+      if(cId<0){ alert("Could not find an 'INPUT ID' or 'Registration No' column in this file."); return; }
+      // group rows by input id
+      var groups={}, order=[];
+      for(var r=1;r<data.length;r++){ var row=data[r]; var idd=_fdig(row[cId]); if(!idd&&cReg>=0) idd=_fdig(row[cReg]); if(!idd) continue;
+        if(!groups[idd]){ groups[idd]={}; order.push(idd); var g=groups[idd];
+          g.inputId=String(row[cId]||"").trim(); g.type=cType>=0?String(row[cType]||"").trim():"";
+          g.name=cName>=0?String(row[cName]||"").trim():""; g.category=cCat>=0?String(row[cCat]||"").trim():"";
+          g.registrationNo=cReg>=0?String(row[cReg]||"").trim():""; g.referenceNo=cRef>=0?String(row[cRef]||"").trim():"";
+          g.ppRegIncNo=cPP>=0?String(row[cPP]||"").trim():""; g.salesTaxRegistered=cST>=0?String(row[cST]||"").trim():"";
+          g.email=cEmail>=0?String(row[cEmail]||"").trim():""; g.cell=cCell>=0?String(row[cCell]||"").trim():"";
+          g.address=cAddr>=0?String(row[cAddr]||"").trim():""; g.registeredOn=cRon>=0?String(row[cRon]||"").trim():"";
+          g.taxOffice=cTax>=0?String(row[cTax]||"").trim():""; g.registrationStatus=cStat>=0?String(row[cStat]||"").trim():"";
+          g.businesses=[]; }
+        var g2=groups[idd]; var bn=cBName>=0?String(row[cBName]||"").trim():"", ba=cBAddr>=0?String(row[cBAddr]||"").trim():"", bc=cBAct>=0?String(row[cBAct]||"").trim():"";
+        if(bn||ba){ if(!g2.businesses.some(function(x){ return x.name===bn&&x.address===ba; })) g2.businesses.push({name:bn,address:ba,activity:bc}); }
+      }
+      var matched=[], unmatched=[];
+      order.forEach(function(idd){ var g=groups[idd]; var mi=fbrMatch(idd); if(mi<0&&g.registrationNo) mi=fbrMatch(_fdig(g.registrationNo)); if(mi>=0) matched.push({idd:idd,g:g,idx:mi}); else unmatched.push(g); });
+      fbrShowImport(matched,unmatched);
+    }catch(err){ alert("Could not read that file: "+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+};
+function fbrShowImport(matched,unmatched){
+  var old=document.getElementById("fbr-imp-dlg"); if(old) old.remove();
+  var o=document.createElement("div"); o.id="fbr-imp-dlg";
+  o.style.cssText="position:fixed;inset:0;background:rgba(10,20,36,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;";
+  var h='<div style="background:var(--card);color:var(--ink);border-radius:12px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:20px 22px;">';
+  h+='<div style="font-family:var(--serif);font-size:20px;font-weight:600;margin-bottom:4px;">Import FBR profiles</div>';
+  h+='<div style="font-size:13px;color:var(--ink-2);margin-bottom:14px;"><b>'+matched.length+'</b> matched to clients'+(unmatched.length?', <b>'+unmatched.length+'</b> not matched':'')+'. Matched profiles will be saved to each client\'s FBR Profile tab. Nothing in the Client Index is changed.</div>';
+  if(matched.length){ h+='<div style="max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-bottom:10px;">';
+    matched.forEach(function(m){ var c=getClient(m.idx); h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line-2);font-size:12.5px;"><span>'+escHtml(c.name)+'</span><span style="color:var(--ink-3);">'+escHtml(m.g.registrationStatus||"")+(m.g.businesses.length?" · "+m.g.businesses.length+" biz":"")+'</span></div>'; });
+    h+='</div>'; }
+  if(unmatched.length){ h+='<div style="font-size:12px;color:#9c3a32;margin-bottom:6px;">Not matched (no client with this CNIC/NTN): '+escHtml(unmatched.slice(0,8).map(function(g){ return g.name||g.inputId; }).join(", "))+(unmatched.length>8?"…":"")+'</div>'; }
+  h+='<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;"><button type="button" data-a="cancel" class="btn-sec">Cancel</button><button type="button" data-a="save" class="task-add-btn" style="background:var(--navy-900);color:#fff;border:none;"'+(matched.length?"":" disabled")+'>Save '+matched.length+' profile'+(matched.length===1?"":"s")+'</button></div></div>';
+  o.innerHTML=h; document.body.appendChild(o);
+  o.addEventListener("click",function(e){ var a=e.target.getAttribute&&e.target.getAttribute("data-a"); if(e.target===o||a==="cancel"){ o.remove(); return; }
+    if(a==="save"){ var now=new Date().toISOString(); matched.forEach(function(m){ var g=m.g; g.importedAt=now; g.by=userName; FBR_PROFILES[fbrKeyOf(getClient(m.idx))]=g; }); saveFbrProfiles("Imported "+matched.length+" FBR profiles"); o.remove();
+      if(profileIdx!==null&&profileTab==="fbrprofile") renderProfileTab();
+      alert(matched.length+" FBR profile"+(matched.length===1?"":"s")+" saved."+(unmatched.length?" "+unmatched.length+" were not matched to a client.":"")); }
+  });
+}
+
+/* ════════════════════════════════
    EXPORT TO EXCEL / PRINT
 ════════════════════════════════ */
 function _fd(d){ if(!d) return ""; var o=new Date(String(d).length===10?d+"T00:00:00":d); return isNaN(o)?String(d):o.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
@@ -8167,6 +8263,7 @@ function cloudReloadKey(k){
     else if(k==="sc_returns"){ if(FILED_2026.length) seedReturns2026(); }
     else if(k==="sc_st_clients") ST_CLIENTS=J("[]");
     else if(k==="sc_st_status") ST_STATUS=J("{}");
+    else if(k==="sc_fbr_profiles") FBR_PROFILES=J("{}");
   }catch(e){}
 }
 function cloudRerender(){
@@ -8495,6 +8592,8 @@ window.advInsertTable = function(){
     <button class="task-add-btn" style="background:var(--navy-900);color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="document.getElementById('status-update-input').click()"><svg class=ic aria-hidden=true><use href=#i-refresh /></svg>Update ATL Status</button>
     <input type="file" id="status-update-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="autoUpdateStatus(this.files[0])">
     <button class="task-add-btn" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="openIrisBatch()"><svg class=ic aria-hidden=true><use href=#i-folder /></svg>Batch Upload IRIS Data</button>
+    <button class="task-add-btn" style="background:var(--navy-700);color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="document.getElementById('fbr-import-input').click()"><svg class=ic aria-hidden=true><use href=#i-building /></svg>Import FBR Profiles</button>
+    <input type="file" id="fbr-import-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="fbrImport(this.files[0]); this.value='';">
     <button id="arch-toggle-btn" class="btn-sec" style="font-size:12px;" onclick="toggleArchivedView()">Archived clients (0)</button>
     <button id="add-client-btn" class="task-add-btn" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openAddClientPanel()">+ Add Client</button>
     <button id="batch-archive-btn" class="task-del-btn" style="display:none;height:34px;" onclick="bulkArchiveSelected()">Archive selected</button>
@@ -9058,6 +9157,7 @@ Separate professional charges shall apply in the event of any tax proceeding / l
     </div>
     <div class="cp-tabs" id="cp-tabs">
       <div class="cp-tab on" data-cptab="info">Info</div>
+      <div class="cp-tab" data-cptab="fbrprofile">FBR Profile</div>
       <div class="cp-tab" data-cptab="computation">Tax Computation</div>
       <div class="cp-tab" data-cptab="wealth">Wealth</div>
       <div class="cp-tab" data-cptab="iris">IRIS Payments</div>
