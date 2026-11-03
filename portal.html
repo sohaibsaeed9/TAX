@@ -4412,6 +4412,56 @@ function getClient(idx){
   return c;
 }
 
+
+/* ── Client Index: choosable columns ── */
+function ciStageLabel(i){ var M={none:"Not started",started:"Started",prepared:"Prepared",checked:"Checked",filed:"Filed"}; return M[_dtStage(i)]||""; }
+function _ciF26(c,i){ var f=f26Of(i); return f?'<span class="sbadge ACTIVE" title="Filed '+escHtml(f[0][4])+'">Filed '+escHtml(new Date(f[0][4]+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"short"}))+'</span>':'<span class="sbadge BLANK">Pending</span>'; }
+function _ciWa(c,i){ return (c.phoneWA||c.phone)?'<button onclick="openWAPanel('+i+')" style="background:#25d366;border:none;color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><svg class=ic aria-hidden=true><use href=#i-chat /></svg>Msg</button>':'<button onclick="openEditPanel('+i+')" style="background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;">+ Add</button>'; }
+function _ciName(c,i){ var ini=(c.name||"").replace(/^(M\/S\.?|MR\.?|MRS\.?|MS\.?|DR\.?)\s+/i,"").split(/\s+/).filter(Boolean).slice(0,2).map(function(w){ return w.charAt(0); }).join("").toUpperCase();
+  return '<div class="client-name" style="cursor:pointer;display:flex;align-items:center;gap:10px;min-width:0;" onclick="openProfile('+i+')"><span style="width:32px;height:32px;flex-shrink:0;border-radius:8px;background:var(--gold-soft);color:var(--amber);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:14px;">'+escHtml(ini)+'</span><span style="min-width:0;"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(c.name)+'</span>'+(c.ntn?'<span class="mono" style="display:block;font-size:11.5px;color:var(--ink-3);font-weight:400;">NTN '+escHtml(c.ntn)+'</span>':'')+'</span></div>'; }
+function _ciTxt(v,extra){ return '<div style="font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+(extra||"")+'">'+escHtml(v||"—")+'</div>'; }
+var CI_ALLCOLS=[
+  {k:"check",always:1,w:"32px",head:'<input type="checkbox" id="select-all-tags" title="Select all" onchange="toggleSelectAllTags(this.checked)">',cell:function(c,i){ return '<div><input type="checkbox" class="tag-select-cb" data-idx="'+i+'" onchange="updateBatchPrintBtn()"></div>'; }},
+  {k:"sr",label:"SR No.",grp:"Identity",w:"62px",head:"SR No.",cell:function(c,i){ return '<div class="client-file" style="font-weight:700;color:#1a2744;">'+escHtml(c.sr||String(i+1))+'</div>'; }},
+  {k:"name",always:1,w:"minmax(170px,1fr)",head:"Client Name",cell:function(c,i){ return _ciName(c,i); }},
+  {k:"newFile",label:"New File No.",grp:"Identity",w:"90px",head:"New File",cell:function(c){ return _ciTxt(c.newFile,"font-weight:600;color:#1a2744;"); }},
+  {k:"id",label:"ID / IRIS ID",grp:"Identity",w:"130px",head:"ID",cell:function(c){ return '<div class="client-id">'+escHtml(c.id||"—")+'</div>'; }},
+  {k:"status",label:"Status",grp:"Status & returns",w:"100px",head:"Status",cell:function(c){ return '<div><span class="sbadge '+getStatusClass(c.status)+'">'+getStatusLabel(c.status)+'</span></div>'; }},
+  {k:"ty2026",label:"TY2026 return",grp:"Status & returns",w:"112px",head:"TY2026",cell:function(c,i){ return '<div>'+_ciF26(c,i)+'</div>'; }},
+  {k:"type",label:"Type (Individual/Company)",grp:"Status & returns",w:"96px",head:"Type",cell:function(c){ return _ciTxt(isCompany(c.name)?"Company":"Individual"); }},
+  {k:"comp",label:"Computation progress",grp:"Status & returns",w:"120px",head:"Computation",cell:function(c,i){ return _ciTxt(ciStageLabel(i),"color:var(--ink-3);"); }},
+  {k:"phone",label:"Phone",grp:"Contact",w:"128px",head:"Phone",cell:function(c){ return _ciTxt(c.phone,"font-family:var(--mono);"); }},
+  {k:"wa",label:"WhatsApp number",grp:"Contact",w:"128px",head:"WhatsApp No.",cell:function(c){ return _ciTxt(c.phoneWA||c.phone,"font-family:var(--mono);"); }},
+  {k:"email",label:"Email",grp:"Contact",w:"180px",head:"Email",cell:function(c){ return _ciTxt(c.email); }},
+  {k:"address",label:"Address",grp:"Contact",w:"220px",head:"Address",cell:function(c){ return '<div style="font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+escHtml(c.address||"")+'">'+escHtml(c.address||"—")+'</div>'; }},
+  {k:"fbr_st",label:"Sales Tax (FBR)",grp:"FBR profile",w:"96px",head:"Sales Tax",cell:function(c,i){ var pr=fbrFor(i); return _ciTxt(pr?pr.salesTaxRegistered:""); }},
+  {k:"fbr_office",label:"Tax Office (FBR)",grp:"FBR profile",w:"120px",head:"Tax Office",cell:function(c,i){ var pr=fbrFor(i); return _ciTxt(pr&&pr.taxOffice); }},
+  {k:"fbr_status",label:"Registration status (FBR)",grp:"FBR profile",w:"120px",head:"FBR Status",cell:function(c,i){ var pr=fbrFor(i); return _ciTxt(pr&&pr.registrationStatus); }},
+  {k:"actions",always:1,w:"minmax(190px,auto)",head:"",cell:function(c,i){ return '<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">'+_ciWa(c,i)+'<button onclick="openEditPanel('+i+')" style="background:none;border:1px solid #e5e7eb;color:#6b7280;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;">Edit</button><button onclick="openTagModal('+i+')" style="background:#1a2744;border:none;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;"><svg class=ic aria-hidden=true><use href=#i-tag /></svg>Tags</button></div>'; }}
+];
+var CI_DEFAULT=["sr","id","status","ty2026"];
+function ciVisible(){ try{ var v=JSON.parse(localStorage.getItem("index_cols")||"null"); if(Array.isArray(v)) return v; }catch(e){} return CI_DEFAULT.slice(); }
+function ciCols(){ var vis=ciVisible(); return CI_ALLCOLS.filter(function(col){ return col.always||vis.indexOf(col.k)>-1; }); }
+window.ciColumns=function(){
+  var old=document.getElementById("ci-cols-dlg"); if(old){ old.remove(); return; }
+  var vis=ciVisible(), groups=[], seen={};
+  CI_ALLCOLS.forEach(function(col){ if(col.always||!col.grp) return; if(!seen[col.grp]){ seen[col.grp]=[]; groups.push(col.grp); } seen[col.grp].push(col); });
+  var o=document.createElement("div"); o.id="ci-cols-dlg";
+  o.style.cssText="position:fixed;inset:0;background:rgba(10,20,36,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;";
+  var h='<div style="background:var(--card);color:var(--ink);border-radius:12px;max-width:440px;width:100%;max-height:88vh;overflow:auto;padding:18px 20px;">';
+  h+='<div style="font-family:var(--serif);font-size:19px;font-weight:600;margin-bottom:2px;">Columns</div><div style="font-size:12.5px;color:var(--ink-3);margin-bottom:12px;">Tick the columns to show in the table. Name and the buttons always show. Remembered on this computer.</div>';
+  groups.forEach(function(g){ h+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:12px 0 4px;">'+escHtml(g)+'</div>';
+    seen[g].forEach(function(col){ h+='<label style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer;"><input type="checkbox" class="ci-ck" value="'+col.k+'"'+(vis.indexOf(col.k)>-1?" checked":"")+'>'+escHtml(col.label)+'</label>'; }); });
+  h+='<div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;"><button type="button" data-a="reset" class="btn-sec">Reset to default</button><div style="display:flex;gap:8px;"><button type="button" data-a="cancel" class="btn-sec">Cancel</button><button type="button" data-a="apply" class="task-add-btn" style="background:var(--navy-900);color:#fff;border:none;">Apply</button></div></div></div>';
+  o.innerHTML=h; document.body.appendChild(o);
+  o.addEventListener("click",function(e){ var a=e.target.getAttribute&&e.target.getAttribute("data-a");
+    if(e.target===o||a==="cancel"){ o.remove(); return; }
+    if(a==="reset"){ o.querySelectorAll(".ci-ck").forEach(function(x){ x.checked=CI_DEFAULT.indexOf(x.value)>-1; }); return; }
+    if(a==="apply"){ var keys=[].slice.call(o.querySelectorAll(".ci-ck")).filter(function(x){ return x.checked; }).map(function(x){ return x.value; });
+      try{ localStorage.setItem("index_cols",JSON.stringify(keys)); }catch(e2){} o.remove(); renderClients(); }
+  });
+};
+
 window.openEditPanel = function openEditPanel(idx){
   var c = getClient(idx);
   var h = $("edit-panel-heading"); if(h) h.textContent = "Edit Client";
@@ -4632,30 +4682,17 @@ function renderClients(){
   }
   if(count) count.textContent="Showing "+filtered.length+" of "+nView+(curArch?" archived":"")+" clients"+(q?" for \""+curSearch+"\"":"");
   if(!filtered.length){ list.innerHTML="<div class=\"no-results\">"+(curArch?"No archived clients.":"No clients found.")+"</div>"; return; }
+  var cols=ciCols(), tmpl=cols.map(function(col){ return col.w; }).join(" ");
+  var hdr=document.querySelector("#pg-clients .client-table-header");
+  if(hdr){ hdr.style.gridTemplateColumns=tmpl; hdr.innerHTML=cols.map(function(col){ return "<div>"+(col.head||"")+"</div>"; }).join(""); }
+  var wrap=document.querySelector("#pg-clients .client-table-wrap"); if(wrap) wrap.style.overflowX="auto";
   var html="";
   for(var j=0;j<filtered.length;j++){
     var c=filtered[j].c; var idx=filtered[j].i;
-    var sc=getStatusClass(c.status); var sl=getStatusLabel(c.status);
-    var phone=c.phone||""; var phoneWA=c.phoneWA||"";
-    var waBtn = (phoneWA||phone)
-      ? "<button onclick=\"openWAPanel("+idx+")\" style=\"background:#25d366;border:none;color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;\"><svg class=ic aria-hidden=true><use href=#i-chat /></svg>Msg</button>"
-      : "<button onclick=\"openEditPanel("+idx+")\" style=\"background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;\">+ Add</button>";
-    var f26=f26Of(idx);
-    var f26Html=f26?"<span class=\"sbadge ACTIVE\" title=\"Filed "+escHtml(f26[0][4])+"\">Filed "+escHtml(new Date(f26[0][4]+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"short"}))+"</span>":"<span class=\"sbadge BLANK\">Pending</span>";
-    html+="<div class=\"client-row\" style=\"grid-template-columns:32px 60px 1fr 140px 100px 100px 80px 80px 65px;\">";
-    html+="<div><input type=\"checkbox\" class=\"tag-select-cb\" data-idx=\""+idx+"\" onchange=\"updateBatchPrintBtn()\"></div>";
-    html+="<div class=\"client-file\" style=\"font-weight:700;color:#1a2744;\">"+escHtml(c.sr||String(idx+1))+"</div>";
-    var _ini=(c.name||"").replace(/^(M\/S\.?|MR\.?|MRS\.?|MS\.?|DR\.?)\s+/i,"").split(/\s+/).filter(Boolean).slice(0,2).map(function(w){ return w.charAt(0); }).join("").toUpperCase();
-    html+="<div class=\"client-name\" style=\"cursor:pointer;display:flex;align-items:center;gap:10px;min-width:0;\" onclick=\"openProfile("+idx+")\"><span style=\"width:32px;height:32px;flex-shrink:0;border-radius:8px;background:var(--gold-soft);color:var(--amber);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:14px;\">"+escHtml(_ini)+"</span><span style=\"min-width:0;\"><span style=\"display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">"+escHtml(c.name)+"</span>"+(c.ntn?"<span class=\"mono\" style=\"display:block;font-size:11.5px;color:var(--ink-3);font-weight:400;\">NTN "+escHtml(c.ntn)+"</span>":"")+"</span></div>";
-    html+="<div class=\"client-id\">"+escHtml(c.id)+"</div>";
-    html+="<div><span class=\"sbadge "+sc+"\">"+sl+"</span></div>";
-    html+="<div>"+f26Html+"</div>";
-    html+="<div>"+waBtn+"</div>";
-    html+="<div><button onclick=\"openEditPanel("+idx+")\" style=\"background:none;border:1px solid #e5e7eb;color:#6b7280;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;\">Edit</button></div>";
-    html+="<div><button onclick=\"openTagModal("+idx+")\" style=\"background:#1a2744;border:none;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;\"><svg class=ic aria-hidden=true><use href=#i-tag /></svg>Tags</button></div>";
-    html+="</div>";
+    html+='<div class="client-row" style="grid-template-columns:'+tmpl+';">'+cols.map(function(col){ return col.cell(c,idx); }).join("")+'</div>';
   }
   list.innerHTML=html;
+  if(window.updateBatchPrintBtn) updateBatchPrintBtn();
 }
 
 /* ════════════════════════════════
@@ -8594,6 +8631,7 @@ window.advInsertTable = function(){
     <button class="task-add-btn" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="openIrisBatch()"><svg class=ic aria-hidden=true><use href=#i-folder /></svg>Batch Upload IRIS Data</button>
     <button class="task-add-btn" style="background:var(--navy-700);color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="document.getElementById('fbr-import-input').click()"><svg class=ic aria-hidden=true><use href=#i-building /></svg>Import FBR Profiles</button>
     <input type="file" id="fbr-import-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="fbrImport(this.files[0]); this.value='';">
+    <button class="btn-sec" style="font-size:12px;" onclick="ciColumns()"><svg class=ic aria-hidden=true><use href=#i-grid /></svg>Columns</button>
     <button id="arch-toggle-btn" class="btn-sec" style="font-size:12px;" onclick="toggleArchivedView()">Archived clients (0)</button>
     <button id="add-client-btn" class="task-add-btn" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openAddClientPanel()">+ Add Client</button>
     <button id="batch-archive-btn" class="task-del-btn" style="display:none;height:34px;" onclick="bulkArchiveSelected()">Archive selected</button>
