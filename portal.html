@@ -3118,7 +3118,7 @@ function unlockVault(u,p){
 function loginOK(u,usr){
   role=usr.role; userName=usr.name; userKey=u; sessStart=Date.now();
   var p=PERMS[role];
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","filing","irisnotices","irissync","fees","invoices","comms","tools","library","exttools","advisories","secp"].forEach(function(k){
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","salestax","filing","irisnotices","irissync","fees","invoices","comms","tools","library","exttools","advisories","secp"].forEach(function(k){
     var el=$("tab-"+k); if(el) el.classList.toggle("hide",!p[k]);
   });
   buildPages(p);
@@ -3145,7 +3145,7 @@ function doLogout(){
   $("lpass").value=""; $("luser").value="";
   $("lbtn").textContent="Sign In →"; $("lbtn").disabled=false;
   att=0; updateDots(); hideErr();
-  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","filing","irisnotices","irissync","fees","invoices","comms","tools","library","advisories","secp"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
+  ["dashboard","calculator","clients","iris","deadlines","tasks","notices","returns","salestax","filing","irisnotices","irissync","fees","invoices","comms","tools","library","advisories","secp"].forEach(function(k){ var pg=$("pg-"+k); if(pg) pg.innerHTML=""; });
 }
 
 /* ════════════════════════════════
