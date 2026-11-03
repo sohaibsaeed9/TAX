@@ -7485,11 +7485,11 @@ function fbrProfileHtml(idx){
   var h='<div style="padding:4px 2px 14px;">';
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">';
   h+='<span class="cf-chip '+(active?"ok":"")+'">'+escHtml(p.registrationStatus||"Status unknown")+'</span>';
-  h+='<span class="cf-chip '+(stReg?"ok":"")+'" style="'+(stReg?"":"background:var(--line-2);color:var(--ink-3)")+'">Sales Tax: '+escHtml(p.salesTaxRegistered||"—")+'</span>';
+  h+='<span class="cf-chip '+(stReg?"ok":"")+'" style="'+(stReg?"":"background:var(--line-2);color:var(--ink-3)")+'">Sales Tax: '+(stReg?"Yes":escHtml(p.salesTaxRegistered||"No"))+'</span>';
   if(p.taxOffice) h+='<span class="cf-chip">'+escHtml(p.taxOffice)+'</span>';
   h+='</div>';
   h+='<div class="cp-info-grid">';
-  h+=row("Name (FBR)",p.name)+row("Registration No",p.registrationNo)+row("Reference No",p.referenceNo)+row("PP / Reg / Inc No",p.ppRegIncNo)+row("Category",p.category)+row("Registered on",p.registeredOn)+row("Tax office",p.taxOffice)+row("Email (FBR)",p.email)+row("Cell (FBR)",p.cell)+row("Address (FBR)",p.address);
+  h+=row("Name (FBR)",p.name)+row("Registration No",p.registrationNo)+row("Reference No (NTN)",p.referenceNo)+row("PP / Reg / Inc No",p.ppRegIncNo)+row("Category",p.category)+row("Registered for sales tax",p.salesTaxRegistered)+row("Principal activity",p.principalActivity)+row("Registered on",p.registeredOn)+row("Tax office",p.taxOffice)+row("Email (FBR)",p.email)+row("Cell (FBR)",p.cell)+row("Address (FBR)",p.address);
   h+='</div>';
   if(p.businesses&&p.businesses.length){
     h+='<div style="font-family:var(--serif);font-size:16px;font-weight:600;margin:16px 0 8px;">Businesses / branches</div>';
@@ -7529,12 +7529,13 @@ window.fbrImport=function(file){
           g.email=cEmail>=0?String(row[cEmail]||"").trim():""; g.cell=cCell>=0?String(row[cCell]||"").trim():"";
           g.address=cAddr>=0?String(row[cAddr]||"").trim():""; g.registeredOn=cRon>=0?String(row[cRon]||"").trim():"";
           g.taxOffice=cTax>=0?String(row[cTax]||"").trim():""; g.registrationStatus=cStat>=0?String(row[cStat]||"").trim():"";
-          g.businesses=[]; }
+          g.businesses=[]; g.principalActivity=""; }
         var g2=groups[idd]; var bn=cBName>=0?String(row[cBName]||"").trim():"", ba=cBAddr>=0?String(row[cBAddr]||"").trim():"", bc=cBAct>=0?String(row[cBAct]||"").trim():"";
         if(bn||ba){ if(!g2.businesses.some(function(x){ return x.name===bn&&x.address===ba; })) g2.businesses.push({name:bn,address:ba,activity:bc}); }
+        else if(bc&&!g2.principalActivity){ g2.principalActivity=bc; }
       }
       var matched=[], unmatched=[];
-      order.forEach(function(idd){ var g=groups[idd]; var mi=fbrMatch(idd); if(mi<0&&g.registrationNo) mi=fbrMatch(_fdig(g.registrationNo)); if(mi>=0) matched.push({idd:idd,g:g,idx:mi}); else unmatched.push(g); });
+      order.forEach(function(idd){ var g=groups[idd]; var mi=fbrMatch(idd); if(mi<0&&g.referenceNo) mi=fbrMatch(_fdig(g.referenceNo)); if(mi<0&&g.registrationNo) mi=fbrMatch(_fdig(g.registrationNo)); if(mi>=0) matched.push({idd:idd,g:g,idx:mi}); else unmatched.push(g); });
       fbrShowImport(matched,unmatched);
     }catch(err){ alert("Could not read that file: "+err.message); }
   };
