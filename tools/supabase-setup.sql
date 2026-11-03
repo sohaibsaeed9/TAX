@@ -1,5 +1,7 @@
 -- S. Saeed & Co. staff portal - Supabase setup
 -- Paste into Supabase: SQL Editor -> New query -> Run. Safe to run more than once.
+-- IMPORTANT: if you ever re-run this file, run supabase-iris-runner-lockdown.sql and then
+-- supabase-security-upgrade.sql again afterwards, or two-step sign-in stops being enforced.
 
 -- 1. Who may use the portal (one row per staff login)
 create table if not exists public.staff (
