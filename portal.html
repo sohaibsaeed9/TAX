@@ -851,6 +851,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     <div class="sitem hide" id="tab-irisnotices" data-page="irisnotices"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg><span>IRIS Notices</span></div>
     <div class="sitem hide" id="tab-irissync" data-page="irissync"><svg class="ic" aria-hidden="true"><use href="#i-tool"/></svg><span>IRIS Sync</span></div>
     <div class="sitem hide" id="tab-returns" data-page="returns"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg><span>Return Register</span></div>
+    <div class="sitem hide" id="tab-salestax" data-page="salestax"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg><span>Sales Tax Board</span></div>
     <div class="sitem hide" id="tab-iris" data-page="iris"><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg><span>IRIS Payments</span></div>
     <div class="sitem hide" id="tab-secp" data-page="secp"><svg class="ic" aria-hidden="true"><use href="#i-building"/></svg><span>SECP Filing</span></div>
     <div class="sidebar-section">Billing</div>
@@ -878,6 +879,7 @@ tr:hover .cx-add{opacity:1;color:var(--navy-700)}
     <div id="pg-irisnotices" class="pg"></div>
     <div id="pg-irissync" class="pg"></div>
     <div id="pg-returns" class="pg"></div>
+    <div id="pg-salestax" class="pg"></div>
     <div id="pg-fees" class="pg"></div>
     <div id="pg-invoices" class="pg"></div>
     <div id="pg-comms" class="pg"></div>
@@ -2911,9 +2913,9 @@ var VAULT = {"v":1,"iter":600000,"data":{"iv":"wwh1g1echm0+y9Jo","ct":"NIPAQRs6I
 var USERS = {};
 Object.keys(VAULT.users).forEach(function(k){ var v=VAULT.users[k]; USERS[k]={ role:v.role, name:v.name, needsApproval:!!v.needsApproval, email:v.email||"" }; });
 var PERMS = {
-  admin:    { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1, irisnotices:1, irissync:1 },
-  reviewer: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:0, invoices:0, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1, irisnotices:1, irissync:0 },
-  staff:    { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, filing:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0, secp:0, irisnotices:0, irissync:0 }
+  admin:    { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:1, invoices:1, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1, irisnotices:1, irissync:1, salestax:1 },
+  reviewer: { dashboard:1, calculator:1, clients:1, iris:1, deadlines:1, tasks:1, notices:1, returns:1, filing:1, fees:0, invoices:0, comms:1, tools:1, library:1, exttools:1, advisories:1, secp:1, irisnotices:1, irissync:0, salestax:1 },
+  staff:    { dashboard:0, calculator:1, clients:0, iris:0, deadlines:0, tasks:0, notices:0, returns:0, filing:0, fees:0, invoices:0, comms:0, tools:0, library:1, exttools:0, advisories:0, secp:0, irisnotices:0, irissync:0, salestax:0 }
 };
 
 /* ════════════════════════════════
@@ -2987,6 +2989,8 @@ function reloadLsKey(key){
     }
     else if(key==="sc_notices"){ NOTICES=JSON.parse(localStorage.getItem(key)||"[]"); }
     else if(key==="sc_returns"){ RETURNS=JSON.parse(localStorage.getItem(key)||"[]"); typeof renderClients==="function"&&renderClients(); }
+    else if(key==="sc_st_clients"){ ST_CLIENTS=JSON.parse(localStorage.getItem(key)||"[]"); typeof renderSalesTax==="function"&&renderSalesTax(); }
+    else if(key==="sc_st_status"){ ST_STATUS=JSON.parse(localStorage.getItem(key)||"{}"); typeof renderSalesTax==="function"&&renderSalesTax(); }
     else if(key==="sc_comms"){ COMMS=JSON.parse(localStorage.getItem(key)||"[]"); }
     else if(key==="sc_iris"){ IRIS_DATA=JSON.parse(localStorage.getItem(key)||"{}"); }
     else if(key==="sc_advisories"){ ADVISORIES=JSON.parse(localStorage.getItem(key)||"[]"); }
@@ -3156,6 +3160,7 @@ function buildPages(p){
   if(p.tasks){ var tk=$("tpl-tasks"); $("pg-tasks").innerHTML=tk?tk.innerHTML:""; wireTasks(); }
   if(p.notices){ var nt=$("tpl-notices"); $("pg-notices").innerHTML=nt?nt.innerHTML:""; wireNotices(); }
   if(p.returns){ var rt=$("tpl-returns"); $("pg-returns").innerHTML=rt?rt.innerHTML:""; wireReturns(); }
+  if(p.salestax){ var stx=$("tpl-salestax"); $("pg-salestax").innerHTML=stx?stx.innerHTML:""; wireSalesTax(); }
   if(p.fees){ var ft=$("tpl-fees"); $("pg-fees").innerHTML=ft?ft.innerHTML:""; wireFees(); }
   if(p.invoices){ var iv=$("tpl-invoices"); $("pg-invoices").innerHTML=iv?iv.innerHTML:""; wireInvoices(); }
   if(p.comms){ var ct=$("tpl-comms"); $("pg-comms").innerHTML=ct?ct.innerHTML:""; wireComms(); }
@@ -3172,6 +3177,7 @@ window.showPage = function showPage(id){
   $("pg-"+id).classList.add("on");
   $("tab-"+id).classList.add("on");
   if(id==="filing"&&window.renderFiling) renderFiling();
+  if(id==="salestax"&&window.renderSalesTax) renderSalesTax();
   if(id==="irisnotices"&&window.IRIS) IRIS.noticesPage($("pg-irisnotices"));
   if(id==="irissync"&&window.IRIS) IRIS.syncPage($("pg-irissync"));
   if(id==="dashboard"&&window.renderDashToday){ _dtLoad._at=0; _dtLoad._busy=false; renderDashToday(); }
@@ -7331,12 +7337,111 @@ function showStatusBanner(updated, skipped, notFound, filename){
 
 
 /* ════════════════════════════════
+   SALES TAX BOARD (monthly return status)
+════════════════════════════════ */
+var ST_CLIENTS=[]; try{ ST_CLIENTS=JSON.parse(localStorage.getItem("sc_st_clients")||"[]"); }catch(e){ ST_CLIENTS=[]; }
+var ST_STATUS={}; try{ ST_STATUS=JSON.parse(localStorage.getItem("sc_st_status")||"{}"); }catch(e){ ST_STATUS={}; }
+var ST_PERIOD=null, ST_Q="", ST_F="all";
+var ST_MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+var ST_LABELS={pending:"Pending",working:"Working",filed:"Filed",nil:"Nil / Null",na:"Not applicable"};
+function saveStClients(desc){ guardedSave("sc_st_clients",JSON.stringify(ST_CLIENTS),desc||"Updated sales tax board clients",function(){ try{ localStorage.setItem("sc_st_clients",JSON.stringify(ST_CLIENTS)); }catch(e){} }); }
+function saveStStatus(desc){ guardedSave("sc_st_status",JSON.stringify(ST_STATUS),desc||"Updated sales tax status",function(){ try{ localStorage.setItem("sc_st_status",JSON.stringify(ST_STATUS)); }catch(e){} }); }
+function stDefaultPeriod(){ var d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function stLabel(pp){ var a=pp.split("-"); return ST_MONTHS[(+a[1])-1]+" "+a[0]; }
+function stDue(pp){ var a=pp.split("-"); var y=+a[0], m=+a[1], dm=m+1, dy=y; if(dm>12){ dm=1; dy++; } return new Date(dy,dm-1,18); }
+function stStat(id){ var m=ST_STATUS[ST_PERIOD]||{}; return m[id]||{s:"pending"}; }
+function stDone(s){ return s==="filed"||s==="nil"; }
+window.stShift=function(n){ var a=ST_PERIOD.split("-"); var d=new Date(+a[0],(+a[1])-1+n,1); ST_PERIOD=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); renderSalesTax(); };
+window.stThisPeriod=function(){ ST_PERIOD=stDefaultPeriod(); renderSalesTax(); };
+window.stSet=function(id,sVal){ if(!ST_STATUS[ST_PERIOD]) ST_STATUS[ST_PERIOD]={}; var cur=ST_STATUS[ST_PERIOD][id]||{}; cur.s=sVal; if(sVal==="filed"){ if(!cur.date) cur.date=new Date().toISOString().slice(0,10); cur.by=userName; } else { delete cur.date; delete cur.by; } ST_STATUS[ST_PERIOD][id]=cur; saveStStatus("Sales tax "+sVal+" ("+stLabel(ST_PERIOD)+")"); renderSalesTax(); };
+window.stSetDate=function(id,v){ if(!ST_STATUS[ST_PERIOD]) ST_STATUS[ST_PERIOD]={}; var cur=ST_STATUS[ST_PERIOD][id]||{s:"filed"}; cur.date=v||""; ST_STATUS[ST_PERIOD][id]=cur; saveStStatus(); };
+window.stRemove=function(id){ var c=ST_CLIENTS.filter(function(x){ return x.id===id; })[0]; if(!c) return; if(!confirm("Remove "+c.name+" from the Sales Tax Board? This removes their status for every month.")) return; ST_CLIENTS=ST_CLIENTS.filter(function(x){ return x.id!==id; }); Object.keys(ST_STATUS).forEach(function(pp){ if(ST_STATUS[pp]) delete ST_STATUS[pp][id]; }); saveStClients("Removed "+c.name+" from sales tax board"); saveStStatus(); renderSalesTax(); };
+function stAddClient(){
+  var name=(($("st-add-name")||{}).value||"").trim(); if(!name){ alert("Type a client name first."); return; }
+  var strn=(($("st-add-strn")||{}).value||"").trim();
+  if(ST_CLIENTS.some(function(c){ return c.name.toLowerCase()===name.toLowerCase(); })){ alert(name+" is already on the board."); return; }
+  var idx=-1; for(var i=0;i<ALL_CLIENTS.length;i++){ if((getClient(i).name||"").toLowerCase()===name.toLowerCase()){ idx=i; break; } }
+  if(idx>=0 && !strn){ strn=getClient(idx).ntn||""; }
+  ST_CLIENTS.push({id:"st"+Date.now()+Math.floor(Math.random()*1000),name:name,strn:strn,idx:idx});
+  saveStClients("Added "+name+" to sales tax board");
+  if($("st-add-name")) $("st-add-name").value=""; if($("st-add-strn")) $("st-add-strn").value="";
+  renderSalesTax();
+}
+function wireSalesTax(){
+  if(!ST_PERIOD) ST_PERIOD=stDefaultPeriod();
+  var dl=$("st-client-list"); if(dl&&!dl.children.length){ for(var i=0;i<ALL_CLIENTS.length;i++){ var o=document.createElement("option"); o.value=getClient(i).name; dl.appendChild(o); } }
+  var ab=$("st-add-btn"); if(ab) ab.onclick=stAddClient;
+  var an=$("st-add-name"); if(an) an.onkeydown=function(e){ if(e.key==="Enter") stAddClient(); };
+  var sq=$("st-search"); if(sq) sq.oninput=function(){ ST_Q=sq.value; renderSalesTax(); };
+  var sf=$("st-filter"); if(sf) sf.onchange=function(){ ST_F=sf.value; renderSalesTax(); };
+  renderSalesTax();
+}
+window.renderSalesTax=function(){
+  if(!ST_PERIOD) ST_PERIOD=stDefaultPeriod();
+  var head=$("st-head"), board=$("st-board"); if(!board) return;
+  var due=stDue(ST_PERIOD), today=new Date(); today.setHours(0,0,0,0);
+  var dueStr=due.getDate()+" "+ST_MONTHS[due.getMonth()].slice(0,3)+" "+due.getFullYear();
+  var overdueNow=today>due;
+  var total=0,doneN=0,outN=0,overN=0;
+  ST_CLIENTS.forEach(function(c){ var st=stStat(c.id); if(st.s==="na") return; total++; if(stDone(st.s)){ doneN++; } else { outN++; if(overdueNow) overN++; } });
+  if(head){ head.innerHTML=''
+    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">'
+    +'<button class="btn-sec" onclick="stShift(-1)" title="Previous month">&#9664;</button>'
+    +'<div style="min-width:170px;text-align:center;"><div style="font-family:var(--serif);font-size:20px;font-weight:600;color:var(--ink);">'+stLabel(ST_PERIOD)+'</div><div style="font-size:12px;color:'+(overdueNow&&outN?"#9c3a32":"var(--ink-3)")+';">return due '+dueStr+(overdueNow&&outN?" &middot; overdue":"")+'</div></div>'
+    +'<button class="btn-sec" onclick="stShift(1)" title="Next month">&#9654;</button>'
+    +'<button class="btn-sec" onclick="stThisPeriod()">This month</button>'
+    +'</div>'
+    +'<div class="cstat-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">'
+    +'<div class="cstat"><div class="cstat-val">'+total+'</div><div class="cstat-label">On monthly ST</div></div>'
+    +'<div class="cstat"><div class="cstat-val active" style="color:var(--green);">'+doneN+'</div><div class="cstat-label">Filed / Nil</div></div>'
+    +'<div class="cstat"><div class="cstat-val" style="color:#8a5a0b;">'+outN+'</div><div class="cstat-label">Outstanding</div></div>'
+    +'<div class="cstat"><div class="cstat-val" style="color:#9c3a32;">'+overN+'</div><div class="cstat-label">Overdue</div></div>'
+    +'</div>';
+  }
+  var q=ST_Q.toLowerCase().trim();
+  var rows=ST_CLIENTS.filter(function(c){
+    var st=stStat(c.id);
+    if(ST_F==="out"&&(stDone(st.s)||st.s==="na")) return false;
+    if(ST_F==="filed"&&!stDone(st.s)) return false;
+    if(ST_F==="overdue"&&!(overdueNow&&!stDone(st.s)&&st.s!=="na")) return false;
+    if(q&&(c.name||"").toLowerCase().indexOf(q)<0&&(c.strn||"").toLowerCase().indexOf(q)<0) return false;
+    return true;
+  }).sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
+  if(!ST_CLIENTS.length){ board.innerHTML='<div class="task-empty">No clients on the board yet. Add the clients you file monthly sales tax for, using the box above. They stay on the board every month.</div>'; return; }
+  if(!rows.length){ board.innerHTML='<div class="task-empty">No clients match this filter.</div>'; return; }
+  var COLORS={pending:["#f3f4f6","#6b7280"],working:["#fbefd9","#8a5a0b"],filed:["#e3f0e6","#2e7d4f"],nil:["#e7edf5","#2d4a7a"],na:["#f3f4f6","#9ca3af"]};
+  var h='<div class="client-table-wrap"><div class="client-table-header" style="grid-template-columns:1fr 150px 150px 130px 110px 60px;"><div>Client</div><div>STRN</div><div>Status</div><div>Filed on</div><div>By</div><div></div></div>';
+  rows.forEach(function(c){
+    var st=stStat(c.id), col=COLORS[st.s]||COLORS.pending, od=overdueNow&&!stDone(st.s)&&st.s!=="na";
+    h+='<div class="client-row" style="grid-template-columns:1fr 150px 150px 130px 110px 60px;'+(od?"background:#fdf3f2;":"")+'">';
+    h+='<div class="client-name" style="font-weight:500;">'+escHtml(c.name)+(od?' <span style="color:#9c3a32;font-size:11px;font-weight:600;">OVERDUE</span>':'')+'</div>';
+    h+='<div class="client-file mono" style="font-size:12px;">'+escHtml(c.strn||"—")+'</div>';
+    h+='<div><select onchange="stSet(\''+c.id+'\',this.value)" style="width:100%;height:32px;border-radius:6px;border:1px solid var(--line);font-size:12.5px;font-weight:600;background:'+col[0]+';color:'+col[1]+';padding:0 8px;">'
+      +["pending","working","filed","nil","na"].map(function(k){ return '<option value="'+k+'"'+(st.s===k?" selected":"")+'>'+ST_LABELS[k]+'</option>'; }).join("")+'</select></div>';
+    h+='<div>'+(st.s==="filed"?'<input type="date" value="'+(st.date||"")+'" onchange="stSetDate(\''+c.id+'\',this.value)" style="height:30px;border:1px solid var(--line);border-radius:6px;font-size:12px;padding:0 6px;">':'<span style="color:var(--ink-3);font-size:12px;">'+(st.s==="nil"?"nil filed":"—")+'</span>')+'</div>';
+    h+='<div style="font-size:12px;color:var(--ink-3);">'+escHtml(st.by||"")+'</div>';
+    h+='<div><button class="task-del-btn" onclick="stRemove(\''+c.id+'\')" title="Remove from board" style="font-size:11px;padding:4px 8px;">Remove</button></div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  board.innerHTML=h;
+};
+
+/* ════════════════════════════════
    EXPORT TO EXCEL / PRINT
 ════════════════════════════════ */
 function _fd(d){ if(!d) return ""; var o=new Date(String(d).length===10?d+"T00:00:00":d); return isNaN(o)?String(d):o.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
 function _q(id){ return ((document.getElementById(id)||{}).value||"").toLowerCase().trim(); }
 function _has(r,q,keys){ if(!q) return true; return keys.some(function(k){ return String(r[k]||"").toLowerCase().indexOf(q)>-1; }); }
 var EXPORTERS={
+  salestax:function(){
+    var pp=ST_PERIOD||stDefaultPeriod(), due=stDue(pp), today=new Date(); today.setHours(0,0,0,0); var overdueNow=today>due;
+    var rows=ST_CLIENTS.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); }).map(function(c){
+      var st=stStat(c.id); var lab=ST_LABELS[st.s]||"Pending"; if(overdueNow&&!stDone(st.s)&&st.s!=="na") lab+=" (overdue)";
+      return [c.name,c.strn||"",lab,st.date?_fd(st.date):"",st.by||""];
+    });
+    return {title:"Sales Tax Board "+stLabel(pp),cols:["Client","STRN","Status","Filed On","By"],rows:rows};
+  },
   clients:function(){
     var q=(curSearch||"").toLowerCase().trim(), rows=[];
     for(var i=0;i<ALL_CLIENTS.length;i++){
@@ -7439,7 +7544,7 @@ function addExportBar(id){
 /* ── DISPLAY-ONLY UI HELPERS (no data / permission logic) ── */
 function ico(n){ return '<svg class="ic" aria-hidden="true"><use href="#i-'+n+'"/></svg>'; }
 window.ico=ico;
-var PAGE_GROUP={dashboard:"Main",clients:"Main",calculator:"Main",deadlines:"Compliance",tasks:"Compliance",notices:"Compliance",returns:"Compliance",filing:"Compliance",irisnotices:"Compliance",irissync:"Compliance",iris:"Compliance",secp:"Compliance",fees:"Billing",invoices:"Billing",comms:"Resources",advisories:"Resources",library:"Resources",tools:"Resources"};
+var PAGE_GROUP={dashboard:"Main",clients:"Main",calculator:"Main",deadlines:"Compliance",tasks:"Compliance",notices:"Compliance",returns:"Compliance",salestax:"Compliance",filing:"Compliance",irisnotices:"Compliance",irissync:"Compliance",iris:"Compliance",secp:"Compliance",fees:"Billing",invoices:"Billing",comms:"Resources",advisories:"Resources",library:"Resources",tools:"Resources"};
 function uiRefreshShell(id){
   var tab=document.getElementById("tab-"+id), crumb=document.getElementById("sbar-page");
   if(tab&&crumb) crumb.textContent=tab.textContent.trim();
@@ -8060,10 +8165,12 @@ function cloudReloadKey(k){
     else if(k==="sc_notes") notes=J("[]");
     else if(k==="sc_pending") PENDING=J("[]");
     else if(k==="sc_returns"){ if(FILED_2026.length) seedReturns2026(); }
+    else if(k==="sc_st_clients") ST_CLIENTS=J("[]");
+    else if(k==="sc_st_status") ST_STATUS=J("{}");
   }catch(e){}
 }
 function cloudRerender(){
-  [renderTasks,renderNotices,renderReturns,renderFees,renderComms,renderNotes,renderInvoiceList,renderIrisPage,renderClients,renderPendingPanel,updatePendingBadge].forEach(function(f){ try{ if(typeof f==="function") f(); }catch(e){} });
+  [renderTasks,renderNotices,renderReturns,renderFees,renderComms,renderNotes,renderInvoiceList,renderIrisPage,renderClients,renderPendingPanel,updatePendingBadge,window.renderSalesTax].forEach(function(f){ try{ if(typeof f==="function") f(); }catch(e){} });
   try{ if(window.renderAdvisoriesPage) window.renderAdvisoriesPage(); }catch(e){}
 }
 function cloudStart(u,pw){
@@ -8544,6 +8651,26 @@ window.advInsertTable = function(){
 </div>
 
 <!-- RETURN FILING REGISTER -->
+<div id="tpl-salestax" style="display:none">
+  <div class="page-header"><div class="page-title">Sales Tax Board</div><div class="page-sub">Monthly sales tax return status for the clients you file for.</div></div>
+  <div class="page">
+    <div id="st-head"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:4px 0 14px;">
+      <div class="task-field" style="flex:1;min-width:200px;"><label>Add a client to the board</label><input type="text" id="st-add-name" list="st-client-list" placeholder="Type a name, or pick an existing client"></div>
+      <datalist id="st-client-list"></datalist>
+      <div class="task-field" style="width:170px;"><label>STRN (optional)</label><input type="text" id="st-add-strn" placeholder="Sales Tax Reg. No."></div>
+      <button class="task-add-btn" id="st-add-btn" style="height:40px;">+ Add to board</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <input class="search-input" id="st-search" type="text" placeholder="Search by client or STRN..." style="max-width:320px;">
+      <select id="st-filter" style="height:40px;border:1.5px solid var(--line);border-radius:7px;padding:0 12px;font-size:13px;background:var(--card);color:var(--ink);">
+        <option value="all">All</option><option value="out">Outstanding</option><option value="filed">Filed / Nil</option><option value="overdue">Overdue</option>
+      </select>
+    </div>
+    <div id="st-board"></div>
+  </div>
+</div>
+
 <div id="tpl-returns" style="display:none">
   <div class="page-header"><div class="page-title">Return Filing Register</div><div class="page-sub">Track income tax return filing status per client per year</div></div>
   <div class="task-add-card">
