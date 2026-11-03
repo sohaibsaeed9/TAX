@@ -4580,6 +4580,51 @@ var CI_ALLCOLS=[
 var CI_DEFAULT=["sr","id","status","ty2026"];
 function ciVisible(){ try{ var v=JSON.parse(localStorage.getItem("index_cols")||"null"); if(Array.isArray(v)) return v; }catch(e){} return CI_DEFAULT.slice(); }
 function ciCols(){ var vis=ciVisible(); return CI_ALLCOLS.filter(function(col){ return col.always||vis.indexOf(col.k)>-1; }); }
+/* ── Client Index: filter by a field (find blanks, or match a value) ── */
+var ciFilter=null;  // {key,mode:'missing'|'has'|'contains',text}
+var CI_FILTERFIELDS=[["ntn","NTN"],["id","ID / IRIS ID"],["newFile","New File No."],["phone","Phone"],["wa","WhatsApp number"],["email","Email"],["address","Address"],["fbr","FBR profile imported"],["fbr_st","Sales Tax (FBR)"],["fbr_office","Tax Office (FBR)"],["fbr_status","Registration status (FBR)"]];
+function _ciFieldVal(key,c,i){ var pr;
+  switch(key){
+    case "ntn": return c.ntn||""; case "id": return c.id||""; case "newFile": return c.newFile||"";
+    case "phone": return c.phone||""; case "wa": return c.phoneWA||c.phone||""; case "email": return c.email||""; case "address": return c.address||"";
+    case "fbr": pr=fbrFor(i); return pr?"yes":"";
+    case "fbr_st": pr=fbrFor(i); return (pr&&pr.salesTaxRegistered)||"";
+    case "fbr_office": pr=fbrFor(i); return (pr&&pr.taxOffice)||"";
+    case "fbr_status": pr=fbrFor(i); return (pr&&pr.registrationStatus)||"";
+    default: return "";
+  }
+}
+function ciPassFilter(c,i){ if(!ciFilter) return true; var v=String(_ciFieldVal(ciFilter.key,c,i)||"").trim();
+  if(ciFilter.mode==="missing") return !v;
+  if(ciFilter.mode==="has") return !!v;
+  if(ciFilter.mode==="contains") return v.toLowerCase().indexOf((ciFilter.text||"").toLowerCase())>-1;
+  return true; }
+window.ciClearFilter=function(){ ciFilter=null; renderClients(); };
+window.ciFilterOpen=function(){
+  var old=document.getElementById("ci-filt-dlg"); if(old){ old.remove(); return; }
+  var o=document.createElement("div"); o.id="ci-filt-dlg";
+  o.style.cssText="position:fixed;inset:0;background:rgba(10,20,36,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;";
+  var curK=ciFilter?ciFilter.key:"ntn", curM=ciFilter?ciFilter.mode:"missing", curT=ciFilter?ciFilter.text||"":"";
+  var h='<div style="background:var(--card);color:var(--ink);border-radius:12px;max-width:420px;width:100%;padding:18px 20px;">';
+  h+='<div style="font-family:var(--serif);font-size:19px;font-weight:600;margin-bottom:2px;">Filter clients by a field</div><div style="font-size:12.5px;color:var(--ink-3);margin-bottom:12px;">Find the clients missing a field so you can fill it in, or match a value.</div>';
+  h+='<div style="font-size:12px;color:var(--ink-3);">Field</div><select id="cif-field" style="width:100%;height:38px;border:1.5px solid var(--line);border-radius:7px;padding:0 10px;margin:4px 0 10px;background:var(--card);color:var(--ink);">'+CI_FILTERFIELDS.map(function(f){ return '<option value="'+f[0]+'"'+(curK===f[0]?" selected":"")+'>'+escHtml(f[1])+'</option>'; }).join("")+'</select>';
+  h+='<div style="font-size:12px;color:var(--ink-3);">Condition</div><select id="cif-mode" style="width:100%;height:38px;border:1.5px solid var(--line);border-radius:7px;padding:0 10px;margin:4px 0 10px;background:var(--card);color:var(--ink);"><option value="missing"'+(curM==="missing"?" selected":"")+'>Missing (blank)</option><option value="has"'+(curM==="has"?" selected":"")+'>Has data</option><option value="contains"'+(curM==="contains"?" selected":"")+'>Contains text…</option></select>';
+  h+='<input id="cif-text" type="text" placeholder="Text to match" value="'+escHtml(curT)+'" style="width:100%;height:38px;border:1.5px solid var(--line);border-radius:7px;padding:0 10px;margin-bottom:12px;display:'+(curM==="contains"?"block":"none")+';">';
+  h+='<div style="display:flex;gap:8px;justify-content:space-between;"><button type="button" data-a="clear" class="btn-sec">Clear filter</button><div style="display:flex;gap:8px;"><button type="button" data-a="cancel" class="btn-sec">Cancel</button><button type="button" data-a="apply" class="task-add-btn" style="background:var(--navy-900);color:#fff;border:none;">Apply</button></div></div></div>';
+  o.innerHTML=h; document.body.appendChild(o);
+  var md=o.querySelector("#cif-mode"), tx=o.querySelector("#cif-text");
+  md.onchange=function(){ tx.style.display=md.value==="contains"?"block":"none"; };
+  o.addEventListener("click",function(e){ var a=e.target.getAttribute&&e.target.getAttribute("data-a");
+    if(e.target===o||a==="cancel"){ o.remove(); return; }
+    if(a==="clear"){ ciFilter=null; o.remove(); renderClients(); return; }
+    if(a==="apply"){ var k=o.querySelector("#cif-field").value, m=md.value, t=tx.value.trim();
+      if(m==="contains"&&!t){ alert("Type the text to match, or choose Missing / Has data."); return; }
+      ciFilter={key:k,mode:m,text:t};
+      var showCol={newFile:"newFile",phone:"phone",wa:"wa",email:"email",address:"address",fbr_st:"fbr_st",fbr_office:"fbr_office",fbr_status:"fbr_status"};
+      if(showCol[k]){ try{ var vis=ciVisible(); if(vis.indexOf(showCol[k])<0){ vis.push(showCol[k]); localStorage.setItem("index_cols",JSON.stringify(vis)); } }catch(e2){} }
+      o.remove(); renderClients(); }
+  });
+};
 window.ciColumns=function(){
   var old=document.getElementById("ci-cols-dlg"); if(old){ old.remove(); return; }
   var vis=ciVisible(), groups=[], seen={};
@@ -4808,6 +4853,7 @@ function renderClients(){
     if(curF26==="P26" && f26Of(i)) continue;
     if(curType==="IND" && isCompany(c.name)) continue;
     if(curType==="CO" && !isCompany(c.name)) continue;
+    if(!ciPassFilter(c,i)) continue;
     if(q){
       var nm=c.name.toLowerCase().indexOf(q)>-1;
       var id=(c.id||"").toLowerCase().indexOf(q)>-1;
@@ -4818,7 +4864,9 @@ function renderClients(){
     }
     filtered.push({c:c,i:i});
   }
-  if(count) count.textContent="Showing "+filtered.length+" of "+nView+(curArch?" archived":"")+" clients"+(q?" for \""+curSearch+"\"":"");
+  if(count){ var _ct="Showing "+filtered.length+" of "+nView+(curArch?" archived":"")+" clients"+(q?' for "'+escHtml(curSearch)+'"':"");
+    if(ciFilter){ var _fl=(CI_FILTERFIELDS.filter(function(f){ return f[0]===ciFilter.key; })[0]||["",""])[1]; var _md=ciFilter.mode==="missing"?"missing":ciFilter.mode==="has"?"has data":'contains "'+escHtml(ciFilter.text)+'"'; _ct+=' <span style="background:var(--gold-soft);color:var(--navy-900);border-radius:999px;padding:2px 10px;font-size:12px;margin-left:6px;white-space:nowrap;">'+escHtml(_fl)+": "+_md+' <a href="#" onclick="ciClearFilter();return false;" style="color:var(--navy-700);font-weight:700;text-decoration:none;">\u00d7</a></span>'; }
+    count.innerHTML=_ct; }
   if(!filtered.length){ list.innerHTML="<div class=\"no-results\">"+(curArch?"No archived clients.":"No clients found.")+"</div>"; return; }
   var cols=ciCols(), tmpl=cols.map(function(col){ return col.w; }).join(" ");
   var hdr=document.querySelector("#pg-clients .client-table-header");
@@ -7723,6 +7771,7 @@ var EXPORTERS={
       if(curF26==="P26" && f26Of(i)) continue;
       if(curType==="IND" && isCompany(c.name)) continue;
       if(curType==="CO" && !isCompany(c.name)) continue;
+      if(!ciPassFilter(c,i)) continue;
       if(q && !_has(c,q,["name","id","sr","newFile","phone"])) continue;
       rows.push([c.sr||"",c.newFile||"",c.name,c.ntn||"",c.id||"",getStatusLabel(c.status),f26Of(i)?"Filed":"Pending",f26Of(i)?_fd(f26Of(i)[0][4]):"",c.phone||"",c.email||"",c.address||""]);
     }
@@ -8781,6 +8830,7 @@ window.advInsertTable = function(){
     <button class="task-add-btn" style="background:var(--navy-700);color:#fff;border:none;font-size:12px;padding:8px 16px;" onclick="document.getElementById('fbr-import-input').click()"><svg class=ic aria-hidden=true><use href=#i-building /></svg>Import FBR Profiles</button>
     <input type="file" id="fbr-import-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="fbrImport(this.files[0]); this.value='';">
     <button class="btn-sec" style="font-size:12px;" onclick="ciColumns()"><svg class=ic aria-hidden=true><use href=#i-grid /></svg>Columns</button>
+    <button class="btn-sec" style="font-size:12px;" onclick="ciFilterOpen()"><svg class=ic aria-hidden=true><use href=#i-search /></svg>Filter</button>
     <button id="arch-toggle-btn" class="btn-sec" style="font-size:12px;" onclick="toggleArchivedView()">Archived clients (0)</button>
     <button id="add-client-btn" class="task-add-btn" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:8px 16px;display:none;" onclick="openAddClientPanel()">+ Add Client</button>
     <button id="batch-archive-btn" class="task-del-btn" style="display:none;height:34px;" onclick="bulkArchiveSelected()">Archive selected</button>
