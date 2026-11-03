@@ -11,7 +11,9 @@
 -- people who may use the portal itself (everyone in staff except the runner)
 create or replace function public.is_portal_staff() returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from staff
+  -- aal2 = signed in with the authenticator code (see supabase-security-upgrade.sql)
+  select coalesce(auth.jwt() ->> 'aal', '') = 'aal2'
+     and exists (select 1 from staff
                  where lower(email) = lower(auth.jwt() ->> 'email')
                    and role in ('admin','reviewer','staff'));
 $$;
