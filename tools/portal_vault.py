@@ -33,6 +33,9 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+RAW = "https://raw.githubusercontent.com/sohaibsaeed9/TAX/main/"
+# Standalone mode: the script was downloaded on its own (no repo checkout, no git needed).
+STANDALONE = not os.path.isdir(os.path.join(ROOT, ".git"))
 SUPA_URL = "https://rscvtbhzygqnyjzgxmyh.supabase.co"
 SUPA_KEY = "sb_publishable_EpqMmgUo5pObHDvcC24EMw_2FpX8Ttc"
 ITER = 600000
@@ -150,6 +153,9 @@ def login(email):
 def old_page_vault(path):
     if path:
         s = open(path, encoding="utf-8").read()
+    elif STANDALONE:
+        print("Downloading the live portal page from GitHub...")
+        s = urllib.request.urlopen(RAW + "portal.html", timeout=120).read().decode("utf-8")
     else:
         subprocess.run(["git", "-C", ROOT, "fetch", "-q", "origin", "main"], check=False)
         s = subprocess.run(["git", "-C", ROOT, "show", "origin/main:portal.html"], capture_output=True, text=True, encoding="utf-8").stdout
@@ -158,6 +164,16 @@ def old_page_vault(path):
     return json.loads(m.group(1))
 
 def rekey_comp_files(old_dk, new_dk):
+    if STANDALONE:
+        for name in ["ty2026.enc.json"]:
+            e = json.loads(urllib.request.urlopen(RAW + "comp/" + name, timeout=120).read().decode("utf-8"))
+            raw = AESGCM(old_dk).decrypt(unb64(e["iv"]), unb64(e["ct"]), None)
+            iv = os.urandom(12)
+            e.update({"iv": b64(iv), "ct": b64(AESGCM(new_dk).encrypt(iv, raw, None))})
+            out = os.path.join(os.getcwd(), name)
+            json.dump(e, open(out, "w", encoding="utf-8"), separators=(",", ":"))
+            print("Re-encrypted computation template saved as", out)
+        return
     for f in glob.glob(os.path.join(ROOT, "comp", "*.enc.json")):
         e = json.load(open(f, encoding="utf-8"))
         raw = AESGCM(old_dk).decrypt(unb64(e["iv"]), unb64(e["ct"]), None)
@@ -191,7 +207,10 @@ def cmd_migrate(a):
     s.put_vault(vault)
     print("Vault uploaded to Supabase.")
     rekey_comp_files(old_dk, new_dk)
-    print("\nDone. Commit the changed comp/*.enc.json files on the security branch, then merge it.")
+    if STANDALONE:
+        print("\nDone. Send the file ty2026.enc.json (in this folder) to Claude, or upload it to the comp folder of the security-hardening branch on GitHub.")
+    else:
+        print("\nDone. Commit the changed comp/*.enc.json files on the security branch, then merge it.")
     others = [k for k in vault["users"] if k != a.user]
     if others:
         print("For", ", ".join(others) + ": in Supabase → Authentication → Users, create (or reset) their user with the same",
