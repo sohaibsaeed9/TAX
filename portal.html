@@ -5327,6 +5327,7 @@ function wireInvoices(){
   }
   // Pre-fill invoice number based on first client or generic
   var invNo=$("inv-number"); if(invNo) invNo.value=nextInvoiceNo();
+  var adjBtn=$("inv-adj-add"); if(adjBtn) adjBtn.onclick=function(){ addAdjustmentRow("",""); };
   // Update inv number when client changes
   if(clientSel) clientSel.addEventListener("change",function(){
     var idx=parseInt(clientSel.value);
@@ -5377,6 +5378,15 @@ window.setInvType=function(btn){
 window.invSigToggle=function(){ var sel=$("inv-signatory"), o=$("inv-signatory-other"); if(sel&&o) o.style.display=(sel.value==="__other__")?"block":"none"; };
 function invSignatory(){ var sel=$("inv-signatory"); if(!sel) return "Muhammad Sohaib Saeed"; if(sel.value==="__other__"){ var o=$("inv-signatory-other"); return (o&&o.value.trim())||"Muhammad Sohaib Saeed"; } return sel.value; }
 function invSetSignatory(name){ var sel=$("inv-signatory"), o=$("inv-signatory-other"); if(!sel) return; name=name||"Muhammad Sohaib Saeed"; var found=false; for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===name&&name!=="__other__"){ found=true; break; } } if(found){ sel.value=name; if(o){ o.style.display="none"; o.value=""; } } else { sel.value="__other__"; if(o){ o.style.display="block"; o.value=name; } } }
+function _invAdjustments(){ var out=[]; document.querySelectorAll("#inv-adj-list .inv-adj-row").forEach(function(r){ var d=((r.querySelector(".inv-adj-desc")||{}).value||"").trim(); var a=parseFloat((r.querySelector(".inv-adj-amt")||{}).value)||0; if(d||a) out.push({desc:d,amount:a}); }); return out; }
+window.addAdjustmentRow=function(desc,amount){
+  var list=$("inv-adj-list"); if(!list) return;
+  var row=document.createElement("div"); row.className="inv-adj-row"; row.style.cssText="display:flex;gap:4px;align-items:center;margin-bottom:6px;";
+  row.innerHTML='<input type="text" class="inv-adj-desc" placeholder="Adjustment description" value="'+escHtml(desc||"")+'" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:11px;">'
+    +'<input type="number" class="inv-adj-amt" placeholder="0" value="'+(amount===0||amount?amount:"")+'" oninput="calcInvoiceTotal()" title="Use a minus sign to reduce the amount" style="width:80px;border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:11px;text-align:right;font-family:\'IBM Plex Mono\',monospace;">'
+    +'<span onclick="this.closest(\'.inv-adj-row\').remove();calcInvoiceTotal();" title="Remove" style="color:#dc2626;cursor:pointer;font-size:15px;padding:0 2px;line-height:1;">\u00d7</span>';
+  list.appendChild(row);
+};
 window.addInvoiceLine=function addInvoiceLine(prefill){
   var tbody=$("inv-lines");
   if(!tbody) return;
@@ -5406,7 +5416,8 @@ window.calcInvoiceTotal=function(){
     var net=tr.querySelector(".inv-net"); if(net) net.textContent=fmt(amt-d);
   });
   var received=parseFloat(($("inv-received")||{}).value)||0;
-  var net=gross-disc, payable=net-received;
+  var adjSum=_invAdjustments().reduce(function(s,a){ return s+(a.amount||0); },0);
+  var net=gross-disc, payable=net+adjSum-received;
   var stEl=$("inv-subtotal"); if(stEl) stEl.textContent=fmt(gross);
   var dr=$("inv-discount-row"); if(dr) dr.style.display=disc>0?"flex":"none";
   var dv=$("inv-discount"); if(dv) dv.textContent="- "+fmt(disc);
@@ -5433,7 +5444,8 @@ function saveInvoice(){
     if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount,discount:discount});
   });
   if(!items.length){ alert("Please add at least one line item."); return; }
-  var total=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
+  var net=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
+  var adjustments=_invAdjustments(); var total=net+adjustments.reduce(function(s,a){ return s+(a.amount||0); },0);
   var received=parseFloat(($("inv-received")||{}).value)||0;
   var inv={
     id:String(Date.now()),
@@ -5444,6 +5456,7 @@ function saveInvoice(){
     dueDate:dueDate,
     items:items,
     notes:notes,
+    adjustments:adjustments,
     total:total,discount:discountTotal,
     received:received,
     paid:received>=total&&total>0,
@@ -5456,6 +5469,7 @@ function saveInvoice(){
   var invNoNew=$("inv-number"); if(invNoNew) invNoNew.value=nextInvoiceNo();
   if(clientSel) clientSel.value="";
   var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
+  if($("inv-adj-list")) $("inv-adj-list").innerHTML="";
   if($("inv-notes")) $("inv-notes").value="Kindly make payment at your earliest convenience.\nSeparate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.";
   if($("inv-due")) $("inv-due").value="";
   if($("inv-received")) $("inv-received").value="";
@@ -5541,6 +5555,9 @@ window.editInvoice=function(id){
     if(inputs[2]) inputs[2].value=it.name||"";
     if(inputs[3]) inputs[3].value=it.amount||0; if(inputs[4]) inputs[4].value=it.discount||""; calcInvoiceTotal();
   });
+  if($("inv-adj-list")) $("inv-adj-list").innerHTML="";
+  (inv.adjustments||[]).forEach(function(a){ addAdjustmentRow(a.desc||"",a.amount); });
+  calcInvoiceTotal();
   // Mark form as editing this invoice
   var saveBtn=$("inv-save-btn");
   if(saveBtn){
@@ -5577,12 +5594,13 @@ window.editInvoice=function(id){
       if(desc||amount) items.push({desc:desc,taxYear:taxYear,name:name,amount:amount,discount:discount});
     });
     if(!items.length){ alert("Please add at least one line item."); return; }
-    var total=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
+    var net=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
+    var adjustments=_invAdjustments(); var total=net+adjustments.reduce(function(s,a){ return s+(a.amount||0); },0);
     var received=parseFloat(($("inv-received")||{}).value)||0;
     // Update existing invoice in place
     var idx=INVOICES.findIndex(function(i){ return i.id===editId; });
     if(idx>-1){
-      INVOICES[idx]=Object.assign(INVOICES[idx],{invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,signatory:invSignatory(),total:total,discount:discountTotal,received:received,paid:received>=total&&total>0});
+      INVOICES[idx]=Object.assign(INVOICES[idx],{invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,adjustments:adjustments,signatory:invSignatory(),total:total,discount:discountTotal,received:received,paid:received>=total&&total>0});
       saveInvoices(); renderInvoiceList();
     }
     // Reset form back to new-invoice mode
@@ -5592,6 +5610,7 @@ window.editInvoice=function(id){
     var invNoNew=$("inv-number"); if(invNoNew) invNoNew.value=nextInvoiceNo();
     if(clientSel) clientSel.value="";
     var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
+    if($("inv-adj-list")) $("inv-adj-list").innerHTML="";
     if($("inv-notes")) $("inv-notes").value="Kindly make payment at your earliest convenience.\nSeparate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.";
     if($("inv-due")) $("inv-due").value="";
     if($("inv-received")) $("inv-received").value="";
@@ -5630,7 +5649,8 @@ function buildInvoiceHTML(inv){
   var dateLabel=inv.date?new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"long",year:"numeric"}):"—";
   var received=inv.received||0;
   var discountSum=inv.items.reduce(function(s,it){ return s+(it.discount||0); },0);
-  var subtotal=inv.total+discountSum;
+  var adjList=inv.adjustments||[];
+  var subtotal=inv.items.reduce(function(s,it){ return s+(it.amount||0); },0);
   var payable=inv.total-received;
   var noteLines=(inv.notes||"").split("\n").filter(Boolean);
   var notesHTML=noteLines.map(function(n,i){ return '<p style="font-size:11px;color:#374151;margin:0 0 5px 0;">'+(i+1)+'.&nbsp;&nbsp;'+escHtml(n)+'</p>'; }).join("");
@@ -5761,6 +5781,7 @@ function buildInvoiceHTML(inv){
   '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:2px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Subtotal</span><span style="font-family:monospace;font-weight:700;">'+fmt(subtotal)+'</span></div>'+
   (discountSum>0?'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Less: Discount</span><span style="font-family:monospace;font-weight:700;">- '+fmt(discountSum)+'</span></div>':'')+
   '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">Received</span><span style="font-family:monospace;font-weight:700;color:#059669;">'+fmt(received)+'</span></div>'+
+  adjList.map(function(a){ return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;"><span style="color:#6b7280;">'+escHtml(a.desc||"Adjustment")+'</span><span style="font-family:monospace;font-weight:700;">'+(a.amount<0?"- ":"")+fmt(Math.abs(a.amount||0))+'</span></div>'; }).join("")+
   '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:2px solid #111;font-size:13px;font-weight:800;"><span style="color:#111;font-size:11px;">TOTAL PAYABLE</span><span style="font-family:monospace;color:#111;font-size:14px;">'+fmt(payable>0?payable:0)+'</span></div>'+
   '</div>'+
   '</div>'+
@@ -9103,6 +9124,8 @@ Separate professional charges shall apply in the event of any tax proceeding / l
           <span style="color:var(--ink-2);">Received</span>
           <input type="number" id="inv-received" placeholder="0" min="0" oninput="calcInvoiceTotal()" style="width:100px;border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:12px;text-align:right;font-family:'IBM Plex Mono',monospace;">
         </div>
+        <div id="inv-adj-list"></div>
+        <button type="button" id="inv-adj-add" style="background:none;border:none;color:var(--navy-700);font-size:12px;font-weight:600;cursor:pointer;padding:2px 0 8px;">+ Add adjustment</button>
         <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;"><span style="color:var(--navy-900);">Total Payable</span><span id="inv-total" style="font-family:'IBM Plex Mono',monospace;color:var(--gold);">Rs. 0</span></div>
       </div>
     </div>
