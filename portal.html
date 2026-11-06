@@ -5065,13 +5065,14 @@ function openTagPrintWindow(tagsHtml, title){
     + '<style>'
     + '@page{margin:8mm;size:A4;}'
     + 'body{margin:0;padding:0;font-family:"Times New Roman",Times,serif;}'
-    + '.file-tag{width:172.5mm;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;margin-bottom:5mm;page-break-inside:avoid;box-sizing:border-box;overflow:hidden;}'
+    + '.file-tag{width:172.5mm;max-width:100%;display:grid;grid-template-columns:14.93mm 1fr;border:1.5px solid #000;margin:0 auto 5mm;page-break-inside:avoid;box-sizing:border-box;overflow:hidden;}'
     + '.tag-side{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;font-weight:700;text-align:center;padding:1mm;overflow:hidden;word-break:break-all;}'
     + '.tag-main{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2mm 4mm;overflow:hidden;}'
     + '.tag-name,.tag-year{font-weight:700;white-space:nowrap;display:block;font-family:"Times New Roman",Times,serif;}'
     + '@media print{.no-print{display:none!important;}body{margin:0;}}'
+    + '.tag-wrap{display:flex;flex-direction:column;align-items:center;}'
     + '</style></head><body>'
-    + tagsHtml
+    + '<div class="tag-wrap">'+tagsHtml+'</div>'
     + '<p class="no-print" style="margin-top:16px;"><button onclick="window.print()" style="padding:10px 24px;font-size:14px;cursor:pointer;background:#1a2744;color:#fff;border:none;border-radius:6px;">Print</button>&nbsp;<button onclick="window.close()" style="padding:10px 24px;font-size:14px;cursor:pointer;">Close</button></p>'
     + '</body></html>');
   win.document.close();
