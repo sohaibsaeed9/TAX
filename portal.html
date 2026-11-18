@@ -5462,7 +5462,7 @@ function saveInvoice(){
   saveInvoices();
   // Reset form
   var invNoNew=$("inv-number"); if(invNoNew) invNoNew.value=nextInvoiceNo();
-  if(clientSel) clientSel.value="";
+  if($("inv-client-sel")) $("inv-client-sel").value="";
   var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
   if($("inv-adj-list")) $("inv-adj-list").innerHTML="";
   invRefreshClients();
@@ -5604,7 +5604,7 @@ window.editInvoice=function(id){
     saveBtn.textContent="Save Invoice";
     var title=$("inv-form-title"); if(title) title.textContent="New Invoice";
     var invNoNew=$("inv-number"); if(invNoNew) invNoNew.value=nextInvoiceNo();
-    if(clientSel) clientSel.value="";
+    if($("inv-client-sel")) $("inv-client-sel").value="";
     var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
     if($("inv-adj-list")) $("inv-adj-list").innerHTML="";
     if($("inv-notes")) $("inv-notes").value="Kindly make payment at your earliest convenience.\nSeparate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.";
