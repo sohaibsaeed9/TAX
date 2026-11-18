@@ -3317,6 +3317,7 @@ window.showPage = function showPage(id){
   $("tab-"+id).classList.add("on");
   if(id==="filing"&&window.renderFiling) renderFiling();
   if(id==="salestax"&&window.renderSalesTax) renderSalesTax();
+  if(id==="invoices"&&typeof invRefreshClients==="function") invRefreshClients();
   if(id==="irisnotices"&&window.IRIS) IRIS.noticesPage($("pg-irisnotices"));
   if(id==="irissync"&&window.IRIS) IRIS.syncPage($("pg-irissync"));
   if(id==="dashboard"&&window.renderDashToday){ _dtLoad._at=0; _dtLoad._busy=false; renderDashToday(); }
@@ -5316,26 +5317,19 @@ function nextInvoiceNo(){
   return "INV-"+new Date().getFullYear()+"-"+String(seq).padStart(3,"0");
 }
 
+function invRefreshClients(){ var dl=$("inv-client-list"); if(!dl) return; var h=""; for(var i=0;i<ALL_CLIENTS.length;i++){ var c=getClient(i); if(c&&c.archived) continue; h+='<option value="'+escHtml(c.name)+'">'+escHtml(c.ntn?"NTN "+c.ntn:(c.id||""))+'</option>'; } dl.innerHTML=h; }
+function invResolveClient(){ var el=$("inv-client-sel"); var v=((el||{}).value||"").trim(); if(!v) return null; var lv=v.toLowerCase(); for(var i=0;i<ALL_CLIENTS.length;i++){ var c=getClient(i); if(c&&(c.name||"").toLowerCase()===lv) return {idx:i,name:c.name}; } return {idx:-1,name:v}; }
 function wireInvoices(){
   var clientSel=$("inv-client-sel");
-  if(clientSel && clientSel.options.length<=1){
-    for(var i=0;i<ALL_CLIENTS.length;i++){
-      var opt=document.createElement("option");
-      opt.value=String(i);
-      opt.textContent=ALL_CLIENTS[i].name+(ALL_CLIENTS[i].ntn?" — NTN: "+ALL_CLIENTS[i].ntn:"");
-      clientSel.appendChild(opt);
-    }
-  }
+  invRefreshClients();
   // Pre-fill invoice number based on first client or generic
   var invNo=$("inv-number"); if(invNo) invNo.value=nextInvoiceNo();
   var adjBtn=$("inv-adj-add"); if(adjBtn) adjBtn.onclick=function(){ addAdjustmentRow("",""); };
-  // Update inv number when client changes
+  // Update inv number when the client name changes (picked or typed)
   if(clientSel) clientSel.addEventListener("change",function(){
-    var idx=parseInt(clientSel.value);
-    var invNoEl=$("inv-number");
-    if(invNoEl && !isNaN(idx)){
-      var c=ALL_CLIENTS[idx];
-      var abbrev=c.name.split(/\s+/)[0].toUpperCase().slice(0,8);
+    var r=invResolveClient(); var invNoEl=$("inv-number");
+    if(invNoEl && r && r.name && !clientSel.dataset.editing){
+      var abbrev=r.name.split(/\s+/)[0].toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,8)||"INV";
       var seq=parseInt(localStorage.getItem("sc_invoice_seq")||"0")+1;
       invNoEl.value=abbrev+"/"+seq+"/"+new Date().getFullYear();
     }
@@ -5426,9 +5420,9 @@ window.calcInvoiceTotal=function(){
 };
 
 function saveInvoice(){
-  var clientSel=$("inv-client-sel");
-  if(!clientSel||clientSel.value==="") { alert("Please select a client."); return; }
-  var clientIdx=parseInt(clientSel.value);
+  var _rc=invResolveClient();
+  if(!_rc){ alert("Please enter or pick a client name."); return; }
+  var clientIdx=_rc.idx, clientName=_rc.name;
   var invNo=($("inv-number")||{}).value||nextInvoiceNo();
   var date=($("inv-date")||{}).value||"";
   var dueDate=($("inv-due")||{}).value||"";
@@ -5452,7 +5446,7 @@ function saveInvoice(){
     id:String(Date.now()),
     invoiceNo:invNo,
     clientIdx:clientIdx,
-    clientName:ALL_CLIENTS[clientIdx].name,
+    clientName:clientName,
     date:date,
     dueDate:dueDate,
     items:items,
@@ -5471,6 +5465,7 @@ function saveInvoice(){
   if(clientSel) clientSel.value="";
   var tbody=$("inv-lines"); if(tbody) tbody.innerHTML="";
   if($("inv-adj-list")) $("inv-adj-list").innerHTML="";
+  invRefreshClients();
   if($("inv-notes")) $("inv-notes").value="Kindly make payment at your earliest convenience.\nSeparate professional charges shall apply in the event of any tax proceeding / litigation for the Tax Year under reference.";
   if($("inv-due")) $("inv-due").value="";
   if($("inv-received")) $("inv-received").value="";
@@ -5538,7 +5533,7 @@ window.editInvoice=function(id){
   var form=$("inv-form-section"); if(form) form.scrollIntoView({behavior:"smooth"});
   // Pre-fill header fields
   var sel=$("inv-client-sel");
-  if(sel){ sel.value=String(inv.clientIdx); sel.dispatchEvent(new Event("change")); }
+  if(sel){ sel.dataset.editing="1"; sel.value=inv.clientName||((inv.clientIdx>=0&&ALL_CLIENTS[inv.clientIdx])?getClient(inv.clientIdx).name:""); setTimeout(function(){ delete sel.dataset.editing; },50); }
   var invNo=$("inv-number"); if(invNo) invNo.value=inv.invoiceNo;
   var dt=$("inv-date"); if(dt) dt.value=inv.date||"";
   var due=$("inv-due"); if(due) due.value=inv.dueDate||"";
@@ -5576,9 +5571,9 @@ window.editInvoice=function(id){
     var editId=saveBtn&&saveBtn.dataset.editId;
     if(!editId){ _origSave&&_origSave(); return; }
     // Collect form data same as saveInvoice
-    var clientSel=$("inv-client-sel");
-    if(!clientSel||clientSel.value==="") { alert("Please select a client."); return; }
-    var clientIdx=parseInt(clientSel.value);
+    var _rc=invResolveClient();
+    if(!_rc){ alert("Please enter or pick a client name."); return; }
+    var clientIdx=_rc.idx, clientName=_rc.name;
     var invNo=($("inv-number")||{}).value||"";
     var date=($("inv-date")||{}).value||"";
     var dueDate=($("inv-due")||{}).value||"";
@@ -5601,7 +5596,7 @@ window.editInvoice=function(id){
     // Update existing invoice in place
     var idx=INVOICES.findIndex(function(i){ return i.id===editId; });
     if(idx>-1){
-      INVOICES[idx]=Object.assign(INVOICES[idx],{invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,adjustments:adjustments,signatory:invSignatory(),total:total,discount:discountTotal,received:received,paid:received>=total&&total>0});
+      INVOICES[idx]=Object.assign(INVOICES[idx],{invoiceNo:invNo,clientIdx:clientIdx,clientName:clientName,date:date,dueDate:dueDate,items:items,notes:notes,adjustments:adjustments,signatory:invSignatory(),total:total,discount:discountTotal,received:received,paid:received>=total&&total>0});
       saveInvoices(); renderInvoiceList();
     }
     // Reset form back to new-invoice mode
@@ -5628,7 +5623,7 @@ window.openNewInvoice=function(clientIdx){
   },100);
 };
 function buildInvoiceHTML(inv){
-  var c=getClient(inv.clientIdx)||{name:inv.clientName,address:"",ntn:"",sr:""};
+  var c=(inv.clientIdx>=0?getClient(inv.clientIdx):null)||{name:inv.clientName,address:"",ntn:"",sr:""};
   var hasName=inv.items.some(function(it){ return (it.name||"").trim(); });
   var hasTaxYear=inv.items.some(function(it){ return (it.taxYear||"").trim(); });
   var hasDiscount=inv.items.some(function(it){ return (it.discount||0)>0; });
@@ -5826,9 +5821,9 @@ window.viewInvoice=function(id){
 };
 
 window.previewCurrentInvoice=function(){
-  var clientSel=$("inv-client-sel");
-  if(!clientSel||clientSel.value==="") { alert("Please select a client first."); return; }
-  var clientIdx=parseInt(clientSel.value);
+  var _rc=invResolveClient();
+  if(!_rc){ alert("Please enter or pick a client name first."); return; }
+  var clientIdx=_rc.idx, clientName=_rc.name;
   var invNo=($("inv-number")||{}).value||nextInvoiceNo();
   var date=($("inv-date")||{}).value||"";
   var dueDate=($("inv-due")||{}).value||"";
@@ -5846,7 +5841,7 @@ window.previewCurrentInvoice=function(){
   });
   var total=items.reduce(function(s,it){ return s+it.amount-(it.discount||0); },0); var discountTotal=items.reduce(function(s,it){ return s+(it.discount||0); },0);
   var received=parseFloat(($("inv-received")||{}).value)||0;
-  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:ALL_CLIENTS[clientIdx].name,date:date,dueDate:dueDate,items:items,notes:notes,total:total,discount:discountTotal,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
+  var preview={id:"preview",invoiceNo:invNo,clientIdx:clientIdx,clientName:clientName,date:date,dueDate:dueDate,items:items,notes:notes,total:total,discount:discountTotal,received:received,paid:received>=total&&total>0,createdAt:new Date().toISOString()};
   var w=window.open("","_blank","width=900,height=950");
   w.document.write(buildInvoiceHTML(preview));
   w.document.close();
@@ -9082,9 +9077,8 @@ window.advInsertTable = function(){
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
       <div class="task-field">
         <label>Client</label>
-        <select id="inv-client-sel" style="width:100%;background:#fbfaf7;border:1.5px solid var(--line);color:var(--navy-900);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;">
-          <option value="">— Select Client —</option>
-        </select>
+        <input id="inv-client-sel" list="inv-client-list" autocomplete="off" placeholder="Type a name, or pick a client" style="width:100%;box-sizing:border-box;background:#fbfaf7;border:1.5px solid var(--line);color:var(--navy-900);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;">
+        <datalist id="inv-client-list"></datalist>
       </div>
       <div class="task-field"><label>Invoice No.</label><input type="text" id="inv-number" placeholder="INV-2026-001" style="width:100%;box-sizing:border-box;background:#fbfaf7;border:1.5px solid var(--line);color:var(--navy-900);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
       <div class="task-field"><label>Invoice Date</label><input type="date" id="inv-date" style="width:100%;box-sizing:border-box;background:#fbfaf7;border:1.5px solid var(--line);color:var(--navy-900);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:9px 14px;border-radius:7px;outline:none;"></div>
