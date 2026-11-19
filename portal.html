@@ -5475,18 +5475,34 @@ function saveInvoice(){
   alert("Invoice "+inv.invoiceNo+" saved!");
 }
 
+/* Billed = services + positive adjustments. A negative adjustment is money settled
+   (offset/discount taken), so it counts as collected, not outstanding. */
+function invAmounts(inv){
+  var items=inv.items||[], adj=inv.adjustments||[];
+  var gross=items.reduce(function(s,it){ return s+(it.amount||0); },0);
+  var ld=items.reduce(function(s,it){ return s+(it.discount||0); },0);
+  var net=gross-ld, pos=0, negAbs=0;
+  adj.forEach(function(a){ var v=a.amount||0; if(v>=0) pos+=v; else negAbs+=(-v); });
+  var billed=net+pos, received=inv.received||0, settled=received+negAbs;
+  var autoPaid=billed>0 && settled>=billed-0.5;
+  var isPaid=!!inv.paid||autoPaid;
+  var collected=isPaid?billed:Math.min(billed,settled);
+  var outstanding=Math.max(0,billed-collected);
+  return {net:net,pos:pos,negAbs:negAbs,billed:billed,received:received,settled:settled,isPaid:isPaid,collected:collected,outstanding:outstanding};
+}
+function invAdjText(inv){ return (inv.adjustments||[]).map(function(a){ return (a.desc||"Adjustment")+" "+((a.amount||0)<0?"-":"")+fmt(Math.abs(a.amount||0)); }).join("; "); }
 function renderInvoiceList(){
   var list=$("inv-list"); if(!list) return;
   var filt=($("inv-filter")||{}).value||"all";
   var search=(($("inv-search")||{}).value||"").toLowerCase();
   var filtered=INVOICES.filter(function(inv){
-    if(filt==="paid"&&!inv.paid) return false;
-    if(filt==="unpaid"&&inv.paid) return false;
+    if(filt==="paid"&&!invAmounts(inv).isPaid) return false;
+    if(filt==="unpaid"&&invAmounts(inv).isPaid) return false;
     if(search && inv.clientName.toLowerCase().indexOf(search)<0 && inv.invoiceNo.toLowerCase().indexOf(search)<0) return false;
     return true;
   });
-  var totalBilled=INVOICES.reduce(function(s,i){ return s+i.total; },0);
-  var totalPaid=INVOICES.filter(function(i){ return i.paid; }).reduce(function(s,i){ return s+i.total; },0);
+  var totalBilled=0, totalPaid=0;
+  INVOICES.forEach(function(i){ var a=invAmounts(i); totalBilled+=a.billed; totalPaid+=a.collected; });
   var summary=$("inv-summary");
   if(summary) summary.innerHTML=
     '<div class="cstat"><div class="cstat-val">'+INVOICES.length+'</div><div class="cstat-label">Total Invoices</div></div>'+
@@ -5496,13 +5512,14 @@ function renderInvoiceList(){
   if(!filtered.length){ list.innerHTML='<div class="task-empty">No invoices found.</div>'; return; }
   var html='<div class="client-table-wrap"><div class="client-table-header" style="grid-template-columns:120px 1fr 140px 110px 90px 220px;"><div>Invoice #</div><div>Client</div><div>Date</div><div>Amount</div><div>Status</div><div>Actions</div></div>';
   filtered.forEach(function(inv){
+    var _a=invAmounts(inv);
     var dateLabel=inv.date?new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"}):"—";
     html+='<div class="client-row" style="grid-template-columns:120px 1fr 140px 110px 90px 220px;">';
     html+='<div style="font-weight:600;font-size:12px;color:#1a2744;">'+escHtml(inv.invoiceNo)+'</div>';
-    html+='<div class="client-name">'+escHtml(inv.clientName)+'</div>';
+    html+='<div class="client-name">'+escHtml(inv.clientName)+((inv.adjustments||[]).length?'<div style="font-size:10.5px;color:#8a5a0b;font-weight:400;">'+escHtml(invAdjText(inv))+'</div>':'')+'</div>';
     html+='<div style="font-size:12px;color:#6b7280;">'+dateLabel+'</div>';
-    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:600;">'+fmt(inv.total)+'</div>';
-    html+='<div><span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:'+(inv.paid?'#d1fae5':'#fee2e2')+';color:'+(inv.paid?'#065f46':'#991b1b')+';">'+(inv.paid?'PAID':'UNPAID')+'</span></div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:600;">'+fmt(_a.billed)+((_a.negAbs>0)?'<div style="font-size:10px;color:#2e7d4f;font-weight:400;">'+fmt(_a.negAbs)+' adjusted</div>':'')+'</div>';
+    html+='<div><span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:'+(_a.isPaid?'#d1fae5':'#fee2e2')+';color:'+(_a.isPaid?'#065f46':'#991b1b')+';">'+(_a.isPaid?'PAID':'UNPAID')+'</span></div>';
     html+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
     html+='<button onclick="viewInvoice(\''+inv.id+'\')" style="background:#1a2744;color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">View/Print</button>';
     html+='<button onclick="editInvoice(\''+inv.id+'\')" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">Edit</button>';
@@ -6475,6 +6492,7 @@ function renderProfileTab(){
     html += '</div>';
     if(clientInvs.length){
       clientInvs.forEach(function(inv){
+        var _a=invAmounts(inv);
         var dateLabel = inv.date ? new Date(inv.date+"T00:00:00").toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"}) : "—";
         html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f3f4f6;">';
         html += '<div>';
@@ -6482,8 +6500,8 @@ function renderProfileTab(){
         html += '<div style="font-size:11px;color:#9ca3af;">'+dateLabel+'</div>';
         html += '</div>';
         html += '<div style="display:flex;align-items:center;gap:10px;">';
-        html += '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;font-weight:600;color:#1a2744;">'+fmt(inv.total)+'</span>';
-        html += '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:'+(inv.paid?'#d1fae5':'#fee2e2')+';color:'+(inv.paid?'#065f46':'#991b1b')+';">'+(inv.paid?'PAID':'UNPAID')+'</span>';
+        html += '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;font-weight:600;color:#1a2744;">'+fmt(_a.billed)+'</span>';
+        html += '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:'+(_a.isPaid?'#d1fae5':'#fee2e2')+';color:'+(_a.isPaid?'#065f46':'#991b1b')+';">'+(_a.isPaid?'PAID':'UNPAID')+'</span>';
         html += '<button onclick="viewInvoice(\''+inv.id+'\')" style="background:#f3f4f6;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;color:#374151;">View</button>';
         html += '<button onclick="toggleInvoicePaid(\''+inv.id+'\')" style="background:#f3f4f6;border:none;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;color:#374151;">'+(inv.paid?'Mark Unpaid':'Mark Paid')+'</button>';
         html += '</div>';
@@ -7805,7 +7823,7 @@ var EXPORTERS={
   returns:function(){ var q=_q("ret-search"), T={income:"Income Tax",sales:"Sales Tax",wealth:"Wealth Statement",wht:"WHT Statement"};
     return {title:"Return Filing Register",cols:["Client","Tax Year","Return Type","Filed Date","Status"],rows:RETURNS.filter(function(r){ return _has(r,q,["client"]); }).map(function(r){ return [r.client,r.year,T[r.type]||r.type,_fd(r.date),r.status==="filed"?"Filed":r.status==="pending"?"Pending":"N/A"]; })}; },
   fees:function(){ return {title:"Fee Register",cols:["Client","Description","Date","Fee (PKR)","Received (PKR)","Outstanding (PKR)"],rows:FEES.map(function(f){ return [f.client,f.desc||"",_fd(f.date),f.amount||0,f.received||0,(f.amount||0)-(f.received||0)]; })}; },
-  invoices:function(){ return {title:"Invoices",cols:["Invoice No.","Client","Date","Due Date","Discount (PKR)","Total after discount (PKR)","Received (PKR)","Balance (PKR)","Status"],rows:INVOICES.map(function(v){ return [v.invoiceNo,v.clientName,_fd(v.date),_fd(v.dueDate),v.discount||0,v.total||0,v.received||0,(v.total||0)-(v.received||0),v.paid?"Paid":"Unpaid"]; })}; },
+  invoices:function(){ return {title:"Invoices",cols:["Invoice No.","Client","Date","Due Date","Discount (PKR)","Billed (PKR)","Received (PKR)","Adjustments","Adjusted (PKR)","Collected (PKR)","Outstanding (PKR)","Status"],rows:INVOICES.map(function(v){ var a=invAmounts(v); return [v.invoiceNo,v.clientName,_fd(v.date),_fd(v.dueDate),v.discount||0,a.billed,a.received,invAdjText(v),a.negAbs,a.collected,a.outstanding,a.isPaid?"Paid":"Unpaid"]; })}; },
   comms:function(){ return {title:"Communication Log",cols:["Client","Type","Date","Follow-up","Notes"],rows:COMMS.map(function(c){ return [c.client,c.type||"",_fd(c.date),_fd(c.followup),c.notes||""]; })}; },
   iris:function(){ var q=_q("iris-global-search"), rows=[];
     Object.keys(IRIS_DATA).forEach(function(k){ var recs=IRIS_DATA[k]; if(!recs||!recs.length) return; var i=parseInt(k,10), c=(i>=0&&i<ALL_CLIENTS.length)?getClient(i):{name:"Unknown Client"};
